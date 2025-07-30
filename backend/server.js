@@ -12,7 +12,25 @@ const JWT_SECRET = process.env.JWT_SECRET || 'Moon-secret-key';
 
 // Cấu hình CORS cho production
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000'],
+  origin: function (origin, callback) {
+    // Cho phép requests không có origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://172.16.1.6:3000'];
+    
+    // Kiểm tra origin có trong danh sách cho phép không
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Kiểm tra IP range cho mạng LAN
+    const clientIP = origin.replace(/^https?:\/\//, '').split(':')[0];
+    if (clientIP.startsWith('172.16.') || clientIP.startsWith('192.168.')) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -85,7 +103,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Login
-app.post('/api/login', async (req, res) => {
+app.post('api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
     // So sánh username không phân biệt hoa thường
@@ -853,11 +871,12 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Moon Backend Server đang chạy trên port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 CORS Origins: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`🌐 LAN Access: http://172.16.1.6:${PORT}/api/health`);
 });
 
 // Graceful shutdown
