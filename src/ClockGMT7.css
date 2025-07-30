@@ -1,0 +1,30 @@
+.clock-gmt7-fixed {
+  position: fixed;
+  top: 18px;
+  right: 38px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #29547A;
+  letter-spacing: 1px;
+  z-index: 2000;
+  background: #fff;
+  padding: 6px 22px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(18,179,214,0.08);
+  border: 2px solid #29547A;
+  display: flex;
+  align-items: center;
+}
+.clock-gmt7-tz {
+  font-size: 13px;
+  color: #29547A;
+  margin-left: 6px;
+  font-weight: 500;
+}
+.clock-gmt7-inline {
+  font-size: 15px;
+  color: #29547A;
+  font-weight: 600;
+  margin-right: 12px;
+  letter-spacing: 1px;
+} 

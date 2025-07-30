@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moonne API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 3px; white-space: pre-wrap; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; }
+        .login-form { display: flex; flex-direction: column; gap: 10px; max-width: 300px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Moonne Backend API Test</h1>
+        
+        <div class="section">
+            <h3>1. Health Check</h3>
+            <button onclick="testHealth()">Test Health</button>
+            <div id="health-result" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>2. Initialize Demo Data</h3>
+            <button onclick="initDemo()">Initialize Demo Data</button>
+            <div id="demo-result" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>3. Login Test</h3>
+            <div class="login-form">
+                <input type="text" id="username" placeholder="Username" value="admin">
+                <input type="password" id="password" placeholder="Password" value="admin123">
+                <button onclick="login()">Login</button>
+            </div>
+            <div id="login-result" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>4. Tasks API (cần login trước)</h3>
+            <button onclick="getTasks()">Get Tasks</button>
+            <button onclick="createTask()">Create Task</button>
+            <div id="tasks-result" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>5. User Profile</h3>
+            <button onclick="getProfile()">Get Profile</button>
+            <div id="profile-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let authToken = localStorage.getItem('authToken');
+
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                const data = await response.json();
+                return { ok: response.ok, status: response.status, data };
+            } catch (error) {
+                return { ok: false, error: error.message };
+            }
+        }
+
+        async function testHealth() {
+            const result = await apiCall('/health');
+            document.getElementById('health-result').textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function initDemo() {
+            const result = await apiCall('/init-demo', { method: 'POST' });
+            document.getElementById('demo-result').textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const result = await apiCall('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({ username, password })
+            });
+
+            if (result.ok && result.data.token) {
+                authToken = result.data.token;
+                localStorage.setItem('authToken', authToken);
+                document.getElementById('login-result').textContent = '✅ Login successful!\n' + JSON.stringify(result.data, null, 2);
+            } else {
+                document.getElementById('login-result').textContent = '❌ Login failed!\n' + JSON.stringify(result, null, 2);
+            }
+        }
+
+        async function getTasks() {
+            const result = await apiCall('/tasks');
+            document.getElementById('tasks-result').textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function createTask() {
+            const result = await apiCall('/tasks', {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: 'Task test từ API',
+                    description: 'Mô tả task test',
+                    assigned_to: 'user1',
+                    priority: 'Trung bình'
+                })
+            });
+            document.getElementById('tasks-result').textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function getProfile() {
+            const result = await apiCall('/user/profile');
+            document.getElementById('profile-result').textContent = JSON.stringify(result, null, 2);
+        }
+
+        // Auto test health on load
+        window.onload = function() {
+            testHealth();
+        };
+    </script>
+</body>
+</html> 
