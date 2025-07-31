@@ -37,8 +37,7 @@ export default function ViTriChoNgoi() {
   const [walkwayRowIdx, setWalkwayRowIdx] = useState(0);
   const [showAddWalkwayCol, setShowAddWalkwayCol] = useState(false);
   const [walkwayColIdx, setWalkwayColIdx] = useState(0);
-  const [showDeleteWalkway, setShowDeleteWalkway] = useState(false);
-  const [deleteWalkwayIdx, setDeleteWalkwayIdx] = useState(0);
+
   const [showDeleteWalkwayCol, setShowDeleteWalkwayCol] = useState(false);
   const [deleteWalkwayColIdx, setDeleteWalkwayColIdx] = useState(0);
   const [showActionPanel, setShowActionPanel] = useState(false);
@@ -103,27 +102,34 @@ export default function ViTriChoNgoi() {
         
 
          
-         setGrid(seatData.grid || initialGrid);
-        setTagList(seatData.tagList || []);
-        // Ưu tiên walkwayColIndexes từ server, nếu không có thì dùng calculated
-        const finalWalkwayIndexes = seatData.walkwayColIndexes && seatData.walkwayColIndexes.length > 0 
-          ? seatData.walkwayColIndexes 
-          : calculatedIndexes;
+                  // Tính toán walkwayRowIndexes từ grid
+         const tempRowIndexes = [];
+         if (seatData.grid) {
+           seatData.grid.forEach((row, idx) => {
+             if (row && row.type === 'walkway-horizontal') {
+               tempRowIndexes.push(idx);
+             }
+           });
+         }
+         tempRowIndexes.sort((a,b)=>a-b);
+         
+         const finalWalkwayRowIndexes = seatData.walkwayRowIndexes && seatData.walkwayRowIndexes.length > 0
+           ? seatData.walkwayRowIndexes
+           : tempRowIndexes;
+         
+         // Khôi phục hàng đường đi nếu cần
+         const restoredGrid = restoreWalkwayRows(seatData.grid || initialGrid, finalWalkwayRowIndexes);
+         
+         setGrid(restoredGrid);
+         setTagList(seatData.tagList || []);
+         
+         // Ưu tiên walkwayColIndexes từ server, nếu không có thì dùng calculated
+         const finalWalkwayIndexes = seatData.walkwayColIndexes && seatData.walkwayColIndexes.length > 0 
+           ? seatData.walkwayColIndexes 
+           : calculatedIndexes;
 
-        setWalkwayColIndexes(finalWalkwayIndexes);
-        // 1. Thêm state cho walkwayRowIndexes
-        const tempRowIndexes = [];
-        if (seatData.grid) {
-          seatData.grid.forEach((row, idx) => {
-            if (row && row.type === 'walkway-horizontal') {
-              tempRowIndexes.push(idx);
-            }
-          });
-        }
-        const finalWalkwayRowIndexes = seatData.walkwayRowIndexes && seatData.walkwayRowIndexes.length > 0
-          ? seatData.walkwayRowIndexes
-          : tempRowIndexes;
-        setWalkwayRowIndexes(finalWalkwayRowIndexes);
+         setWalkwayColIndexes(finalWalkwayIndexes);
+         setWalkwayRowIndexes(finalWalkwayRowIndexes);
         setCurrentVersion(seatData.version || 0);
         setLastModifiedBy(seatData.lastModifiedBy || '');
         setLastModifiedAt(seatData.lastModifiedAt);
@@ -154,6 +160,42 @@ export default function ViTriChoNgoi() {
     }
   };
 
+  // Hàm chuẩn hóa grid trước khi lưu để đảm bảo không mất hàng đường đi
+  const normalizeGridBeforeSave = (grid) => {
+    return (Array.isArray(grid) ? grid : []).map(row => {
+      // Nếu là hàng đường đi, giữ nguyên object
+      if (row && row.type === 'walkway-horizontal') {
+        return row;
+      }
+      // Nếu là mảng (hàng thường), giữ nguyên
+      if (Array.isArray(row)) {
+        return row;
+      }
+      // Nếu không phải cả hai, chuyển thành mảng rỗng
+      return [];
+    });
+  };
+
+  // Hàm khôi phục hàng đường đi khi load dữ liệu
+  const restoreWalkwayRows = (grid, walkwayRowIndexes) => {
+    if (!Array.isArray(grid) || !Array.isArray(walkwayRowIndexes)) {
+      return grid;
+    }
+    
+    const newGrid = [...grid];
+    walkwayRowIndexes.forEach(idx => {
+      if (idx >= 0 && idx < newGrid.length) {
+        const currentRow = newGrid[idx];
+        // Nếu hàng hiện tại không phải là walkway-horizontal, khôi phục lại
+        if (!currentRow || currentRow.type !== 'walkway-horizontal') {
+          newGrid[idx] = { type: 'walkway-horizontal', text: 'Đường đi' };
+        }
+      }
+    });
+    
+    return newGrid;
+  };
+
   // Hàm lưu dữ liệu lên server
   const saveSeatDataToServer = async (newGrid, newTagList, newWalkwayColIndexes, newWalkwayRowIndexes) => {
     try {
@@ -168,8 +210,11 @@ export default function ViTriChoNgoi() {
         console.error('Không thể lấy thông tin user:', error);
       }
       
+      // Chuẩn hóa grid trước khi lưu
+      const normalizedGrid = normalizeGridBeforeSave(newGrid);
+      
       const seatData = {
-        grid: newGrid,
+        grid: normalizedGrid,
         tagList: newTagList,
         walkwayColIndexes: newWalkwayColIndexes,
         walkwayRowIndexes: newWalkwayRowIndexes,
@@ -190,7 +235,7 @@ export default function ViTriChoNgoi() {
       console.error('Lỗi khi lưu dữ liệu seat:', error);
       setSyncStatus('Lỗi lưu - đã lưu local');
       // Fallback về localStorage
-      localStorage.setItem('vitri_grid', JSON.stringify(newGrid));
+      localStorage.setItem('vitri_grid', JSON.stringify(normalizeGridBeforeSave(newGrid)));
       localStorage.setItem('vitri_taglist', JSON.stringify(newTagList));
     }
   };
@@ -213,27 +258,45 @@ export default function ViTriChoNgoi() {
     return () => clearInterval(syncInterval);
   }, [currentVersion]);
 
-  // Cập nhật walkwayColIndexes mỗi khi grid thay đổi
+  // Cập nhật walkwayColIndexes và walkwayRowIndexes mỗi khi grid thay đổi
   useEffect(() => {
     // Tính toán walkwayColIndexes từ grid hiện tại
-    const indexes = [];
+    const colIndexes = [];
     grid.forEach(row => {
       if (Array.isArray(row)) {
         row.forEach((cell, idx) => {
-          if (cell && cell.type === 'walkway-vertical' && !indexes.includes(idx)) {
-            indexes.push(idx);
+          if (cell && cell.type === 'walkway-vertical' && !colIndexes.includes(idx)) {
+            colIndexes.push(idx);
           }
         });
       }
     });
-    indexes.sort((a,b)=>a-b);
+    colIndexes.sort((a,b)=>a-b);
+    
+    // Tính toán walkwayRowIndexes từ grid hiện tại
+    const rowIndexes = [];
+    grid.forEach((row, idx) => {
+      if (row && row.type === 'walkway-horizontal') {
+        rowIndexes.push(idx);
+      }
+    });
+    rowIndexes.sort((a,b)=>a-b);
+    
+    // Đảm bảo grid luôn đúng định dạng
+    const normalizedGrid = normalizeGridBeforeSave(grid);
+    if (JSON.stringify(normalizedGrid) !== JSON.stringify(grid)) {
+      setGrid(normalizedGrid);
+    }
     
     // Chỉ cập nhật nếu khác với state hiện tại
-    if (JSON.stringify(indexes) !== JSON.stringify(walkwayColIndexes)) {
-
-      setWalkwayColIndexes(indexes);
+    if (JSON.stringify(colIndexes) !== JSON.stringify(walkwayColIndexes)) {
+      setWalkwayColIndexes(colIndexes);
     }
-  }, [grid, walkwayColIndexes]); // Chỉ chạy khi grid thay đổi
+    
+    if (JSON.stringify(rowIndexes) !== JSON.stringify(walkwayRowIndexes)) {
+      setWalkwayRowIndexes(rowIndexes);
+    }
+  }, [grid, walkwayColIndexes, walkwayRowIndexes]); // Chỉ chạy khi grid thay đổi
 
   // Lấy danh sách key đã có trên lưới
   const assignedKeys = useMemo(() => (
@@ -259,16 +322,50 @@ export default function ViTriChoNgoi() {
     return (Array.isArray(grid) ? grid : []).map((row, idx) => Array.isArray(row) ? idx : -1).filter(idx => idx !== -1);
   }
 
-  const seatRowIndexes = getSeatRowIndexes(grid);
+  // Hàm lấy index thực tế trong grid của tất cả các hàng (cả thường và đường đi)
+  function getAllRowIndexes(grid) {
+    return (Array.isArray(grid) ? grid : []).map((row, idx) => {
+      if (Array.isArray(row) || (row && row.type === 'walkway-horizontal')) return idx;
+      return -1;
+    }).filter(idx => idx !== -1);
+  }
 
-  // Thêm hàng
+  // Hàm lấy index thực tế trong grid của các hàng thường (không phải hàng đường đi)
+  function getNormalRowIndexes(grid) {
+    return (Array.isArray(grid) ? grid : []).map((row, idx) => {
+      if (Array.isArray(row)) return idx;
+      return -1;
+    }).filter(idx => idx !== -1);
+  }
+
+  // Hàm lấy index thực tế trong grid của các hàng đường đi
+  function getWalkwayRowIndexes(grid) {
+    return (Array.isArray(grid) ? grid : []).map((row, idx) => {
+      if (row && row.type === 'walkway-horizontal') return idx;
+      return -1;
+    }).filter(idx => idx !== -1);
+  }
+
+  const seatRowIndexes = getSeatRowIndexes(grid);
+  const normalRowIndexes = getNormalRowIndexes(grid);
+  const allRowIndexes = getAllRowIndexes(grid);
+  const walkwayRowIndexesFromGrid = getWalkwayRowIndexes(grid);
+
+  // Thêm hàng thường
   const addRow = () => {
-    const seatRows = getSeatRowIndexes(grid);
-    const insertIdx = seatRows.length > 0 ? seatRows[seatRows.length - 1] + 1 : 0;
+    const normalRows = getNormalRowIndexes(grid);
+    const insertIdx = normalRows.length > 0 ? normalRows[normalRows.length - 1] + 1 : 0;
     const newGrid = [...grid];
     newGrid.splice(insertIdx, 0, Array(grid[0]?.length || 4).fill(null));
+    
+    // Cập nhật walkwayRowIndexes sau khi thêm hàng
+    const newWalkwayRowIndexes = walkwayRowIndexes.map(idx => 
+      idx >= insertIdx ? idx + 1 : idx
+    );
+    
     setGrid(newGrid);
-    saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, walkwayRowIndexes);
+    setWalkwayRowIndexes(newWalkwayRowIndexes);
+    saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, newWalkwayRowIndexes);
   };
 
   // Thêm cột
@@ -442,36 +539,39 @@ export default function ViTriChoNgoi() {
     saveSeatDataToServer(grid, newTagList, walkwayColIndexes, walkwayRowIndexes);
   };
 
-  // Xóa hàng
+  // Xóa hàng (cả thường và đường đi)
   const handleRemoveRow = (displayIdx) => {
-    const seatRows = getSeatRowIndexes(grid);
-    const realIdx = seatRows[displayIdx];
+    const allRows = getAllRowIndexes(grid);
+    const realIdx = allRows[displayIdx];
     if (realIdx === undefined) return;
     
-    // Kiểm tra xem hàng có phải là walkway-horizontal không
     const removedRow = grid[realIdx];
-    if (removedRow && removedRow.type === 'walkway-horizontal') {
-
-      return;
-    }
     
     let newTagList = tagList;
     
-    if (Array.isArray(removedRow)) {
-      removedRow.forEach(cell => {
-        if (cell) {
-          const acc = (Array.isArray(accounts) ? accounts : []).find(a => a.tenTaiKhoan === cell.name);
-          if (acc && !assignedNames.includes(acc.tenTaiKhoan) && !tagList.includes(acc._id)) {
-            newTagList = [...newTagList, acc._id];
-          }
-        }
-      });
-    }
+         // Xử lý các cell trong hàng bị xóa (chỉ nếu là hàng thường)
+     if (Array.isArray(removedRow)) {
+       removedRow.forEach(cell => {
+         if (cell) {
+           const acc = (Array.isArray(accounts) ? accounts : []).find(a => a.tenTaiKhoan === cell.name);
+           if (acc && !assignedNames.includes(acc.tenTaiKhoan) && !tagList.includes(acc._id)) {
+             newTagList = [...newTagList, acc._id];
+           }
+         }
+       });
+     }
     
     const newGrid = grid.filter((_, i) => i !== realIdx);
+    
+    // Cập nhật walkwayRowIndexes sau khi xóa hàng
+    const newWalkwayRowIndexes = walkwayRowIndexes
+      .filter(idx => idx !== realIdx) // Loại bỏ hàng bị xóa
+      .map(idx => idx > realIdx ? idx - 1 : idx); // Dịch chuyển các hàng sau
+    
     setGrid(newGrid);
     setTagList(newTagList);
-    saveSeatDataToServer(newGrid, newTagList, walkwayColIndexes, walkwayRowIndexes);
+    setWalkwayRowIndexes(newWalkwayRowIndexes);
+    saveSeatDataToServer(newGrid, newTagList, walkwayColIndexes, newWalkwayRowIndexes);
   };
 
   // Xóa cột
@@ -517,7 +617,10 @@ export default function ViTriChoNgoi() {
   const handleAddWalkway = () => {
     const newGrid = [...grid];
     newGrid.splice(walkwayRowIdx, 0, { type: 'walkway-horizontal', text: 'Đường đi' });
+    
+    // Cập nhật walkwayRowIndexes sau khi thêm
     const tempNewWalkwayRowIndexes = [...walkwayRowIndexes, walkwayRowIdx].sort((a, b) => a - b);
+    
     setGrid(newGrid);
     setWalkwayRowIndexes(tempNewWalkwayRowIndexes);
     saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, tempNewWalkwayRowIndexes);
@@ -551,15 +654,7 @@ export default function ViTriChoNgoi() {
     setShowAddWalkwayCol(false);
   };
 
-  // Xóa đường đi ngang
-  const handleDeleteWalkway = () => {
-    const newGrid = grid.filter((_, idx) => idx !== deleteWalkwayIdx);
-    const tempNewWalkwayRowIndexes = walkwayRowIndexes.filter(idx => idx !== deleteWalkwayIdx).map(idx => idx > deleteWalkwayIdx ? idx - 1 : idx);
-    setGrid(newGrid);
-    setWalkwayRowIndexes(tempNewWalkwayRowIndexes);
-    saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, tempNewWalkwayRowIndexes);
-    setShowDeleteWalkway(false);
-  };
+
 
   // Hàm đồng bộ số cột
   const syncGridCols = (grid) => {
@@ -671,12 +766,11 @@ export default function ViTriChoNgoi() {
             <div style={{fontWeight:700, fontSize:20, marginBottom:18, color:'#29547A'}}>Thao tác</div>
             <div className="grid-controls" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
               <button className="btn-edit" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={addRow}>+ Thêm hàng</button>
-              <button className="btn-edit" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={addCol}>+ Thêm cột</button>
               <button className="btn-delete" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={()=>{setShowDeleteRow(true);setRowToDelete(0);setShowActionPanel(false);}}>− Xóa hàng</button>
+              <button className="btn-edit" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={addCol}>+ Thêm cột</button>
               <button className="btn-delete" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={()=>{setShowDeleteCol(true);setColToDelete(0);setShowActionPanel(false);}}>− Xóa cột</button>
-              <button className="btn-edit" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={()=>{setShowAddWalkway(true);setWalkwayRowIdx(0);setShowActionPanel(false);}}>+ Chèn đường đi ngang</button>
+                             <button className="btn-edit" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={()=>{setShowAddWalkway(true);setWalkwayRowIdx(0);setShowActionPanel(false);}}>+ Chèn đường đi ngang</button>
               <button className="btn-edit" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={()=>{setShowAddWalkwayCol(true);setWalkwayColIdx(0);setShowActionPanel(false);}}>+ Chèn đường đi dọc</button>
-              <button className="btn-delete" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={()=>{setShowDeleteWalkway(true);setDeleteWalkwayIdx(0);setShowActionPanel(false);}}>− Xóa đường đi ngang</button>
               <button className="btn-delete" style={{minWidth:0, fontSize:15, padding:'7px 0'}} onClick={()=>{setShowDeleteWalkwayCol(true);setDeleteWalkwayColIdx(0);setShowActionPanel(false);}}>− Xóa đường đi dọc</button>
             </div>
             <div style={{marginTop:18, textAlign:'right'}}>
@@ -689,9 +783,17 @@ export default function ViTriChoNgoi() {
       {showDeleteRow && (
         <div className="center-popup">
           <h4>Xóa hàng</h4>
-          <select value={rowToDelete} onChange={e => setRowToDelete(Number(e.target.value))} style={{margin:'12px 0',fontSize:16}}>
-            {seatRowIndexes.map((realIdx, i) => <option key={realIdx} value={i}>Hàng số {i+1}</option>)}
-          </select>
+                     <select value={rowToDelete} onChange={e => setRowToDelete(Number(e.target.value))} style={{margin:'12px 0',fontSize:16}}>
+             {allRowIndexes.map((realIdx, i) => {
+               const row = grid[realIdx];
+               const isWalkway = row && row.type === 'walkway-horizontal';
+               return (
+                 <option key={realIdx} value={i}>
+                   {isWalkway ? `Hàng đường đi số ${i+1}` : `Hàng số ${i+1}`}
+                 </option>
+               );
+             })}
+           </select>
           <div style={{display:'flex',gap:10,marginTop:10}}>
             <button className="btn-delete" onClick={()=>{handleRemoveRow(rowToDelete);setShowDeleteRow(false);}}>Xóa</button>
             <button className="btn-edit" onClick={()=>setShowDeleteRow(false)}>Đóng</button>
@@ -741,27 +843,7 @@ export default function ViTriChoNgoi() {
           </div>
         </div>
       )}
-      {/* Popup xóa đường đi ngang */}
-      {showDeleteWalkway && (
-        <div className="center-popup">
-          <h4>Xóa đường đi ngang</h4>
-          <select
-            value={deleteWalkwayIdx}
-            onChange={e => setDeleteWalkwayIdx(Number(e.target.value))}
-            style={{margin:'12px 0',fontSize:16}}
-          >
-            {walkwayRowIndexes.map((realIdx, i) => (
-              <option key={realIdx} value={realIdx}>
-                Hàng đường đi số {i + 1}
-              </option>
-            ))}
-          </select>
-          <div style={{display:'flex',gap:10,marginTop:10}}>
-            <button className="btn-delete" onClick={handleDeleteWalkway}>Xóa</button>
-            <button className="btn-edit" onClick={()=>setShowDeleteWalkway(false)}>Đóng</button>
-          </div>
-        </div>
-      )}
+             
       {/* Popup xóa đường đi dọc */}
       {showDeleteWalkwayCol && (
         <div className="center-popup">
@@ -795,16 +877,16 @@ export default function ViTriChoNgoi() {
             </div>
           ))}
         </div>
-        {(Array.isArray(grid) ? grid : []).map((row, rowIdx) => {
-          
-          // Kiểm tra cả row.type và walkwayRowIndexes
-          if ((row && row.type === 'walkway-horizontal') || walkwayRowIndexes.includes(rowIdx)) {
-            return (
-            <div className="walkway-row" key={rowIdx} style={{display:'flex',alignItems:'center',justifyContent:'center',height:40,background:'#e0e6ed',position:'relative'}}>
-              <span style={{fontWeight:600,fontSize:16,color:'#29547A',letterSpacing:1}}>{row?.text || 'Đường đi'}</span>
-            </div>
-            );
-          }
+                 {(Array.isArray(grid) ? grid : []).map((row, rowIdx) => {
+           
+           // Kiểm tra xem có phải hàng đường đi không
+           if (row && row.type === 'walkway-horizontal') {
+             return (
+             <div className="walkway-row" key={rowIdx} style={{display:'flex',alignItems:'center',justifyContent:'center',height:40,background:'#e0e6ed',position:'relative'}}>
+               <span style={{fontWeight:600,fontSize:16,color:'#29547A',letterSpacing:1}}>{row?.text || 'Đường đi'}</span>
+             </div>
+             );
+           }
           if (row && row.type === 'wall-horizontal') {
             return (
             <div className="wall-row" key={rowIdx}></div>
@@ -902,4 +984,4 @@ export default function ViTriChoNgoi() {
       )}
     </div>
   );
-} 
+}
