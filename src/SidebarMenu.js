@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   AppstoreOutlined,
   ContainerOutlined,
@@ -162,9 +163,62 @@ const allMenuItems = [
   },
 ];
 
-export default function SidebarMenu({ onMenuClick, userGroup }) {
+export default function SidebarMenu({ userGroup, currentMenu }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   // Lọc menu theo quyền của user
   const filteredItems = filterMenuByPermission(allMenuItems, userGroup);
+
+  // Xử lý click menu
+  const handleMenuClick = ({ key }) => {
+    // Map menu key sang route path
+    const routeMap = {
+      'taikhoan': '/taikhoan',
+      'phanquyen': '/phanquyen',
+      'apitest': '/apitest',
+      'lichdica': '/lichdica',
+      'vitri': '/vitri',
+      'task': '/task',
+      // Thêm các route khác khi cần
+    };
+    
+    const route = routeMap[key];
+    if (route) {
+      navigate(route);
+    }
+  };
+
+  // Lấy selected keys từ URL hiện tại
+  const getSelectedKeys = () => {
+    const path = location.pathname;
+    const segments = path.split('/').filter(Boolean);
+    
+    if (segments.length === 0) return [];
+    
+    // Map path segments sang menu keys
+    const pathToKeyMap = {
+      'taikhoan': 'taikhoan',
+      'phanquyen': 'phanquyen',
+      'apitest': 'apitest',
+      'lichdica': 'lichdica',
+      'vitri': 'vitri',
+      'task': 'task',
+    };
+    
+    const keys = [];
+    let currentPath = '';
+    
+    segments.forEach(segment => {
+      currentPath += `/${segment}`;
+      const key = pathToKeyMap[segment];
+      if (key) {
+        keys.push(key);
+      }
+    });
+    
+    return keys;
+  };
 
   return (
     <div className="sidebar" style={{ background: '#e6f0fa', minHeight: '100vh', padding: 0 }}>
@@ -175,6 +229,7 @@ export default function SidebarMenu({ onMenuClick, userGroup }) {
         mode="inline"
         theme="light"
         items={filteredItems}
+        selectedKeys={getSelectedKeys()}
         style={{ 
           background: '#e6f0fa', 
           color: '#29547A', 
@@ -184,7 +239,7 @@ export default function SidebarMenu({ onMenuClick, userGroup }) {
           fontFamily: 'Segoe UI, sans-serif',
           width: 240
         }}
-        onClick={({ key }) => onMenuClick && onMenuClick(key)}
+        onClick={handleMenuClick}
         className="sidebar-menu-override"
       />
     </div>

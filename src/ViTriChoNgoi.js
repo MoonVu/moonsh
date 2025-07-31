@@ -20,24 +20,13 @@ const GROUP_COLORS = {
 };
 
 export default function ViTriChoNgoi() {
-  const [grid, setGrid] = useState(() => {
-    const saved = localStorage.getItem('vitri_grid');
-    try {
-      const parsed = saved ? JSON.parse(saved) : initialGrid;
-      return Array.isArray(parsed) ? parsed : initialGrid;
-    } catch {
-      return initialGrid;
-    }
-  });
-  const [dragged, setDragged] = useState(null); // {row, col} hoặc {account}
-  const [replaceTarget, setReplaceTarget] = useState(null); // {from, to}
+  const [grid, setGrid] = useState(initialGrid);
+  const [dragged, setDragged] = useState(null);
+  const [replaceTarget, setReplaceTarget] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [showAddTag, setShowAddTag] = useState(false);
-  const [tagList, setTagList] = useState(() => {
-    const saved = localStorage.getItem('vitri_taglist');
-    return saved ? JSON.parse(saved) : [];
-  }); // key của acc trong tag
-  const [selectedToAdd, setSelectedToAdd] = useState([]); // key[]
+  const [tagList, setTagList] = useState([]);
+  const [selectedToAdd, setSelectedToAdd] = useState([]);
   const [hoverRow, setHoverRow] = useState(null);
   const [hoverCol, setHoverCol] = useState(null);
   const [showDeleteRow, setShowDeleteRow] = useState(false);
@@ -54,8 +43,17 @@ export default function ViTriChoNgoi() {
   const [deleteWalkwayColIdx, setDeleteWalkwayColIdx] = useState(0);
   const [showActionPanel, setShowActionPanel] = useState(false);
   const [walkwayColIndexes, setWalkwayColIndexes] = useState([]);
+  const [walkwayRowIndexes, setWalkwayRowIndexes] = useState([]);
+  
+  // Thêm state cho đồng bộ
+  const [currentVersion, setCurrentVersion] = useState(0);
+  const [lastModifiedBy, setLastModifiedBy] = useState('');
+  const [lastModifiedAt, setLastModifiedAt] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState('Đang đồng bộ...');
 
-  // Lấy danh sách tài khoản từ backend, chỉ loại bỏ 'Ngưng sử dụng'
+
+  // Lấy danh sách tài khoản từ backend
   useEffect(() => {
     apiService.getUsers()
       .then(users => {
@@ -67,19 +65,157 @@ export default function ViTriChoNgoi() {
       });
   }, []);
 
-  // Lưu grid vào localStorage khi thay đổi
+  // Load dữ liệu từ server khi component mount
   useEffect(() => {
-    // Lưu toàn bộ grid (bao gồm cả walkway-horizontal, walkway-vertical)
-    localStorage.setItem('vitri_grid', JSON.stringify(grid));
-  }, [grid]);
+    loadSeatData();
+  }, []);
 
-  // Lưu tagList vào localStorage khi thay đổi
+  // Hàm load dữ liệu từ server
+  const loadSeatData = async () => {
+    try {
+      setIsLoading(true);
+      setSyncStatus('Đang tải dữ liệu...');
+      
+      const seatData = await apiService.getSeatData();
+      if (seatData) {
+
+        
+        // Tính toán walkwayColIndexes từ grid trước khi set
+        const calculatedIndexes = [];
+        if (seatData.grid) {
+          seatData.grid.forEach(row => {
+            if (Array.isArray(row)) {
+              row.forEach((cell, idx) => {
+                if (cell && cell.type === 'walkway-vertical' && !calculatedIndexes.includes(idx)) {
+                  calculatedIndexes.push(idx);
+                }
+              });
+            }
+          });
+        }
+        calculatedIndexes.sort((a,b)=>a-b);
+        
+
+        
+
+        
+
+        
+
+         
+         setGrid(seatData.grid || initialGrid);
+        setTagList(seatData.tagList || []);
+        // Ưu tiên walkwayColIndexes từ server, nếu không có thì dùng calculated
+        const finalWalkwayIndexes = seatData.walkwayColIndexes && seatData.walkwayColIndexes.length > 0 
+          ? seatData.walkwayColIndexes 
+          : calculatedIndexes;
+
+        setWalkwayColIndexes(finalWalkwayIndexes);
+        // 1. Thêm state cho walkwayRowIndexes
+        const tempRowIndexes = [];
+        if (seatData.grid) {
+          seatData.grid.forEach((row, idx) => {
+            if (row && row.type === 'walkway-horizontal') {
+              tempRowIndexes.push(idx);
+            }
+          });
+        }
+        const finalWalkwayRowIndexes = seatData.walkwayRowIndexes && seatData.walkwayRowIndexes.length > 0
+          ? seatData.walkwayRowIndexes
+          : tempRowIndexes;
+        setWalkwayRowIndexes(finalWalkwayRowIndexes);
+        setCurrentVersion(seatData.version || 0);
+        setLastModifiedBy(seatData.lastModifiedBy || '');
+        setLastModifiedAt(seatData.lastModifiedAt);
+        setSyncStatus('Đã cập nhật mới');
+      }
+    } catch (error) {
+      console.error('Lỗi khi load dữ liệu seat:', error);
+      setSyncStatus('Lỗi đồng bộ - sử dụng dữ liệu local');
+      // Fallback về localStorage nếu server lỗi
+      const savedGrid = localStorage.getItem('vitri_grid');
+      const savedTagList = localStorage.getItem('vitri_taglist');
+      if (savedGrid) {
+        try {
+          setGrid(JSON.parse(savedGrid));
+        } catch (e) {
+          console.error('Lỗi parse localStorage grid:', e);
+        }
+      }
+      if (savedTagList) {
+        try {
+          setTagList(JSON.parse(savedTagList));
+        } catch (e) {
+          console.error('Lỗi parse localStorage tagList:', e);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Hàm lưu dữ liệu lên server
+  const saveSeatDataToServer = async (newGrid, newTagList, newWalkwayColIndexes, newWalkwayRowIndexes) => {
+    try {
+      setSyncStatus('Đang lưu...');
+      
+      // Lấy thông tin user hiện tại từ localStorage hoặc từ API
+      let currentUserInfo = 'Unknown';
+      try {
+        const userProfile = await apiService.getProfile();
+        currentUserInfo = userProfile.tenTaiKhoan || userProfile.username || 'Unknown';
+      } catch (error) {
+        console.error('Không thể lấy thông tin user:', error);
+      }
+      
+      const seatData = {
+        grid: newGrid,
+        tagList: newTagList,
+        walkwayColIndexes: newWalkwayColIndexes,
+        walkwayRowIndexes: newWalkwayRowIndexes,
+        modifiedBy: currentUserInfo
+      };
+       
+
+      
+      const result = await apiService.saveSeatData(seatData);
+      if (result) {
+
+        setCurrentVersion(result.version);
+        setLastModifiedBy(result.lastModifiedBy);
+        setLastModifiedAt(result.lastModifiedAt);
+        setSyncStatus('Đã lưu thành công');
+      }
+    } catch (error) {
+      console.error('Lỗi khi lưu dữ liệu seat:', error);
+      setSyncStatus('Lỗi lưu - đã lưu local');
+      // Fallback về localStorage
+      localStorage.setItem('vitri_grid', JSON.stringify(newGrid));
+      localStorage.setItem('vitri_taglist', JSON.stringify(newTagList));
+    }
+  };
+
+  // Auto-sync mỗi 5 giây
   useEffect(() => {
-    localStorage.setItem('vitri_taglist', JSON.stringify(tagList));
-  }, [tagList]);
+    const syncInterval = setInterval(async () => {
+      try {
+        const versionData = await apiService.getSeatVersion();
+        if (versionData.version > currentVersion) {
+
+          setSyncStatus('Phát hiện thay đổi, đang cập nhật...');
+          await loadSeatData();
+        }
+      } catch (error) {
+        console.error('Lỗi khi kiểm tra version:', error);
+      }
+    }, 5000);
+
+    return () => clearInterval(syncInterval);
+  }, [currentVersion]);
 
   // Cập nhật walkwayColIndexes mỗi khi grid thay đổi
   useEffect(() => {
+    // Tính toán walkwayColIndexes từ grid hiện tại
     const indexes = [];
     grid.forEach(row => {
       if (Array.isArray(row)) {
@@ -91,74 +227,91 @@ export default function ViTriChoNgoi() {
       }
     });
     indexes.sort((a,b)=>a-b);
-    setWalkwayColIndexes(indexes);
-  }, [grid]);
+    
+    // Chỉ cập nhật nếu khác với state hiện tại
+    if (JSON.stringify(indexes) !== JSON.stringify(walkwayColIndexes)) {
 
-  // Lấy danh sách key đã có trên lưới (ưu tiên _id, username, name)
+      setWalkwayColIndexes(indexes);
+    }
+  }, [grid, walkwayColIndexes]); // Chỉ chạy khi grid thay đổi
+
+  // Lấy danh sách key đã có trên lưới
   const assignedKeys = useMemo(() => (
     (Array.isArray(grid) ? grid : [])
       .flat()
       .filter(Boolean)
       .map(cell => cell._id || cell.username || cell.name || cell.key || cell.tenTaiKhoan)
   ), [grid]);
-  // Lọc tài khoản có thể thêm: chỉ loại bỏ những tài khoản đã có trên lưới hoặc trong tagList (ưu tiên _id)
+
+  // Lọc tài khoản có thể thêm
   const canAddToTag = useMemo(() => (
     (Array.isArray(accounts) ? accounts : []).filter(acc =>
       !tagList.includes(acc._id) && !assignedKeys.includes(acc._id)
     )
   ), [accounts, tagList, assignedKeys]);
-  // Chỉ log khi debug, không log liên tục khi render
-  useEffect(() => {
-    // Uncomment để debug khi cần
-    // console.log('accounts:', accounts);
-    // console.log('tagList:', tagList);
-    // console.log('assignedKeys:', assignedKeys);
-    // console.log('canAddToTag:', canAddToTag);
-  }, [accounts, tagList, assignedKeys, canAddToTag]);
 
-  // Danh sách tài khoản trong tagList (không lọc theo lưới)
+  // Danh sách tài khoản trong tagList
   const unassigned = (Array.isArray(accounts) ? accounts : []).filter(acc => (Array.isArray(tagList) ? tagList : []).includes(acc._id));
-  // Danh sách có thể thêm vào tagList: chưa có trong tagList và chưa có trên lưới
   const assignedNames = (Array.isArray(grid) ? grid : []).flat().filter(Boolean).map(cell => cell.name);
 
-  // Hàm lấy index thực tế trong grid của các hàng chỗ ngồi (là mảng)
+  // Hàm lấy index thực tế trong grid của các hàng chỗ ngồi
   function getSeatRowIndexes(grid) {
     return (Array.isArray(grid) ? grid : []).map((row, idx) => Array.isArray(row) ? idx : -1).filter(idx => idx !== -1);
   }
 
-  // Khi render, khi xóa, khi đánh số, chỉ dùng các index này
   const seatRowIndexes = getSeatRowIndexes(grid);
 
-  // Thêm hàng: thêm vào sau hàng chỗ ngồi cuối cùng
+  // Thêm hàng
   const addRow = () => {
     const seatRows = getSeatRowIndexes(grid);
     const insertIdx = seatRows.length > 0 ? seatRows[seatRows.length - 1] + 1 : 0;
-    setGrid(g => {
-      const newGrid = [...g];
-      newGrid.splice(insertIdx, 0, Array(g[0]?.length || 4).fill(null));
-      return newGrid;
-    });
+    const newGrid = [...grid];
+    newGrid.splice(insertIdx, 0, Array(grid[0]?.length || 4).fill(null));
+    setGrid(newGrid);
+    saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, walkwayRowIndexes);
   };
 
   // Thêm cột
   const addCol = () => {
-    setGrid(g => g.map(row => Array.isArray(row) ? [...row, null] : row));
+    const newGrid = grid.map(row => Array.isArray(row) ? [...row, null] : row);
+    setGrid(newGrid);
+    // Không cần cập nhật walkwayColIndexes vì chỉ thêm cột cuối cùng
+    saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, walkwayRowIndexes);
   };
 
   // Bắt đầu kéo
   const handleDragStart = (rowIdx, colIdx) => {
-    if (!Array.isArray(grid[rowIdx])) return; // Không cho kéo ở walkway
+    if (!Array.isArray(grid[rowIdx])) return;
     setDragged({ row: rowIdx, col: colIdx });
   };
+
   // Kéo qua ô
   const handleDragOver = (e, rowIdx, colIdx) => {
     e.preventDefault();
   };
+
   // Thả vào ô
   const handleDrop = (rowIdx, colIdx) => {
     if (!dragged) return;
-    if (!Array.isArray(grid[rowIdx])) return; // Không cho thả vào walkway
+    if (!Array.isArray(grid[rowIdx])) return;
     if (dragged.row === rowIdx && dragged.col === colIdx) return;
+    
+    // Kiểm tra xem ô đích có phải là walkway-vertical không
+    const targetCell = grid[rowIdx][colIdx];
+    if (targetCell && targetCell.type === 'walkway-vertical') {
+
+      setDragged(null);
+      return;
+    }
+    
+    // Kiểm tra xem hàng đích có phải là walkway-horizontal không
+    const targetRow = grid[rowIdx];
+    if (targetRow && targetRow.type === 'walkway-horizontal') {
+
+      setDragged(null);
+      return;
+    }
+    
     if (dragged.account) {
       if (grid[rowIdx][colIdx]) {
         setReplaceTarget({ from: dragged, to: { row: rowIdx, col: colIdx } });
@@ -170,11 +323,14 @@ export default function ViTriChoNgoi() {
           _id: dragged.account._id
         };
         setGrid(newGrid);
-        setTagList(list => list.filter(k => k !== dragged.account._id));
+        const newTagList = tagList.filter(k => k !== dragged.account._id);
+        setTagList(newTagList);
+        saveSeatDataToServer(newGrid, newTagList, walkwayColIndexes, walkwayRowIndexes);
       }
       setDragged(null);
       return;
     }
+    
     const fromCell = grid[dragged.row][dragged.col];
     const toCell = grid[rowIdx][colIdx];
     if (toCell) {
@@ -184,26 +340,47 @@ export default function ViTriChoNgoi() {
       newGrid[rowIdx][colIdx] = fromCell;
       newGrid[dragged.row][dragged.col] = null;
       setGrid(newGrid);
+      saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, walkwayRowIndexes);
     }
     setDragged(null);
   };
+
   // Xác nhận thay thế
   const confirmReplace = () => {
     if (!replaceTarget) return;
     const { from, to } = replaceTarget;
+    
+    // Kiểm tra xem ô đích có phải là walkway-vertical không
+    const targetCell = grid[to.row][to.col];
+    if (targetCell && targetCell.type === 'walkway-vertical') {
+
+      setReplaceTarget(null);
+      return;
+    }
+    
+    // Kiểm tra xem hàng đích có phải là walkway-horizontal không
+    const targetRow = grid[to.row];
+    if (targetRow && targetRow.type === 'walkway-horizontal') {
+
+      setReplaceTarget(null);
+      return;
+    }
+    
     const newGrid = grid.map((r, i) => {
       if (!Array.isArray(r)) return r;
       return [...r];
     });
-    // Đổi chỗ 2 ô (chỉ nếu cả 2 dòng là mảng)
+    
     if (Array.isArray(newGrid[to.row]) && Array.isArray(newGrid[from.row])) {
       const temp = newGrid[to.row][to.col];
       newGrid[to.row][to.col] = newGrid[from.row][from.col];
       newGrid[from.row][from.col] = temp;
     }
     setGrid(newGrid);
+    saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, walkwayRowIndexes);
     setReplaceTarget(null);
   };
+
   // Hủy thay thế
   const cancelReplace = () => setReplaceTarget(null);
 
@@ -212,30 +389,42 @@ export default function ViTriChoNgoi() {
     setDragged({ account: acc });
   };
 
-  // Xóa nhân viên khỏi lưới (đưa về tag)
+  // Xóa nhân viên khỏi lưới
   const handleRemoveFromGrid = (rowIdx, colIdx) => {
     const cell = grid[rowIdx][colIdx];
     if (!cell) return;
-    setGrid(g => {
-      const newGrid = g.map(r => Array.isArray(r) ? [...r] : r);
-      newGrid[rowIdx][colIdx] = null;
-      return newGrid;
-    });
-    // Thêm lại vào tagList nếu chưa có
-    if (cell._id && !tagList.includes(cell._id)) {
-      setTagList(list => [...list, cell._id]);
+    
+    // Không cho phép xóa walkway-vertical cells
+    if (cell && cell.type === 'walkway-vertical') {
+
+      return;
     }
+    
+    const newGrid = grid.map(r => Array.isArray(r) ? [...r] : r);
+    newGrid[rowIdx][colIdx] = null;
+    
+    setGrid(newGrid);
+    
+    let newTagList = tagList;
+    if (cell._id && !tagList.includes(cell._id)) {
+      newTagList = [...tagList, cell._id];
+      setTagList(newTagList);
+    }
+    
+    saveSeatDataToServer(newGrid, newTagList, walkwayColIndexes, walkwayRowIndexes);
   };
 
   // Thêm nhiều nhân viên vào tagList
   const handleAddMultipleTags = () => {
-    setTagList(list => [
-      ...list,
+    const newTagList = [
+      ...tagList,
       ...selectedToAdd.filter(k => {
         const acc = (Array.isArray(accounts) ? accounts : []).find(a => a._id === k);
-        return acc && !assignedKeys.includes(acc._id) && !list.includes(k);
+        return acc && !assignedKeys.includes(acc._id) && !tagList.includes(k);
       })
-    ]);
+    ];
+    setTagList(newTagList);
+    saveSeatDataToServer(grid, newTagList, walkwayColIndexes, walkwayRowIndexes);
     setShowAddTag(false);
     setSelectedToAdd([]);
   };
@@ -248,68 +437,127 @@ export default function ViTriChoNgoi() {
 
   // Xóa tag khỏi vùng chưa xếp chỗ
   const handleRemoveTag = (_id) => {
-    setTagList(list => list.filter(k => k !== _id));
+    const newTagList = tagList.filter(k => k !== _id);
+    setTagList(newTagList);
+    saveSeatDataToServer(grid, newTagList, walkwayColIndexes, walkwayRowIndexes);
   };
 
-  // Xóa hàng: chỉ xóa hàng chỗ ngồi, không xóa walkway
+  // Xóa hàng
   const handleRemoveRow = (displayIdx) => {
     const seatRows = getSeatRowIndexes(grid);
     const realIdx = seatRows[displayIdx];
     if (realIdx === undefined) return;
-    setGrid(g => {
-      const removedRow = g[realIdx];
-      if (Array.isArray(removedRow)) {
+    
+    // Kiểm tra xem hàng có phải là walkway-horizontal không
+    const removedRow = grid[realIdx];
+    if (removedRow && removedRow.type === 'walkway-horizontal') {
+
+      return;
+    }
+    
+    let newTagList = tagList;
+    
+    if (Array.isArray(removedRow)) {
       removedRow.forEach(cell => {
         if (cell) {
-            const acc = (Array.isArray(accounts) ? accounts : []).find(a => a.tenTaiKhoan === cell.name);
-            if (acc && !assignedNames.includes(acc.tenTaiKhoan) && !(Array.isArray(tagList) ? tagList : []).includes(acc._id)) setTagList(list => [...list, acc._id]);
+          const acc = (Array.isArray(accounts) ? accounts : []).find(a => a.tenTaiKhoan === cell.name);
+          if (acc && !assignedNames.includes(acc.tenTaiKhoan) && !tagList.includes(acc._id)) {
+            newTagList = [...newTagList, acc._id];
+          }
         }
       });
-      }
-      return g.filter((_, i) => i !== realIdx);
-    });
+    }
+    
+    const newGrid = grid.filter((_, i) => i !== realIdx);
+    setGrid(newGrid);
+    setTagList(newTagList);
+    saveSeatDataToServer(newGrid, newTagList, walkwayColIndexes, walkwayRowIndexes);
   };
+
   // Xóa cột
   const handleRemoveCol = (colIdx) => {
-    safeSetGrid(g => g.map(row => {
+    // Kiểm tra xem cột có chứa walkway-vertical không
+    const hasWalkwayVertical = grid.some(row => {
+      if (Array.isArray(row) && row[colIdx]) {
+        return row[colIdx].type === 'walkway-vertical';
+      }
+      return false;
+    });
+    
+    if (hasWalkwayVertical) {
+
+      return;
+    }
+    
+    let newTagList = tagList;
+    const newGrid = grid.map(row => {
       if (!Array.isArray(row)) return row;
       const cell = row[colIdx];
       if (cell) {
         const acc = (Array.isArray(accounts) ? accounts : []).find(a => a.tenTaiKhoan === cell.name);
-        if (acc && !assignedNames.includes(acc.tenTaiKhoan) && !(Array.isArray(tagList) ? tagList : []).includes(acc._id)) setTagList(list => [...list, acc._id]);
+        if (acc && !assignedNames.includes(acc.tenTaiKhoan) && !tagList.includes(acc._id)) {
+          newTagList = [...newTagList, acc._id];
+        }
       }
       return row.filter((_, i) => i !== colIdx);
-    }));
+    });
+    
+    // Cập nhật walkwayColIndexes sau khi xóa cột
+    const newWalkwayColIndexes = walkwayColIndexes
+      .filter(idx => idx !== colIdx) // Loại bỏ cột bị xóa
+      .map(idx => idx > colIdx ? idx - 1 : idx); // Dịch chuyển các cột sau
+    
+    setGrid(newGrid);
+    setTagList(newTagList);
+    setWalkwayColIndexes(newWalkwayColIndexes);
+    saveSeatDataToServer(newGrid, newTagList, newWalkwayColIndexes, walkwayRowIndexes);
   };
 
-  // Thêm hàng đường đi ngang vào grid
+  // Thêm hàng đường đi ngang
   const handleAddWalkway = () => {
-    setGrid(g => {
-      const newGrid = [...g];
-      newGrid.splice(walkwayRowIdx, 0, { type: 'walkway-horizontal' });
-      return newGrid;
-    });
+    const newGrid = [...grid];
+    newGrid.splice(walkwayRowIdx, 0, { type: 'walkway-horizontal', text: 'Đường đi' });
+    const tempNewWalkwayRowIndexes = [...walkwayRowIndexes, walkwayRowIdx].sort((a, b) => a - b);
+    setGrid(newGrid);
+    setWalkwayRowIndexes(tempNewWalkwayRowIndexes);
+    saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, tempNewWalkwayRowIndexes);
     setShowAddWalkway(false);
   };
 
-  // Thêm cột đường đi dọc vào grid
+  // Thêm cột đường đi dọc
   const handleAddWalkwayCol = () => {
-    setGrid(g => g.map(row => {
+
+    
+    const newGrid = grid.map(row => {
       if (row && row.type === 'walkway-horizontal') return row;
       const newRow = [...row];
-      newRow.splice(walkwayColIdx, 0, { type: 'walkway-vertical' });
+      newRow.splice(walkwayColIdx, 0, { type: 'walkway-vertical', text: 'Đường đi' });
       return newRow;
-    }));
+    });
+    
+    // Cập nhật walkwayColIndexes
+    const newWalkwayColIndexes = [...walkwayColIndexes, walkwayColIdx].sort((a, b) => a - b);
+    
+
+    
+    // Cập nhật state trước khi lưu
+    setGrid(newGrid);
+    setWalkwayColIndexes(newWalkwayColIndexes);
+    
+
+    
+    // Lưu lên server với dữ liệu mới
+    saveSeatDataToServer(newGrid, tagList, newWalkwayColIndexes, walkwayRowIndexes);
     setShowAddWalkwayCol(false);
   };
 
-  // Tạo mảng walkwayRowIndexes để xác định đúng vị trí các hàng walkway-horizontal
-  const walkwayRowIndexes = (Array.isArray(grid) ? grid : []).map((row, idx) => (row?.type === 'walkway-horizontal' ? idx : -1))
-    .filter(idx => idx >= 0);
-
-  // Sửa lại handleDeleteWalkway để xóa đúng index thực tế
+  // Xóa đường đi ngang
   const handleDeleteWalkway = () => {
-    setGrid(g => g.filter((_, idx) => idx !== deleteWalkwayIdx));
+    const newGrid = grid.filter((_, idx) => idx !== deleteWalkwayIdx);
+    const tempNewWalkwayRowIndexes = walkwayRowIndexes.filter(idx => idx !== deleteWalkwayIdx).map(idx => idx > deleteWalkwayIdx ? idx - 1 : idx);
+    setGrid(newGrid);
+    setWalkwayRowIndexes(tempNewWalkwayRowIndexes);
+    saveSeatDataToServer(newGrid, tagList, walkwayColIndexes, tempNewWalkwayRowIndexes);
     setShowDeleteWalkway(false);
   };
 
@@ -325,50 +573,98 @@ export default function ViTriChoNgoi() {
     });
   };
 
-const handleDeleteWalkwayCol = () => {
-  // Tìm danh sách các index cột có walkway-vertical
-  const walkwayCols = [];
-  if ((Array.isArray(grid) ? grid : []).length) {
-    const firstRowWithCols = (Array.isArray(grid) ? grid : []).find(Array.isArray);
-    if (firstRowWithCols) {
-      firstRowWithCols.forEach((cell, idx) => {
-        if (cell && cell.type === 'walkway-vertical') {
-          walkwayCols.push(idx);
-        }
-      });
+  // Xóa đường đi dọc
+  const handleDeleteWalkwayCol = () => {
+    const walkwayCols = [];
+    if ((Array.isArray(grid) ? grid : []).length) {
+      const firstRowWithCols = (Array.isArray(grid) ? grid : []).find(Array.isArray);
+      if (firstRowWithCols) {
+        firstRowWithCols.forEach((cell, idx) => {
+          if (cell && cell.type === 'walkway-vertical') {
+            walkwayCols.push(idx);
+          }
+        });
+      }
     }
-  }
 
-  const realIdx = walkwayCols[deleteWalkwayColIdx];
-  if (realIdx === undefined) {
-    console.warn("Không tìm thấy walkway-vertical cần xóa");
-    return;
-  }
+    const realIdx = walkwayCols[deleteWalkwayColIdx];
+    if (realIdx === undefined) {
+      console.warn("Không tìm thấy walkway-vertical cần xóa");
+      return;
+    }
 
-  setGrid(g => {
-    const newGrid = g.map(row => {
+    const newGrid = grid.map(row => {
       if (!Array.isArray(row)) return row;
       const newRow = [...row];
-      newRow.splice(realIdx, 1); // Xóa luôn vì chắc chắn là walkway
+      newRow.splice(realIdx, 1);
       return newRow;
     });
-    return syncGridCols(newGrid);
-  });
+    
+    const syncedGrid = syncGridCols(newGrid);
+    
+    // Cập nhật walkwayColIndexes sau khi xóa
+    const newWalkwayColIndexes = walkwayColIndexes.filter(idx => idx !== realIdx).map(idx => 
+      idx > realIdx ? idx - 1 : idx
+    );
+    
+    setGrid(syncedGrid);
+    setWalkwayColIndexes(newWalkwayColIndexes);
+    saveSeatDataToServer(syncedGrid, tagList, newWalkwayColIndexes, walkwayRowIndexes);
+    setShowDeleteWalkwayCol(false);
+  };
 
-  setShowDeleteWalkwayCol(false);
-};
-
-  // Sửa các hàm như sau:
+  // Hàm safe set grid
   const safeSetGrid = (updater) => setGrid(g => {
     const next = updater(Array.isArray(g) ? g : []);
     return Array.isArray(next) ? next : [];
   });
 
+  if (isLoading) {
+    return (
+      <div className="vitri-root">
+        <div style={{ textAlign: 'center', padding: '50px' }}>
+          <div>Đang tải dữ liệu...</div>
+          <div style={{ fontSize: '14px', color: '#666', marginTop: '10px' }}>{syncStatus}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="vitri-root">
-      <div style={{marginBottom: 16}}>
-        <button className="btn-edit" style={{minWidth:120, fontWeight:700, fontSize:17}} onClick={()=>setShowActionPanel(true)}>Thao tác</button>
+      {/* Status bar hiển thị trạng thái đồng bộ */}
+      <div style={{ 
+        marginBottom: 16, 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        padding: '8px 12px',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '4px',
+        fontSize: '14px'
+      }}>
+        <div>
+          <button className="btn-edit" style={{minWidth:120, fontWeight:700, fontSize:17}} onClick={()=>setShowActionPanel(true)}>
+            Thao tác
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ color: syncStatus.includes('Lỗi') ? '#ff4d4f' : '#52c41a' }}>
+            {syncStatus}
+          </span>
+          {lastModifiedBy && (
+            <span style={{ color: '#666' }}>
+              Sửa lần cuối bởi: {lastModifiedBy}
+            </span>
+          )}
+          {lastModifiedAt && (
+            <span style={{ color: '#666' }}>
+              {new Date(lastModifiedAt).toLocaleString('vi-VN')}
+            </span>
+          )}
+        </div>
       </div>
+
       {showActionPanel && (
         <div className="modal-bg" onClick={()=>setShowActionPanel(false)}>
           <div className="modal" style={{minWidth: 320, padding: '28px 24px'}} onClick={e=>e.stopPropagation()}>
@@ -472,7 +768,7 @@ const handleDeleteWalkwayCol = () => {
           <h4>Xóa đường đi dọc</h4>
           <select value={deleteWalkwayColIdx} onChange={e => setDeleteWalkwayColIdx(Number(e.target.value))} style={{margin:'12px 0',fontSize:16}}>
             {(walkwayColIndexes.map((idx, i) => (
-              <option key={idx} value={idx}>Cột đường đi số {i+1}</option>
+              <option key={i} value={i}>Cột đường đi số {i+1} (vị trí {idx})</option>
             )))}
           </select>
           <div style={{display:'flex',gap:10,marginTop:10}}>
@@ -500,10 +796,12 @@ const handleDeleteWalkwayCol = () => {
           ))}
         </div>
         {(Array.isArray(grid) ? grid : []).map((row, rowIdx) => {
-          if (row && row.type === 'walkway-horizontal') {
+          
+          // Kiểm tra cả row.type và walkwayRowIndexes
+          if ((row && row.type === 'walkway-horizontal') || walkwayRowIndexes.includes(rowIdx)) {
             return (
             <div className="walkway-row" key={rowIdx} style={{display:'flex',alignItems:'center',justifyContent:'center',height:40,background:'#e0e6ed',position:'relative'}}>
-              <span style={{fontWeight:600,fontSize:16,color:'#29547A',letterSpacing:1}}>Đường đi</span>
+              <span style={{fontWeight:600,fontSize:16,color:'#29547A',letterSpacing:1}}>{row?.text || 'Đường đi'}</span>
             </div>
             );
           }

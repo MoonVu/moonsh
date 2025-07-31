@@ -1,5 +1,5 @@
 // Cấu hình API URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://172.16.1.6:5000';
+const API_BASE_URL = 'http://172.16.1.6:5000';
 
 class ApiService {
   constructor() {
@@ -356,8 +356,62 @@ class ApiService {
       body: JSON.stringify({ month, year })
     });
   }
+
+  // ==================== SEAT API METHODS ====================
+
+  // API calls cho Seat (vị trí chỗ ngồi)
+  async getSeatData() {
+    try {
+      const response = await fetch(`${this.baseURL}/api/seat`);
+      const data = await response.json();
+      if (data.success) {
+        return data.data;
+      } else {
+        throw new Error(data.message || 'Lỗi khi lấy dữ liệu seat');
+      }
+    } catch (error) {
+      console.error('Lỗi API getSeatData:', error);
+      throw error;
+    }
+  }
+
+  async saveSeatData(seatData) {
+    try {
+      const response = await fetch(`${this.baseURL}/api/seat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(seatData),
+      });
+      const data = await response.json();
+      if (data.success) {
+        return data.data;
+      } else {
+        throw new Error(data.message || 'Lỗi khi lưu dữ liệu seat');
+      }
+    } catch (error) {
+      console.error('Lỗi API saveSeatData:', error);
+      throw error;
+    }
+  }
+
+  async getSeatVersion() {
+    try {
+      const response = await fetch(`${this.baseURL}/api/seat/version`);
+      const data = await response.json();
+      if (data.success) {
+        return data;
+      } else {
+        throw new Error(data.message || 'Lỗi khi lấy version seat');
+      }
+    } catch (error) {
+      console.error('Lỗi API getSeatVersion:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
-export const apiService = new ApiService();
+const apiService = new ApiService();
 export default apiService; 

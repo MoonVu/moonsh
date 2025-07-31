@@ -88,12 +88,6 @@ tr:hover td {
   border-radius: 4px;
 }
 
-.tag-TỐT { background: #eaffea; color: #389e0d; border: 1px solid #b7eb8f; }
-.tag-NHÂN-VIÊN { background: #e6f7ff; color: #096dd9; border: 1px solid #91d5ff; }
-.tag-CHƯA-TỐT { background: #fff1f0; color: #cf1322; border: 1px solid #ffa39e; }
-.tag-THỬ-VIỆC { background: #fffbe6; color: #d48806; border: 1px solid #ffe58f; }
-.tag-XUẤT-SẮC { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
-.tag-QUẢN-LÝ { background: #f0f5ff; color: #1bd339; border: 1px solid #adc6ff; }
 
 .btn-edit, .btn-delete {
   margin-right: 8px;
@@ -161,7 +155,7 @@ tr:hover td {
 .modal h3 {
   margin-top: 0;
   margin-bottom: 18px;
-  font-size: 22px;
+  font-size: 22px !important;
   color: #12B3D6 !important;
   letter-spacing: 0.5px;
 }

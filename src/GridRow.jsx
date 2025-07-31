@@ -10,6 +10,7 @@ const GridRow = React.memo(function GridRow({ row, rowIdx, handleDragOver, handl
     >
       {row.map((cell, colIdx) => {
         if (cell && cell.type === "walkway-vertical") {
+          ;
           return (
             <div
               className="walkway-col"
@@ -32,7 +33,7 @@ const GridRow = React.memo(function GridRow({ row, rowIdx, handleDragOver, handl
                   letterSpacing: 1,
                 }}
               >
-                Đường đi
+                {cell.text || 'Đường đi'}
               </span>
             </div>
           );

@@ -65,10 +65,10 @@ export default function Login({ onLoginSuccess }) {
         <div className="shooting_star"></div>
         <div className="shooting_star"></div>
         <div className="shooting_star"></div>
+        <div className="shooting_star"></div>
+        <div className="shooting_star"></div>
       </div>
-      
-      {/* Logo SHBET chìm phía sau */}
-      <div className="logo-background">SHBET</div>
+
       
       {/* Form đăng nhập */}
       <div className="login-box">

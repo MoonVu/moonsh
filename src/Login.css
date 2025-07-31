@@ -85,33 +85,50 @@
     animation: shining 6000ms ease-in-out infinite;
 }
 
-/* Tạo 26 shooting stars bay rải rác toàn màn hình */
-.shooting_star:nth-child(1) { top: 5%; left: -100px; animation-delay: 0ms; }
-.shooting_star:nth-child(2) { top: 25%; left: -100px; animation-delay: 800ms; }
-.shooting_star:nth-child(3) { top: 45%; left: -100px; animation-delay: 1600ms; }
-.shooting_star:nth-child(4) { top: 65%; left: -100px; animation-delay: 2400ms; }
-.shooting_star:nth-child(5) { top: 85%; left: -100px; animation-delay: 3200ms; }
-.shooting_star:nth-child(6) { top: 15%; left: -100px; animation-delay: 4000ms; }
-.shooting_star:nth-child(7) { top: 35%; left: -100px; animation-delay: 4800ms; }
-.shooting_star:nth-child(8) { top: 55%; left: -100px; animation-delay: 5600ms; }
-.shooting_star:nth-child(9) { top: 75%; left: -100px; animation-delay: 6400ms; }
-.shooting_star:nth-child(10) { top: 95%; left: -100px; animation-delay: 7200ms; }
-.shooting_star:nth-child(11) { top: 10%; left: -100px; animation-delay: 8000ms; }
-.shooting_star:nth-child(12) { top: 30%; left: -100px; animation-delay: 8800ms; }
-.shooting_star:nth-child(13) { top: 50%; left: -100px; animation-delay: 9600ms; }
-.shooting_star:nth-child(14) { top: 70%; left: -100px; animation-delay: 10400ms; }
-.shooting_star:nth-child(15) { top: 90%; left: -100px; animation-delay: 11200ms; }
-.shooting_star:nth-child(16) { top: 20%; left: -100px; animation-delay: 12000ms; }
-.shooting_star:nth-child(17) { top: 40%; left: -100px; animation-delay: 12800ms; }
-.shooting_star:nth-child(18) { top: 60%; left: -100px; animation-delay: 13600ms; }
-.shooting_star:nth-child(19) { top: 80%; left: -100px; animation-delay: 14400ms; }
-.shooting_star:nth-child(20) { top: 0%; left: -100px; animation-delay: 15200ms; }
-.shooting_star:nth-child(21) { top: 2%; left: -100px; animation-delay: 16000ms; }
-.shooting_star:nth-child(22) { top: 8%; left: -100px; animation-delay: 16800ms; }
-.shooting_star:nth-child(23) { top: 92%; left: -100px; animation-delay: 17600ms; }
-.shooting_star:nth-child(24) { top: 98%; left: -100px; animation-delay: 18400ms; }
-.shooting_star:nth-child(25) { top: 1%; left: -100px; animation-delay: 19200ms; }
-.shooting_star:nth-child(26) { top: 99%; left: -100px; animation-delay: 20000ms; }
+/* Tạo 25 shooting stars bay rải rác toàn màn hình */
+/* Các ngôi sao bay từ các vị trí ngẫu nhiên */
+.shooting_star:nth-child(1) { top: calc(20% - 50px); left: calc(10% - 30px); animation-delay: 500ms; }
+.shooting_star:nth-child(2) { top: calc(30% - 80px); left: calc(25% - 50px); animation-delay: 1500ms; }
+.shooting_star:nth-child(3) { top: calc(50% - 60px); left: calc(60% - 120px); animation-delay: 2500ms; }
+.shooting_star:nth-child(4) { top: calc(40% - 20px); left: calc(70% - 60px); animation-delay: 3000ms; }
+.shooting_star:nth-child(5) { top: calc(10% - 90px); left: calc(50% - 100px); animation-delay: 3500ms; }
+.shooting_star:nth-child(6) { top: calc(70% - 150px); left: calc(20% - 120px); animation-delay: 4000ms; }
+.shooting_star:nth-child(7) { top: calc(60% - 100px); left: calc(30% - 30px); animation-delay: 4500ms; }
+.shooting_star:nth-child(8) { top: calc(75% - 140px); left: calc(40% - 200px); animation-delay: 5000ms; }
+.shooting_star:nth-child(9) { top: calc(80% - 180px); left: calc(50% - 150px); animation-delay: 5500ms; }
+.shooting_star:nth-child(10) { top: calc(20% - 30px); left: calc(80% - 70px); animation-delay: 6000ms; }
+.shooting_star:nth-child(11) { top: calc(40% - 50px); left: calc(15% - 40px); animation-delay: 6500ms; }
+.shooting_star:nth-child(12) { top: calc(65% - 110px); left: calc(10% - 60px); animation-delay: 7000ms; }
+.shooting_star:nth-child(13) { top: calc(90% - 160px); left: calc(30% - 120px); animation-delay: 7500ms; }
+.shooting_star:nth-child(14) { top: calc(15% - 120px); left: calc(60% - 80px); animation-delay: 8000ms; }
+.shooting_star:nth-child(15) { top: calc(25% - 110px); left: calc(10% - 50px); animation-delay: 8500ms; }
+.shooting_star:nth-child(16) { top: calc(50% - 150px); left: calc(70% - 200px); animation-delay: 9000ms; }
+.shooting_star:nth-child(17) { top: calc(55% - 100px); left: calc(20% - 80px); animation-delay: 9500ms; }
+.shooting_star:nth-child(18) { top: calc(80% - 140px); left: calc(60% - 160px); animation-delay: 10000ms; }
+.shooting_star:nth-child(19) { top: calc(35% - 60px); left: calc(50% - 90px); animation-delay: 10500ms; }
+.shooting_star:nth-child(20) { top: calc(45% - 20px); left: calc(30% - 150px); animation-delay: 11000ms; }
+.shooting_star:nth-child(21) { top: calc(5% - 60px); left: calc(40% - 30px); animation-delay: 11500ms; }
+.shooting_star:nth-child(22) { top: calc(15% - 90px); left: calc(20% - 120px); animation-delay: 12000ms; }
+.shooting_star:nth-child(23) { top: calc(35% - 150px); left: calc(50% - 100px); animation-delay: 12500ms; }
+.shooting_star:nth-child(24) { top: calc(60% - 80px); left: calc(10% - 50px); animation-delay: 13000ms; }
+.shooting_star:nth-child(25) { top: calc(75% - 90px); left: calc(60% - 130px); animation-delay: 13500ms; }
+/* 10 sao bay ở góc dưới bên trái */
+.shooting_star:nth-child(46) { top: 76%; left: 5%; animation-delay: 14000ms; }
+.shooting_star:nth-child(47) { top: 82%; left: 8%; animation-delay: 14300ms; }
+.shooting_star:nth-child(48) { top: 85%; left: 12%; animation-delay: 14600ms; }
+.shooting_star:nth-child(49) { top: 88%; left: 3%; animation-delay: 14900ms; }
+.shooting_star:nth-child(50) { top: 90%; left: 15%; animation-delay: 15200ms; }
+.shooting_star:nth-child(51) { top: 92%; left: 7%; animation-delay: 15500ms; }
+.shooting_star:nth-child(52) { top: 94%; left: 5%; animation-delay: 15800ms; }
+.shooting_star:nth-child(53) { top: 96%; left: 10%; animation-delay: 16100ms; }
+.shooting_star:nth-child(54) { top: 80%; left: 18%; animation-delay: 16400ms; }
+.shooting_star:nth-child(55) { top: 78%; left: 25%; animation-delay: 16700ms; }
+.shooting_star:nth-child(56) { top: 86%; left: 0%; animation-delay: 17000ms; }
+.shooting_star:nth-child(57) { top: 89%; left: 6%; animation-delay: 17300ms; }
+.shooting_star:nth-child(58) { top: 93%; left: 14%; animation-delay: 17600ms; }
+.shooting_star:nth-child(59) { top: 95%; left: 2%; animation-delay: 17900ms; }
+.shooting_star:nth-child(60) { top: 97%; left: 22%; animation-delay: 18200ms; }
+
 
 /* Form wrapper */
 .login-box {
@@ -369,6 +386,11 @@ body .login-box h1 {
 @keyframes shooting {
     0% { transform: translateX(0); }
     100% { transform: translateX(calc(100vw + 400px)); }
+}
+
+@keyframes shooting-short {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(calc(50vw + 200px)); }
 }
 
 @keyframes square {

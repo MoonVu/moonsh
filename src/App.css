@@ -37,12 +37,7 @@
   }
 }
 
-body, input, textarea, .ant-input, .ant-typography, button, select, option, label, span, div, p, h1, h2, h3, h4, h5, h6 {
-  font-family: 'Segoe UI', sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  text-transform: none;
-}
+
 
 /* Override Ant Design Menu globally */
 .ant-menu {

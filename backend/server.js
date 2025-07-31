@@ -16,7 +16,12 @@ const corsOptions = {
     // Cho phép requests không có origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://172.16.1.6:3000'];
+    // Danh sách origins được phép
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://172.16.1.6:3000',
+      'http://172.16.1.6:5000'
+    ];
     
     // Kiểm tra origin có trong danh sách cho phép không
     if (allowedOrigins.includes(origin)) {
@@ -29,10 +34,13 @@ const corsOptions = {
       return callback(null, true);
     }
     
+    // Log để debug
+    console.log('CORS blocked origin:', origin);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  allowedHeaders: ['Authorization', 'Content-Type']
 };
 
 app.use(cors(corsOptions));
@@ -55,6 +63,7 @@ const Seat = require('./models/Seat');
 const ScheduleTab = require('./models/ScheduleTab');
 const Schedule = require('./models/Schedule');
 const DemoLichDiCa = require('./models/DemoLichDiCa');
+const UserPosition = require('./models/UserPosition');
 
 // Import routes
 const scheduleRoutes = require('./routes/schedules');
@@ -103,7 +112,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Login
-app.post('api/login', async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
     // So sánh username không phân biệt hoa thường
@@ -857,6 +866,343 @@ app.post('/api/force-refresh-schedules', authenticateToken, requireAdmin, async 
   }
 });
 
+// ==================== USER POSITION API ====================
+
+// Lưu vị trí làm việc của user
+app.post('/api/user-position', authenticateToken, async (req, res) => {
+  try {
+    const { page, scrollPosition, selectedTab, gridState, formData, componentState } = req.body;
+    
+    const positionData = {
+      userId: req.user._id,
+      page: page || '/',
+      scrollPosition: scrollPosition || { x: 0, y: 0 },
+      selectedTab: selectedTab || '',
+      gridState: gridState || {},
+      formData: formData || {},
+      componentState: componentState || {},
+      lastActivity: new Date()
+    };
+
+    // Tìm và cập nhật hoặc tạo mới
+    const position = await UserPosition.findOneAndUpdate(
+      { userId: req.user._id },
+      positionData,
+      { new: true, upsert: true, runValidators: true }
+    );
+
+    res.json({ 
+      success: true, 
+      data: position,
+      message: 'Vị trí đã được lưu' 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy vị trí làm việc của user
+app.get('/api/user-position', authenticateToken, async (req, res) => {
+  try {
+    const position = await UserPosition.findOne({ userId: req.user._id });
+    
+    if (!position) {
+      return res.json({ 
+        success: true, 
+        data: {
+          page: '/',
+          scrollPosition: { x: 0, y: 0 },
+          selectedTab: '',
+          gridState: {},
+          formData: {},
+          componentState: {}
+        }
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: position 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Cập nhật vị trí làm việc của user
+app.put('/api/user-position', authenticateToken, async (req, res) => {
+  try {
+    const { page, scrollPosition, selectedTab, gridState, formData, componentState } = req.body;
+    
+    const updateData = {
+      lastActivity: new Date()
+    };
+
+    if (page !== undefined) updateData.page = page;
+    if (scrollPosition !== undefined) updateData.scrollPosition = scrollPosition;
+    if (selectedTab !== undefined) updateData.selectedTab = selectedTab;
+    if (gridState !== undefined) updateData.gridState = gridState;
+    if (formData !== undefined) updateData.formData = formData;
+    if (componentState !== undefined) updateData.componentState = componentState;
+
+    const position = await UserPosition.findOneAndUpdate(
+      { userId: req.user._id },
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!position) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Không tìm thấy vị trí của user' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: position,
+      message: 'Vị trí đã được cập nhật' 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Xóa vị trí làm việc của user
+app.delete('/api/user-position', authenticateToken, async (req, res) => {
+  try {
+    const position = await UserPosition.findOneAndDelete({ userId: req.user._id });
+    
+    if (!position) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Không tìm thấy vị trí của user' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Vị trí đã được xóa' 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Lấy vị trí của tất cả users (chỉ admin)
+app.get('/api/user-positions', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const positions = await UserPosition.find({})
+      .populate('userId', 'username group_name')
+      .sort({ lastActivity: -1 });
+
+    res.json({ 
+      success: true, 
+      data: positions 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API endpoints cho UserPosition
+app.post('/api/user-position', async (req, res) => {
+  try {
+    const { userId, page, scrollPosition, selectedTab, gridState, formData, componentState } = req.body;
+    
+    let userPosition = await UserPosition.findOne({ userId });
+    if (userPosition) {
+      userPosition.page = page || userPosition.page;
+      userPosition.scrollPosition = scrollPosition || userPosition.scrollPosition;
+      userPosition.selectedTab = selectedTab || userPosition.selectedTab;
+      userPosition.gridState = gridState || userPosition.gridState;
+      userPosition.formData = formData || userPosition.formData;
+      userPosition.componentState = componentState || userPosition.componentState;
+      userPosition.lastActivity = new Date();
+      await userPosition.save();
+    } else {
+      userPosition = new UserPosition({
+        userId,
+        page,
+        scrollPosition,
+        selectedTab,
+        gridState,
+        formData,
+        componentState
+      });
+      await userPosition.save();
+    }
+    
+    res.json({ success: true, data: userPosition });
+  } catch (error) {
+    console.error('Lỗi khi lưu user position:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+app.get('/api/user-position', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const userPosition = await UserPosition.findOne({ userId });
+    res.json({ success: true, data: userPosition });
+  } catch (error) {
+    console.error('Lỗi khi lấy user position:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+app.put('/api/user-position', async (req, res) => {
+  try {
+    const { userId, ...updateData } = req.body;
+    const userPosition = await UserPosition.findOneAndUpdate(
+      { userId },
+      { ...updateData, lastActivity: new Date() },
+      { new: true, upsert: true }
+    );
+    res.json({ success: true, data: userPosition });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật user position:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+app.delete('/api/user-position', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    await UserPosition.findOneAndDelete({ userId });
+    res.json({ success: true, message: 'Đã xóa user position' });
+  } catch (error) {
+    console.error('Lỗi khi xóa user position:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+app.get('/api/user-positions', async (req, res) => {
+  try {
+    const userPositions = await UserPosition.find().populate('userId', 'username name');
+    res.json({ success: true, data: userPositions });
+  } catch (error) {
+    console.error('Lỗi khi lấy tất cả user positions:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+// API endpoints cho Seat (vị trí chỗ ngồi)
+app.get('/api/seat', async (req, res) => {
+  try {
+    let seat = await Seat.findOne().sort({ createdAt: -1 });
+    if (!seat) {
+      // Tạo dữ liệu mặc định nếu chưa có
+      seat = new Seat({
+        grid: [
+          [ { name: "FK OWEN", group: "FK" }, { name: "FK GIGI", group: "FK" }, { name: "FK ANGEL", group: "FK" }, null ],
+          [ { name: "TT TEDDY", group: "TT" }, null, null, null ],
+          [ null, null, null, null ],
+        ],
+        tagList: [],
+        walkwayColIndexes: []
+      });
+      await seat.save();
+    }
+    if (seat.grid) {
+      seat.grid.forEach((row, rowIdx) => {
+        if (Array.isArray(row)) {
+          row.forEach((cell, colIdx) => {
+            if (cell && cell.type === 'walkway-vertical') {
+            }
+          });
+        }
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      data: {
+        grid: seat.grid,
+        tagList: seat.tagList,
+        walkwayColIndexes: seat.walkwayColIndexes,
+        walkwayRowIndexes: seat.walkwayRowIndexes,
+        version: seat.version,
+        lastModifiedBy: seat.lastModifiedBy,
+        lastModifiedAt: seat.lastModifiedAt
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu seat:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+app.post('/api/seat', async (req, res) => {
+  try {
+    const { grid, tagList, walkwayColIndexes, walkwayRowIndexes, modifiedBy } = req.body;
+    
+    let seat = await Seat.findOne().sort({ createdAt: -1 });
+    if (seat) {
+      
+      seat.grid = grid;
+      seat.tagList = tagList || [];
+      seat.walkwayColIndexes = walkwayColIndexes || [];
+      seat.walkwayRowIndexes = walkwayRowIndexes || [];
+      seat.lastModifiedBy = modifiedBy || '';
+      await seat.save();
+    } else {
+      
+      seat = new Seat({
+        grid,
+        tagList: tagList || [],
+        walkwayColIndexes: walkwayColIndexes || [],
+        walkwayRowIndexes: walkwayRowIndexes || [],
+        lastModifiedBy: modifiedBy || ''
+      });
+      await seat.save();
+    }
+    
+
+    if (seat.grid) {
+      seat.grid.forEach((row, rowIdx) => {
+        if (Array.isArray(row)) {
+          row.forEach((cell, colIdx) => {
+            if (cell && cell.type === 'walkway-vertical') {
+            }
+          });
+        }
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      data: {
+        grid: seat.grid,
+        tagList: seat.tagList,
+        walkwayColIndexes: seat.walkwayColIndexes,
+        walkwayRowIndexes: seat.walkwayRowIndexes,
+        version: seat.version,
+        lastModifiedBy: seat.lastModifiedBy,
+        lastModifiedAt: seat.lastModifiedAt
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi lưu dữ liệu seat:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+app.get('/api/seat/version', async (req, res) => {
+  try {
+    const seat = await Seat.findOne().sort({ createdAt: -1 });
+    res.json({ 
+      success: true, 
+      version: seat?.version || 0,
+      lastModifiedAt: seat?.lastModifiedAt,
+      lastModifiedBy: seat?.lastModifiedBy
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy version seat:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('❌ Server Error:', err);
@@ -874,14 +1220,14 @@ app.use('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Moon Backend Server đang chạy trên port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 CORS Origins: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
+  console.log(`🌐 CORS Origins: ${process.env.CORS_ORIGIN || 'http://localhost:3000, http://172.16.1.6:5000'}`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`🌐 LAN Access: http://172.16.1.6:${PORT}/api/health`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down server...');
+  console.log('\n🛑 Tắt máy chủ...');
   mongoose.connection.close((err) => {
     if (err) {
       console.error('Error closing database:', err);
