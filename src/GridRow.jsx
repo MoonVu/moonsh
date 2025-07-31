@@ -10,17 +10,19 @@ const GridRow = React.memo(function GridRow({ row, rowIdx, handleDragOver, handl
     >
       {row.map((cell, colIdx) => {
         if (cell && cell.type === "walkway-vertical") {
-          ;
+          // Render đường đi dọc trong từng hàng
           return (
             <div
-              className="walkway-col"
               key={colIdx}
               style={{
+                width: "40px", // Cố định chiều rộng nhỏ
+                minWidth: "40px",
+                flexShrink: 0, // Không cho phép thu nhỏ
+                minHeight: 56,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 background: "#e0e6ed",
-                minWidth: 40,
               }}
             >
               <span
@@ -28,12 +30,12 @@ const GridRow = React.memo(function GridRow({ row, rowIdx, handleDragOver, handl
                   writingMode: "vertical-rl",
                   transform: "rotate(180deg)",
                   fontWeight: 600,
-                  fontSize: 15,
+                  fontSize: 12,
                   color: "#29547A",
                   letterSpacing: 1,
                 }}
               >
-                {cell.text || 'Đường đi'}
+                Đường đi
               </span>
             </div>
           );

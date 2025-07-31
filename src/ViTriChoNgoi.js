@@ -33,6 +33,8 @@ export default function ViTriChoNgoi() {
   const [showDeleteCol, setShowDeleteCol] = useState(false);
   const [rowToDelete, setRowToDelete] = useState(0);
   const [colToDelete, setColToDelete] = useState(0);
+  const [selectedRowsToDelete, setSelectedRowsToDelete] = useState([]);
+  const [selectedColsToDelete, setSelectedColsToDelete] = useState([]);
   const [showAddWalkway, setShowAddWalkway] = useState(false);
   const [walkwayRowIdx, setWalkwayRowIdx] = useState(0);
   const [showAddWalkwayCol, setShowAddWalkwayCol] = useState(false);
@@ -356,7 +358,18 @@ export default function ViTriChoNgoi() {
     const normalRows = getNormalRowIndexes(grid);
     const insertIdx = normalRows.length > 0 ? normalRows[normalRows.length - 1] + 1 : 0;
     const newGrid = [...grid];
-    newGrid.splice(insertIdx, 0, Array(grid[0]?.length || 4).fill(null));
+    
+    // Tạo hàng mới với đúng số cột và tự động thêm đường đi dọc
+    const newRow = Array(grid[0]?.length || 4).fill(null);
+    
+    // Thêm đường đi dọc vào hàng mới nếu có
+    walkwayColIndexes.forEach(colIdx => {
+      if (colIdx < newRow.length) {
+        newRow[colIdx] = { type: 'walkway-vertical', text: 'Đường đi' };
+      }
+    });
+    
+    newGrid.splice(insertIdx, 0, newRow);
     
     // Cập nhật walkwayRowIndexes sau khi thêm hàng
     const newWalkwayRowIndexes = walkwayRowIndexes.map(idx => 
@@ -574,6 +587,53 @@ export default function ViTriChoNgoi() {
     saveSeatDataToServer(newGrid, newTagList, walkwayColIndexes, newWalkwayRowIndexes);
   };
 
+  // Xóa nhiều hàng cùng lúc
+  const handleRemoveMultipleRows = () => {
+    if (selectedRowsToDelete.length === 0) return;
+    
+    const allRows = getAllRowIndexes(grid);
+    const rowsToRemove = selectedRowsToDelete.map(displayIdx => allRows[displayIdx]).sort((a, b) => b - a);
+    
+    let newTagList = tagList;
+    let newGrid = [...grid];
+    
+    // Xóa từ cuối lên để tránh ảnh hưởng index
+    rowsToRemove.forEach(realIdx => {
+      const removedRow = newGrid[realIdx];
+      
+      // Xử lý các cell trong hàng bị xóa (chỉ nếu là hàng thường)
+      if (Array.isArray(removedRow)) {
+        removedRow.forEach(cell => {
+          if (cell) {
+            const acc = (Array.isArray(accounts) ? accounts : []).find(a => a.tenTaiKhoan === cell.name);
+            if (acc && !assignedNames.includes(acc.tenTaiKhoan) && !tagList.includes(acc._id)) {
+              newTagList = [...newTagList, acc._id];
+            }
+          }
+        });
+      }
+      
+      newGrid.splice(realIdx, 1);
+    });
+    
+    // Cập nhật walkwayRowIndexes sau khi xóa hàng
+    const newWalkwayRowIndexes = walkwayRowIndexes
+      .filter(idx => !rowsToRemove.includes(idx))
+      .map(idx => {
+        let newIdx = idx;
+        rowsToRemove.forEach(removedIdx => {
+          if (newIdx > removedIdx) newIdx--;
+        });
+        return newIdx;
+      });
+    
+    setGrid(newGrid);
+    setTagList(newTagList);
+    setWalkwayRowIndexes(newWalkwayRowIndexes);
+    saveSeatDataToServer(newGrid, newTagList, walkwayColIndexes, newWalkwayRowIndexes);
+    setSelectedRowsToDelete([]);
+  };
+
   // Xóa cột
   const handleRemoveCol = (colIdx) => {
     // Kiểm tra xem cột có chứa walkway-vertical không
@@ -611,6 +671,64 @@ export default function ViTriChoNgoi() {
     setTagList(newTagList);
     setWalkwayColIndexes(newWalkwayColIndexes);
     saveSeatDataToServer(newGrid, newTagList, newWalkwayColIndexes, walkwayRowIndexes);
+  };
+
+  // Xóa nhiều cột cùng lúc
+  const handleRemoveMultipleCols = () => {
+    if (selectedColsToDelete.length === 0) return;
+    
+    const colsToRemove = [...selectedColsToDelete].sort((a, b) => b - a);
+    
+    // Kiểm tra xem có cột nào chứa walkway-vertical không
+    const hasWalkwayVertical = colsToRemove.some(colIdx => 
+      grid.some(row => {
+        if (Array.isArray(row) && row[colIdx]) {
+          return row[colIdx].type === 'walkway-vertical';
+        }
+        return false;
+      })
+    );
+    
+    if (hasWalkwayVertical) {
+      return;
+    }
+    
+    let newTagList = tagList;
+    let newGrid = grid.map(row => {
+      if (!Array.isArray(row)) return row;
+      let newRow = [...row];
+      
+      // Xóa từ cuối lên để tránh ảnh hưởng index
+      colsToRemove.forEach(colIdx => {
+        const cell = newRow[colIdx];
+        if (cell) {
+          const acc = (Array.isArray(accounts) ? accounts : []).find(a => a.tenTaiKhoan === cell.name);
+          if (acc && !assignedNames.includes(acc.tenTaiKhoan) && !tagList.includes(acc._id)) {
+            newTagList = [...newTagList, acc._id];
+          }
+        }
+        newRow.splice(colIdx, 1);
+      });
+      
+      return newRow;
+    });
+    
+    // Cập nhật walkwayColIndexes sau khi xóa cột
+    const newWalkwayColIndexes = walkwayColIndexes
+      .filter(idx => !colsToRemove.includes(idx))
+      .map(idx => {
+        let newIdx = idx;
+        colsToRemove.forEach(removedIdx => {
+          if (newIdx > removedIdx) newIdx--;
+        });
+        return newIdx;
+      });
+    
+    setGrid(newGrid);
+    setTagList(newTagList);
+    setWalkwayColIndexes(newWalkwayColIndexes);
+    saveSeatDataToServer(newGrid, newTagList, newWalkwayColIndexes, walkwayRowIndexes);
+    setSelectedColsToDelete([]);
   };
 
   // Thêm hàng đường đi ngang
@@ -708,6 +826,14 @@ export default function ViTriChoNgoi() {
     setShowDeleteWalkwayCol(false);
   };
 
+  // Hàm tính toán vị trí cột dựa trên tổng số cột
+  const getColumnPosition = (colIdx, totalCols) => {
+    return {
+      left: `${(colIdx / totalCols) * 100}%`,
+      width: `${100 / totalCols}%`
+    };
+  };
+
   // Hàm safe set grid
   const safeSetGrid = (updater) => setGrid(g => {
     const next = updater(Array.isArray(g) ? g : []);
@@ -779,137 +905,268 @@ export default function ViTriChoNgoi() {
           </div>
         </div>
       )}
-      {/* Popup xóa hàng */}
-      {showDeleteRow && (
-        <div className="center-popup">
-          <h4>Xóa hàng</h4>
-                     <select value={rowToDelete} onChange={e => setRowToDelete(Number(e.target.value))} style={{margin:'12px 0',fontSize:16}}>
+             {/* Popup xóa hàng */}
+       {showDeleteRow && (
+         <div className="center-popup">
+           <h4>Xóa hàng</h4>
+           
+           {/* Chọn tất cả */}
+           <div className="select-all-container">
+             <input
+               type="checkbox"
+               id="select-all-rows"
+               checked={selectedRowsToDelete.length === allRowIndexes.length && allRowIndexes.length > 0}
+               onChange={(e) => {
+                 if (e.target.checked) {
+                   setSelectedRowsToDelete(allRowIndexes.map((_, i) => i));
+                 } else {
+                   setSelectedRowsToDelete([]);
+                 }
+               }}
+             />
+             <label htmlFor="select-all-rows">Chọn tất cả hàng</label>
+           </div>
+           
+           {/* Danh sách hàng để chọn */}
+           <div className="multi-select-container">
              {allRowIndexes.map((realIdx, i) => {
                const row = grid[realIdx];
                const isWalkway = row && row.type === 'walkway-horizontal';
+               const isSelected = selectedRowsToDelete.includes(i);
+               
                return (
-                 <option key={realIdx} value={i}>
-                   {isWalkway ? `Hàng đường đi số ${i+1}` : `Hàng số ${i+1}`}
-                 </option>
+                 <div
+                   key={realIdx}
+                   className={`multi-select-item ${isSelected ? 'selected' : ''}`}
+                   onClick={() => {
+                     if (isSelected) {
+                       setSelectedRowsToDelete(prev => prev.filter(idx => idx !== i));
+                     } else {
+                       setSelectedRowsToDelete(prev => [...prev, i]);
+                     }
+                   }}
+                 >
+                   <input
+                     type="checkbox"
+                     checked={isSelected}
+                     onChange={() => {}}
+                   />
+                   <span>{isWalkway ? `Hàng đường đi số ${i+1}` : `Hàng số ${i+1}`}</span>
+                 </div>
                );
              })}
-           </select>
-          <div style={{display:'flex',gap:10,marginTop:10}}>
-            <button className="btn-delete" onClick={()=>{handleRemoveRow(rowToDelete);setShowDeleteRow(false);}}>Xóa</button>
-            <button className="btn-edit" onClick={()=>setShowDeleteRow(false)}>Đóng</button>
-          </div>
-        </div>
-      )}
-      {/* Popup xóa cột */}
-      {showDeleteCol && (
-        <div className="center-popup">
-          <h4>Xóa cột</h4>
-          <select value={colToDelete} onChange={e => setColToDelete(Number(e.target.value))} style={{margin:'12px 0',fontSize:16}}>
-            {(Array.isArray(grid) ? grid[0] : []).map((_, i) => <option key={i} value={i}>Cột số {i+1}</option>)}
-          </select>
-          <div style={{display:'flex',gap:10,marginTop:10}}>
-            <button className="btn-delete" onClick={()=>{handleRemoveCol(colToDelete);setShowDeleteCol(false);}}>Xóa</button>
-            <button className="btn-edit" onClick={()=>setShowDeleteCol(false)}>Đóng</button>
-          </div>
-        </div>
-      )}
-      {/* Popup chèn đường đi ngang */}
-      {showAddWalkway && (
-        <div className="center-popup">
-          <h4>Chèn đường đi ngang</h4>
-          <select value={walkwayRowIdx} onChange={e => setWalkwayRowIdx(Number(e.target.value))} style={{margin:'12px 0',fontSize:16}}>
-            {Array.from({length: (Array.isArray(grid) ? grid : []).length+1}).map((_, i) => (
-              <option key={i} value={i}>Sau hàng số {i}</option>
-            ))}
-          </select>
-          <div style={{display:'flex',gap:10,marginTop:10}}>
-            <button className="btn-edit" onClick={handleAddWalkway}>Chèn</button>
-            <button className="btn-delete" onClick={()=>setShowAddWalkway(false)}>Đóng</button>
-          </div>
-        </div>
-      )}
-      {/* Popup chèn đường đi dọc */}
-      {showAddWalkwayCol && (
-        <div className="center-popup">
-          <h4>Chèn đường đi dọc</h4>
-          <select value={walkwayColIdx} onChange={e => setWalkwayColIdx(Number(e.target.value))} style={{margin:'12px 0',fontSize:16}}>
-            {Array.from({length: (Array.isArray(grid) ? grid[0] : [])?.length||0+1}).map((_, i) => (
-              <option key={i} value={i}>Sau cột số {i}</option>
-            ))}
-          </select>
-          <div style={{display:'flex',gap:10,marginTop:10}}>
-            <button className="btn-edit" onClick={handleAddWalkwayCol}>Chèn</button>
-            <button className="btn-delete" onClick={()=>setShowAddWalkwayCol(false)}>Đóng</button>
-          </div>
-        </div>
-      )}
-             
-      {/* Popup xóa đường đi dọc */}
-      {showDeleteWalkwayCol && (
-        <div className="center-popup">
-          <h4>Xóa đường đi dọc</h4>
-          <select value={deleteWalkwayColIdx} onChange={e => setDeleteWalkwayColIdx(Number(e.target.value))} style={{margin:'12px 0',fontSize:16}}>
-            {(walkwayColIndexes.map((idx, i) => (
-              <option key={i} value={i}>Cột đường đi số {i+1} (vị trí {idx})</option>
-            )))}
-          </select>
-          <div style={{display:'flex',gap:10,marginTop:10}}>
-            <button className="btn-delete" onClick={handleDeleteWalkwayCol}>Xóa</button>
-            <button className="btn-edit" onClick={()=>setShowDeleteWalkwayCol(false)}>Đóng</button>
-          </div>
-        </div>
-      )}
-      {/* Render grid-table */}
-      <div className="grid-table">
-        <div className="grid-row" style={{ display: 'flex', marginBottom: 2 }}>
-          <div style={{ width: 32 }}></div>
-          {(Array.isArray(grid) && Array.isArray(grid[0]) ? grid[0] : []).map((_, colIdx) => (
-            <div
-              key={colIdx}
-              className="remove-col-btn-wrap"
-              onMouseEnter={() => setHoverCol(colIdx)}
-              onMouseLeave={() => setHoverCol(null)}
-              style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}
-            >
-              {hoverCol === colIdx && (
-                <button className="remove-col-btn" onClick={() => handleRemoveCol(colIdx)} title="Xóa cột">×</button>
-              )}
-            </div>
-          ))}
-        </div>
-                 {(Array.isArray(grid) ? grid : []).map((row, rowIdx) => {
+           </div>
            
-           // Kiểm tra xem có phải hàng đường đi không
-           if (row && row.type === 'walkway-horizontal') {
+           <div className="button-group">
+             <button 
+               className="btn-delete" 
+               onClick={() => {
+                 if (selectedRowsToDelete.length > 0) {
+                   handleRemoveMultipleRows();
+                 } else {
+                   handleRemoveRow(rowToDelete);
+                 }
+                 setShowDeleteRow(false);
+               }}
+               disabled={selectedRowsToDelete.length === 0}
+             >
+               Xóa {selectedRowsToDelete.length > 0 ? `(${selectedRowsToDelete.length})` : ''}
+             </button>
+             <button className="btn-edit" onClick={() => {
+               setShowDeleteRow(false);
+               setSelectedRowsToDelete([]);
+             }}>
+               Đóng
+             </button>
+           </div>
+         </div>
+       )}
+             {/* Popup xóa cột */}
+       {showDeleteCol && (
+         <div className="center-popup">
+           <h4>Xóa cột</h4>
+           
+           {/* Chọn tất cả */}
+           <div className="select-all-container">
+             <input
+               type="checkbox"
+               id="select-all-cols"
+               checked={selectedColsToDelete.length === (Array.isArray(grid) ? grid[0] : []).length && (Array.isArray(grid) ? grid[0] : []).length > 0}
+               onChange={(e) => {
+                 if (e.target.checked) {
+                   setSelectedColsToDelete((Array.isArray(grid) ? grid[0] : []).map((_, i) => i));
+                 } else {
+                   setSelectedColsToDelete([]);
+                 }
+               }}
+             />
+             <label htmlFor="select-all-cols">Chọn tất cả cột</label>
+           </div>
+           
+           {/* Danh sách cột để chọn */}
+           <div className="multi-select-container">
+             {(Array.isArray(grid) ? grid[0] : []).map((_, i) => {
+               const isSelected = selectedColsToDelete.includes(i);
+               const hasWalkway = grid.some(row => {
+                 if (Array.isArray(row) && row[i]) {
+                   return row[i].type === 'walkway-vertical';
+                 }
+                 return false;
+               });
+               
+               return (
+                 <div
+                   key={i}
+                   className={`multi-select-item ${isSelected ? 'selected' : ''} ${hasWalkway ? 'disabled' : ''}`}
+                   onClick={() => {
+                     if (hasWalkway) return; // Không cho phép chọn cột có đường đi dọc
+                     if (isSelected) {
+                       setSelectedColsToDelete(prev => prev.filter(idx => idx !== i));
+                     } else {
+                       setSelectedColsToDelete(prev => [...prev, i]);
+                     }
+                   }}
+                   style={hasWalkway ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                 >
+                   <input
+                     type="checkbox"
+                     checked={isSelected}
+                     disabled={hasWalkway}
+                     onChange={() => {}}
+                   />
+                   <span>
+                     Cột số {i+1}
+                     {hasWalkway && <span style={{ color: '#ef4444', fontSize: '12px', marginLeft: '8px' }}>(Có đường đi)</span>}
+                   </span>
+                 </div>
+               );
+             })}
+           </div>
+           
+           <div className="button-group">
+             <button 
+               className="btn-delete" 
+               onClick={() => {
+                 if (selectedColsToDelete.length > 0) {
+                   handleRemoveMultipleCols();
+                 } else {
+                   handleRemoveCol(colToDelete);
+                 }
+                 setShowDeleteCol(false);
+               }}
+               disabled={selectedColsToDelete.length === 0}
+             >
+               Xóa {selectedColsToDelete.length > 0 ? `(${selectedColsToDelete.length})` : ''}
+             </button>
+             <button className="btn-edit" onClick={() => {
+               setShowDeleteCol(false);
+               setSelectedColsToDelete([]);
+             }}>
+               Đóng
+             </button>
+           </div>
+         </div>
+       )}
+             {/* Popup chèn đường đi ngang */}
+       {showAddWalkway && (
+         <div className="center-popup">
+           <h4>Chèn đường đi ngang</h4>
+           <select value={walkwayRowIdx} onChange={e => setWalkwayRowIdx(Number(e.target.value))}>
+             {Array.from({length: (Array.isArray(grid) ? grid : []).length+1}).map((_, i) => (
+               <option key={i} value={i}>Sau hàng số {i}</option>
+             ))}
+           </select>
+           <div className="button-group">
+             <button className="btn-edit" onClick={handleAddWalkway}>Chèn</button>
+             <button className="btn-delete" onClick={()=>setShowAddWalkway(false)}>Đóng</button>
+           </div>
+         </div>
+       )}
+             {/* Popup chèn đường đi dọc */}
+       {showAddWalkwayCol && (
+         <div className="center-popup">
+           <h4>Chèn đường đi dọc</h4>
+           <select value={walkwayColIdx} onChange={e => setWalkwayColIdx(Number(e.target.value))}>
+             {Array.from({length: (Array.isArray(grid) ? grid[0] : [])?.length||0+1}).map((_, i) => (
+               <option key={i} value={i}>Sau cột số {i}</option>
+             ))}
+           </select>
+           <div className="button-group">
+             <button className="btn-edit" onClick={handleAddWalkwayCol}>Chèn</button>
+             <button className="btn-delete" onClick={()=>setShowAddWalkwayCol(false)}>Đóng</button>
+           </div>
+         </div>
+       )}
+             
+             {/* Popup xóa đường đi dọc */}
+       {showDeleteWalkwayCol && (
+         <div className="center-popup">
+           <h4>Xóa đường đi dọc</h4>
+           <select value={deleteWalkwayColIdx} onChange={e => setDeleteWalkwayColIdx(Number(e.target.value))}>
+             {(walkwayColIndexes.map((idx, i) => (
+               <option key={i} value={i}>Cột đường đi số {i+1} (vị trí {idx})</option>
+             )))}
+           </select>
+           <div className="button-group">
+             <button className="btn-delete" onClick={handleDeleteWalkwayCol}>Xóa</button>
+             <button className="btn-edit" onClick={()=>setShowDeleteWalkwayCol(false)}>Đóng</button>
+           </div>
+         </div>
+       )}
+                                                                                                                                                                       {/* Render grid-table */}
+            <div className="grid-table" style={{ position: 'relative' }}>
+                                                       
+          
+          <div className="grid-row" style={{ display: 'flex', marginBottom: 2 }}>
+            <div style={{ width: 32 }}></div>
+            {(Array.isArray(grid) && Array.isArray(grid[0]) ? grid[0] : []).map((_, colIdx) => (
+              <div
+                key={colIdx}
+                className="remove-col-btn-wrap"
+                onMouseEnter={() => setHoverCol(colIdx)}
+                onMouseLeave={() => setHoverCol(null)}
+                style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}
+              >
+                {hoverCol === colIdx && (
+                  <button className="remove-col-btn" onClick={() => handleRemoveCol(colIdx)} title="Xóa cột">×</button>
+                )}
+              </div>
+            ))}
+          </div>
+         
+         {(Array.isArray(grid) ? grid : []).map((row, rowIdx) => {
+           
+                       // Kiểm tra xem có phải hàng đường đi không
+            if (row && row.type === 'walkway-horizontal') {
+              return (
+                <div className="walkway-row" key={rowIdx} style={{display:'flex',alignItems:'center',justifyContent:'center',height:40,background:'#e0e6ed',position:'relative'}}>
+                  <span style={{fontWeight:600,fontSize:16,color:'#29547A',letterSpacing:1}}>{row?.text || 'Đường đi'}</span>
+                </div>
+              );
+            }
+           if (row && row.type === 'wall-horizontal') {
              return (
-             <div className="walkway-row" key={rowIdx} style={{display:'flex',alignItems:'center',justifyContent:'center',height:40,background:'#e0e6ed',position:'relative'}}>
-               <span style={{fontWeight:600,fontSize:16,color:'#29547A',letterSpacing:1}}>{row?.text || 'Đường đi'}</span>
-             </div>
+             <div className="wall-row" key={rowIdx}></div>
              );
            }
-          if (row && row.type === 'wall-horizontal') {
-            return (
-            <div className="wall-row" key={rowIdx}></div>
-            );
-          }
-          if (Array.isArray(row)) {
-            return (
-              <GridRow
-                key={rowIdx}
-                row={row}
-                rowIdx={rowIdx}
-                handleDragOver={handleDragOver}
-                handleDrop={handleDrop}
-                handleDragStart={handleDragStart}
-                handleRemoveFromGrid={handleRemoveFromGrid}
-                hoverRow={hoverRow}
-                setHoverRow={setHoverRow}
-              />
-            );
-          }
-          return null;
-        })}
-      </div>
+           if (Array.isArray(row)) {
+             return (
+               <GridRow
+                 key={rowIdx}
+                 row={row}
+                 rowIdx={rowIdx}
+                 handleDragOver={handleDragOver}
+                 handleDrop={handleDrop}
+                 handleDragStart={handleDragStart}
+                 handleRemoveFromGrid={handleRemoveFromGrid}
+                 hoverRow={hoverRow}
+                 setHoverRow={setHoverRow}
+               />
+             );
+           }
+           return null;
+         })}
+       </div>
       {/* Vùng tag nhân viên chưa xếp chỗ */}
       <div className="unassigned-tags">
         <h4>Nhân viên chưa xếp chỗ:</h4>

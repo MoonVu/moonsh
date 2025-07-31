@@ -386,11 +386,137 @@
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
   z-index: 2000 !important;
-  min-width: 320px;
-  box-shadow: 0 8px 32px rgba(18,179,214,0.18);
+  min-width: 380px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   background: #fff;
-  border-radius: 12px;
-  padding: 24px 28px 18px 28px;
+  border-radius: 16px;
+  padding: 28px;
+  border: 1px solid #e5e7eb;
+}
+
+.center-popup h4 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #29547A;
+  text-align: center;
+}
+
+.center-popup select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #fff;
+  color: #374151;
+  transition: border-color 0.2s;
+  margin-bottom: 16px;
+}
+
+.center-popup select:focus {
+  outline: none;
+  border-color: #29547A;
+  box-shadow: 0 0 0 3px rgba(41, 84, 122, 0.1);
+}
+
+.center-popup .multi-select-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 16px;
+}
+
+.center-popup .multi-select-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 4px;
+}
+
+.center-popup .multi-select-item:hover {
+  background-color: #f3f4f6;
+}
+
+.center-popup .multi-select-item.selected {
+  background-color: #29547A;
+  color: white;
+}
+
+.center-popup .multi-select-item input[type="checkbox"] {
+  margin-right: 12px;
+  width: 18px;
+  height: 18px;
+  accent-color: #29547A;
+}
+
+.center-popup .button-group {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.center-popup .btn-edit,
+.center-popup .btn-delete {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+
+.center-popup .btn-edit {
+  background: #29547A;
+  color: white;
+}
+
+.center-popup .btn-edit:hover {
+  background: #1e3a5a;
+  transform: translateY(-1px);
+}
+
+.center-popup .btn-delete {
+  background: #ef4444;
+  color: white;
+}
+
+.center-popup .btn-delete:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.center-popup .select-all-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.center-popup .select-all-container input[type="checkbox"] {
+  margin-right: 8px;
+  width: 18px;
+  height: 18px;
+  accent-color: #29547A;
+}
+
+.center-popup .select-all-container label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
 }
 .add-tag-popup::before {
   content: '';
