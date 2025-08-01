@@ -66,7 +66,7 @@ const filterMenuByPermission = (items, userGroup) => {
     if (item.children) {
       const filteredChildren = item.children.map(child => {
         // Một số menu con có thể có quyền riêng
-        if (child.key === 'taikhoan' || child.key === 'phanquyen' || child.key === 'apitest') {
+        if (child.key === 'taikhoan' || child.key === 'phanquyen') {
           return isFullManager(userGroup) ? child : null;
         }
         return child;
@@ -108,7 +108,7 @@ const allMenuItems = [
     children: [
       { key: 'taikhoan', icon: <UserOutlined />, label: createLabelWithTooltip('Tài khoản') },
       { key: 'phanquyen', icon: <TeamOutlined />, label: createLabelWithTooltip('Phân quyền') },
-      { key: 'apitest', icon: <ApiOutlined />, label: createLabelWithTooltip('API Test') },
+
       {
         key: 'lichlamviec',
         icon: <CalendarOutlined />,
@@ -176,7 +176,7 @@ export default function SidebarMenu({ userGroup, currentMenu }) {
     const routeMap = {
       'taikhoan': '/taikhoan',
       'phanquyen': '/phanquyen',
-      'apitest': '/apitest',
+
       'lichdica': '/lichdica',
       'vitri': '/vitri',
       'task': '/task',
@@ -200,7 +200,7 @@ export default function SidebarMenu({ userGroup, currentMenu }) {
     const pathToKeyMap = {
       'taikhoan': 'taikhoan',
       'phanquyen': 'phanquyen',
-      'apitest': 'apitest',
+
       'lichdica': 'lichdica',
       'vitri': 'vitri',
       'task': 'task',

@@ -42,7 +42,7 @@ const Breadcrumb = () => {
       'phanquyen': 'Phân quyền',
       'task': 'Yêu cầu công việc',
       'vitri': 'Vị trí chỗ ngồi',
-      'apitest': 'API Test',
+  
       'lichdica': 'Lịch đi ca',
       'schedules': 'Lịch phân ca',
       'users': 'Người dùng',

@@ -52,7 +52,7 @@ console.log(location.pathname); // '/taikhoan'
 - `/phanquyen` - Phân quyền
 - `/task` - Yêu cầu công việc
 - `/vitri` - Vị trí chỗ ngồi
-- `/apitest` - API Test
+
 - `/lichdica` - Lịch đi ca
 
 ### **Breadcrumb mapping:**
@@ -62,7 +62,7 @@ const nameMap = {
   'phanquyen': 'Phân quyền',
   'task': 'Yêu cầu công việc',
   'vitri': 'Vị trí chỗ ngồi',
-  'apitest': 'API Test',
+  
   'lichdica': 'Lịch đi ca'
 };
 ```

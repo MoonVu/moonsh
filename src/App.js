@@ -8,7 +8,7 @@ import PhanQuyen from "./PhanQuyen";
 import TaskYeuCau from "./TaskYeuCau";
 import Login from "./Login";
 import ViTriChoNgoi from "./ViTriChoNgoi";
-import ApiTest from "./ApiTest";
+
 import LichDiCaTabs from "./LichDiCaTabs";
 import Breadcrumb from "./components/Breadcrumb";
 import apiService from "./services/api";
@@ -104,16 +104,7 @@ const MainLayout = ({ currentUser, onLogout, onChangePwd }) => {
             />
             <Route path="/task" element={<TaskYeuCau user={currentUser} />} />
             <Route path="/vitri" element={<ViTriChoNgoi />} />
-            <Route 
-              path="/apitest" 
-              element={
-                <ProtectedRoute 
-                  component={ApiTest} 
-                  user={currentUser} 
-                  requiredRole="admin"
-                />
-              } 
-            />
+
             <Route path="/lichdica" element={<LichDiCaTabs currentUser={currentUser} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -139,8 +130,14 @@ const ProtectedRoute = ({ component: Component, user, requiredRole }) => {
 const HomePage = () => {
   return (
     <div style={{ textAlign: 'center', padding: '40px' }}>
-      <h2>Chào mừng đến với hệ thống Moon</h2>
+      <h2>Chào mừng đến với hệ thống SHBET</h2>
       <p>Vui lòng chọn một mục từ menu để bắt đầu.</p>
+      <p>Hệ thống đang được phát triển nên nếu có đóng góp vui lòng nhắn tin cho Moon ở telegram</p>
+      <p>
+  <a href="https://t.me/moonvush" target="_blank" rel="noopener noreferrer">
+    https://t.me/moonvush
+  </a>
+</p>
     </div>
   );
 };
