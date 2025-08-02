@@ -577,6 +577,8 @@ export default function ViTriChoNgoi() {
         handleDeleteWalkwayCol={handleDeleteWalkwayCol}
         walkwayColIndexes={walkwayColIndexes}
         grid={grid}
+        totalRows={grid.length}
+        totalCols={grid[0] && Array.isArray(grid[0]) ? grid[0].length : 0}
       />
 
       {/* Render grid-table */}
