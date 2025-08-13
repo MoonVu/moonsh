@@ -3,11 +3,6 @@ import "./BangDuLieu.css";
 import apiService from "./services/api";
 import { FaEllipsisV, FaKey } from 'react-icons/fa';
 
-// Hàm kiểm tra quyền quản lý toàn hệ thống
-const isFullManager = (groupValue) => {
-  return ['CQ', 'PCQ', 'TT'].includes(groupValue);
-};
-
 const GROUPS = [
   { label: "Chủ Quản", value: "CQ" },
   { label: "Phó Chủ Quản", value: "PCQ" },

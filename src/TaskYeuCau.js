@@ -11,9 +11,8 @@ const STATUS = [
 ];
 const LOCAL_KEY = "taskyeucau_data";
 
-// Giả lập tài khoản
-const ACCOUNTS = JSON.parse(localStorage.getItem("bangdulieu")) || [];
-const NGUOI_YEU_CAU = ACCOUNTS; // Toàn bộ tài khoản
+// Mảng rỗng cho người yêu cầu
+const NGUOI_YEU_CAU = [];
 
 export default function TaskYeuCau({ user }) {
   const [data, setData] = useState(() => {

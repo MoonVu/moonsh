@@ -21,67 +21,6 @@ import {
 import { Menu, Tooltip } from 'antd';
 import './SidebarMenu.css';
 
-// Hàm kiểm tra quyền quản lý toàn hệ thống
-const isFullManager = (groupValue) => {
-  return ['CQ', 'PCQ', 'TT'].includes(groupValue);
-};
-
-// Hàm lọc menu theo quyền
-const filterMenuByPermission = (items, userGroup) => {
-  // Các tài khoản quản lý có toàn quyền truy cập
-  if (isFullManager(userGroup)) {
-    return items;
-  }
-
-  return items.map(item => {
-    // Kiểm tra quyền truy cập cho từng nhóm menu
-    let hasAccess = false;
-    
-    switch (item.key) {
-      case 'quantri':
-        // QUẢN TRỊ: Chỉ các tài khoản quản lý mới được truy cập
-        hasAccess = isFullManager(userGroup);
-        break;
-      case 'bank':
-        // BANK: Tất cả đều có thể truy cập
-        hasAccess = true;
-        break;
-      case 'xnk':
-        // XNK: Chỉ XNK và các tài khoản quản lý
-        hasAccess = userGroup === 'XNK' || isFullManager(userGroup);
-        break;
-      case 'cskh':
-        // CSKH: Chỉ CSKH và các tài khoản quản lý
-        hasAccess = userGroup === 'CSKH' || isFullManager(userGroup);
-        break;
-      default:
-        hasAccess = true;
-    }
-
-    if (!hasAccess) {
-      return null;
-    }
-
-    // Nếu có children, lọc tiếp
-    if (item.children) {
-      const filteredChildren = item.children.map(child => {
-        // Một số menu con có thể có quyền riêng
-        if (child.key === 'taikhoan' || child.key === 'phanquyen') {
-          return isFullManager(userGroup) ? child : null;
-        }
-        return child;
-      }).filter(Boolean);
-
-      return {
-        ...item,
-        children: filteredChildren.length > 0 ? filteredChildren : undefined
-      };
-    }
-
-    return item;
-  }).filter(Boolean);
-};
-
 // Hàm tạo label với tooltip cho tên dài
 const createLabelWithTooltip = (label) => {
   return (
@@ -107,8 +46,6 @@ const allMenuItems = [
     label: createLabelWithTooltip('QUẢN TRỊ'),
     children: [
       { key: 'taikhoan', icon: <UserOutlined />, label: createLabelWithTooltip('Tài khoản') },
-      { key: 'phanquyen', icon: <TeamOutlined />, label: createLabelWithTooltip('Phân quyền') },
-
       {
         key: 'lichlamviec',
         icon: <CalendarOutlined />,
@@ -163,20 +100,15 @@ const allMenuItems = [
   },
 ];
 
-export default function SidebarMenu({ userGroup, currentMenu }) {
+export default function SidebarMenu({ currentMenu }) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Lọc menu theo quyền của user
-  const filteredItems = filterMenuByPermission(allMenuItems, userGroup);
-
   // Xử lý click menu
   const handleMenuClick = ({ key }) => {
     // Map menu key sang route path
     const routeMap = {
       'taikhoan': '/taikhoan',
-      'phanquyen': '/phanquyen',
-
       'lichdica': '/lichdica',
       'vitri': '/vitri',
       'task': '/task',
@@ -199,8 +131,6 @@ export default function SidebarMenu({ userGroup, currentMenu }) {
     // Map path segments sang menu keys
     const pathToKeyMap = {
       'taikhoan': 'taikhoan',
-      'phanquyen': 'phanquyen',
-
       'lichdica': 'lichdica',
       'vitri': 'vitri',
       'task': 'task',
@@ -228,7 +158,7 @@ export default function SidebarMenu({ userGroup, currentMenu }) {
       <Menu
         mode="inline"
         theme="light"
-        items={filteredItems}
+        items={allMenuItems}
         selectedKeys={getSelectedKeys()}
         style={{ 
           background: '#e6f0fa', 

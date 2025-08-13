@@ -4,7 +4,6 @@ import SidebarMenu from "./SidebarMenu";
 import BangDuLieu from "./BangDuLieu";
 import ClockGMT7 from "./ClockGMT7";
 import UserMenu from "./UserMenu";
-import PhanQuyen from "./PhanQuyen";
 import TaskYeuCau from "./TaskYeuCau";
 import Login from "./Login";
 import ViTriChoNgoi from "./ViTriChoNgoi";
@@ -46,11 +45,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Hàm kiểm tra quyền quản lý toàn hệ thống
-const isFullManager = (groupValue) => {
-  return ['CQ', 'PCQ', 'TT'].includes(groupValue);
-};
-
 // Component chính cho layout đã đăng nhập
 const MainLayout = ({ currentUser, onLogout, onChangePwd }) => {
   const location = useLocation();
@@ -66,7 +60,6 @@ const MainLayout = ({ currentUser, onLogout, onChangePwd }) => {
     <div style={{ display: "flex" }}>
       <SidebarMenu 
         onMenuClick={(menu) => {}} 
-        userGroup={currentUser?.group_name}
         currentMenu={getCurrentMenu()}
       />
 
@@ -82,29 +75,9 @@ const MainLayout = ({ currentUser, onLogout, onChangePwd }) => {
         <div className="content-container">
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route 
-              path="/taikhoan" 
-              element={
-                <ProtectedRoute 
-                  component={BangDuLieu} 
-                  user={currentUser} 
-                  requiredRole="admin"
-                />
-              } 
-            />
-            <Route 
-              path="/phanquyen" 
-              element={
-                <ProtectedRoute 
-                  component={PhanQuyen} 
-                  user={currentUser} 
-                  requiredRole="admin"
-                />
-              } 
-            />
+            <Route path="/taikhoan" element={<BangDuLieu />} />
             <Route path="/task" element={<TaskYeuCau user={currentUser} />} />
             <Route path="/vitri" element={<ViTriChoNgoi />} />
-
             <Route path="/lichdica" element={<LichDiCaTabs currentUser={currentUser} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -112,18 +85,6 @@ const MainLayout = ({ currentUser, onLogout, onChangePwd }) => {
       </div>
     </div>
   );
-};
-
-// Component bảo vệ route
-const ProtectedRoute = ({ component: Component, user, requiredRole }) => {
-  if (requiredRole === "admin" && !isFullManager(user?.group_name)) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-        Chỉ Chủ Quản, Phó Chủ Quản hoặc Tổ Trưởng mới được phép truy cập.
-      </div>
-    );
-  }
-  return <Component />;
 };
 
 // Trang chủ

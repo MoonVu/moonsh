@@ -86,16 +86,6 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Middleware kiểm tra quyền Quản lý
-const FULL_MANAGER_GROUPS = ['CQ', 'PCQ', 'TT'];
-
-function requireAdmin(req, res, next) {
-  if (!req.user || !FULL_MANAGER_GROUPS.includes(req.user.group_name)) {
-    return res.status(403).json({ error: 'Chỉ quản lý mới được phép thao tác!' });
-  }
-  next();
-}
-
 // Routes
 
 // Health check
@@ -157,9 +147,8 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
 // CRUD Task
 app.get('/api/tasks', authenticateToken, async (req, res) => {
   try {
-    // Nếu là Quản lý, lấy tất cả task; nếu là user thường, chỉ lấy task của mình
-    const filter = FULL_MANAGER_GROUPS.includes(req.user.group_name) ? {} : { assigned_to: req.user._id };
-    const tasks = await Task.find(filter).populate('assigned_to created_by');
+    // Tất cả user đều có thể xem tất cả task
+    const tasks = await Task.find({}).populate('assigned_to created_by');
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -254,10 +243,10 @@ app.delete('/api/notifications/:id', authenticateToken, async (req, res) => {
 // Initialize demo data
 app.post('/api/init-demo', (req, res) => {
   const demoUsers = [
-    { username: 'admin', password: 'admin123', group_name: 'CQ' },
-    { username: 'user1', password: 'user123', group_name: 'XNK' },
-    { username: 'user2', password: 'user123', group_name: 'FK' },
-    { username: 'user3', password: 'user123', group_name: 'CSKH' }
+    { username: 'admin', password: 'admin123', group_name: '' },
+    { username: 'user1', password: 'user123', group_name: '' },
+    { username: 'user2', password: 'user123', group_name: '' },
+    { username: 'user3', password: 'user123', group_name: '' }
   ];
 
   const demoTasks = [
@@ -291,8 +280,8 @@ app.post('/api/init-demo', (req, res) => {
   res.json({ message: 'Demo data initialized successfully' });
 });
 
-// Lấy danh sách user (chỉ Quản lý)
-app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+// Lấy danh sách user
+app.get('/api/users', authenticateToken, async (req, res) => {
   try {
     const users = await User.find({});
     res.json(users);
@@ -301,48 +290,45 @@ app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// Tạo tài khoản mới (chỉ Quản lý)
-app.post('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+// Tạo tài khoản mới
+app.post('/api/users', authenticateToken, async (req, res) => {
   try {
     const { username, password, group_name, status, start_date } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Thiếu username hoặc password.' });
-    }
-    const existing = await User.findOne({ username });
-    if (existing) {
-      return res.status(409).json({ error: 'Username đã tồn tại.' });
-    }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username, password: hashedPassword, group_name, status, start_date });
+    const user = new User({
+      username,
+      password: hashedPassword,
+      group_name,
+      status,
+      start_date
+    });
     await user.save();
-    res.status(201).json({ message: 'Tài khoản đã được tạo.', user });
+    res.json({ success: true, message: 'Tạo tài khoản thành công', user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Sửa user (chỉ Quản lý)
-app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+// Sửa user
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
   try {
     const { username, password, group_name, status, start_date } = req.body;
-    const update = { username, group_name, status, start_date };
-    if (password && password.trim()) {
-      update.password = await bcrypt.hash(password, 10);
+    const updateData = { username, group_name, status, start_date };
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
     }
-    const user = await User.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
-    if (!user) return res.status(404).json({ error: 'User không tồn tại' });
-    res.json(user);
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    res.json({ success: true, message: 'Cập nhật thành công', user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Xóa user (chỉ Quản lý)
-app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+// Xóa user
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ message: 'User deleted successfully' });
+    res.json({ success: true, message: 'Xóa thành công', user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -368,7 +354,7 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
 });
 
 // Quản lý đổi mật khẩu cho user bất kỳ
-app.put('/api/users/:id/password', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/users/:id/password', authenticateToken, async (req, res) => {
   try {
     const { newPassword } = req.body;
     if (!newPassword) return res.status(400).json({ error: 'Thiếu mật khẩu mới.' });
@@ -393,7 +379,7 @@ app.get('/api/seats', authenticateToken, async (req, res) => {
 });
 
 // Thêm sơ đồ chỗ ngồi mới
-app.post('/api/seats', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/seats', authenticateToken, async (req, res) => {
   try {
     const seat = new Seat(req.body);
     await seat.save();
@@ -404,7 +390,7 @@ app.post('/api/seats', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // Sửa sơ đồ chỗ ngồi
-app.put('/api/seats/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/seats/:id', authenticateToken, async (req, res) => {
   try {
     const seat = await Seat.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!seat) return res.status(404).json({ error: 'Seat not found' });
@@ -415,7 +401,7 @@ app.put('/api/seats/:id', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // Xóa sơ đồ chỗ ngồi
-app.delete('/api/seats/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/seats/:id', authenticateToken, async (req, res) => {
   try {
     await Seat.findByIdAndDelete(req.params.id);
     res.json({ message: 'Đã xóa chỗ ngồi' });
@@ -427,37 +413,33 @@ app.delete('/api/seats/:id', authenticateToken, requireAdmin, async (req, res) =
 // Lấy danh sách tab (Quản lý thấy tất cả, user chỉ thấy tab visible)
 app.get('/api/schedule-tabs', authenticateToken, async (req, res) => {
   try {
-    let tabs;
-    if (FULL_MANAGER_GROUPS.includes(req.user.group_name)) {
-      tabs = await ScheduleTab.find({});
-    } else {
-      tabs = await ScheduleTab.find({ visible: true });
-    }
+    // Tất cả user đều có thể xem tất cả tab
+    const tabs = await ScheduleTab.find({});
     res.json(tabs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Tạo tab mới (chỉ Quản lý, DEMO tạo mặc định)
-app.post('/api/schedule-tabs', authenticateToken, requireAdmin, async (req, res) => {
+// Tạo tab mới (DEMO tạo mặc định)
+app.post('/api/schedule-tabs', authenticateToken, async (req, res) => {
   try {
     const { name, type, visible, data } = req.body;
-    // Không cho tạo thêm tab DEMO
-    if (type === 'demo') {
-      const exists = await ScheduleTab.findOne({ type: 'demo' });
-      if (exists) return res.status(409).json({ error: 'Tab DEMO đã tồn tại' });
-    }
-    const tab = new ScheduleTab({ name, type, visible, data, created_by: req.user._id });
+    const tab = new ScheduleTab({
+      name,
+      type,
+      visible: visible !== undefined ? visible : true,
+      data: data || []
+    });
     await tab.save();
-    res.status(201).json(tab);
+    res.json({ success: true, message: 'Tạo tab thành công', tab });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // Sửa tab (đổi tên, đổi trạng thái visible, cập nhật data)
-app.put('/api/schedule-tabs/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/schedule-tabs/:id', authenticateToken, async (req, res) => {
   try {
     const { name, visible, data } = req.body;
     const tab = await ScheduleTab.findByIdAndUpdate(
@@ -473,7 +455,7 @@ app.put('/api/schedule-tabs/:id', authenticateToken, requireAdmin, async (req, r
 });
 
 // Xóa tab (không áp dụng cho DEMO)
-app.delete('/api/schedule-tabs/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/schedule-tabs/:id', authenticateToken, async (req, res) => {
   try {
     const tab = await ScheduleTab.findById(req.params.id);
     if (!tab) return res.status(404).json({ error: 'Tab không tồn tại' });
@@ -613,7 +595,7 @@ app.put('/api/schedules/:group/waiting', authenticateToken, async (req, res) => 
 });
 
 // Xóa schedule
-app.delete('/api/schedules/:group', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/schedules/:group', authenticateToken, async (req, res) => {
   try {
     const schedule = await Schedule.findOneAndDelete({ group: req.params.group });
     if (!schedule) {
@@ -719,7 +701,7 @@ app.put('/api/demo-lichdica/:userId/:day', authenticateToken, async (req, res) =
 });
 
 // Xóa lịch phân ca
-app.delete('/api/demo-lichdica/:userId', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/demo-lichdica/:userId', authenticateToken, async (req, res) => {
   try {
     const { month, year } = req.query;
     const lich = await DemoLichDiCa.findOneAndDelete({ 
@@ -745,7 +727,7 @@ app.use('/api/schedules-monthly', authenticateToken, scheduleRoutes);
 // ==================== ADDITIONAL USER MANAGEMENT API ====================
 
 // Lấy thông tin user theo ID
-app.get('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/users/:id', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -756,7 +738,7 @@ app.get('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // Lấy tất cả users (alias cho /api/users)
-app.get('/api/users-all', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/users-all', authenticateToken, async (req, res) => {
   try {
     const users = await User.find({});
     res.json({ success: true, data: users });
@@ -766,7 +748,7 @@ app.get('/api/users-all', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // Xóa user khỏi group shifts
-app.delete('/api/schedules/:group/shifts/:userId', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/schedules/:group/shifts/:userId', authenticateToken, async (req, res) => {
   try {
     const { group, userId } = req.params;
     const schedule = await Schedule.findOne({ group });
@@ -787,7 +769,7 @@ app.delete('/api/schedules/:group/shifts/:userId', authenticateToken, requireAdm
 });
 
 // Xóa user khỏi group waiting
-app.delete('/api/schedules/:group/waiting/:userId', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/schedules/:group/waiting/:userId', authenticateToken, async (req, res) => {
   try {
     const { group, userId } = req.params;
     const schedule = await Schedule.findOne({ group });
@@ -806,7 +788,7 @@ app.delete('/api/schedules/:group/waiting/:userId', authenticateToken, requireAd
 });
 
 // Cleanup orphaned users (xóa users không còn tồn tại)
-app.post('/api/cleanup-orphaned-users', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/cleanup-orphaned-users', authenticateToken, async (req, res) => {
   try {
     const { month, year } = req.body;
     const query = {};
@@ -846,7 +828,7 @@ app.post('/api/cleanup-orphaned-users', authenticateToken, requireAdmin, async (
 });
 
 // Force refresh schedules
-app.post('/api/force-refresh-schedules', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/force-refresh-schedules', authenticateToken, async (req, res) => {
   try {
     const { month, year } = req.body;
     if (!month || !year) {
@@ -989,101 +971,15 @@ app.delete('/api/user-position', authenticateToken, async (req, res) => {
   }
 });
 
-// Lấy vị trí của tất cả users (chỉ admin)
-app.get('/api/user-positions', authenticateToken, requireAdmin, async (req, res) => {
+// Lấy vị trí của tất cả users
+app.get('/api/user-positions', authenticateToken, async (req, res) => {
   try {
     const positions = await UserPosition.find({})
-      .populate('userId', 'username group_name')
-      .sort({ lastActivity: -1 });
-
-    res.json({ 
-      success: true, 
-      data: positions 
-    });
+      .populate('user_id', 'username group_name')
+      .populate('seat_id', 'name position');
+    res.json(positions);
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// API endpoints cho UserPosition
-app.post('/api/user-position', async (req, res) => {
-  try {
-    const { userId, page, scrollPosition, selectedTab, gridState, formData, componentState } = req.body;
-    
-    let userPosition = await UserPosition.findOne({ userId });
-    if (userPosition) {
-      userPosition.page = page || userPosition.page;
-      userPosition.scrollPosition = scrollPosition || userPosition.scrollPosition;
-      userPosition.selectedTab = selectedTab || userPosition.selectedTab;
-      userPosition.gridState = gridState || userPosition.gridState;
-      userPosition.formData = formData || userPosition.formData;
-      userPosition.componentState = componentState || userPosition.componentState;
-      userPosition.lastActivity = new Date();
-      await userPosition.save();
-    } else {
-      userPosition = new UserPosition({
-        userId,
-        page,
-        scrollPosition,
-        selectedTab,
-        gridState,
-        formData,
-        componentState
-      });
-      await userPosition.save();
-    }
-    
-    res.json({ success: true, data: userPosition });
-  } catch (error) {
-    console.error('Lỗi khi lưu user position:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
-  }
-});
-
-app.get('/api/user-position', async (req, res) => {
-  try {
-    const { userId } = req.query;
-    const userPosition = await UserPosition.findOne({ userId });
-    res.json({ success: true, data: userPosition });
-  } catch (error) {
-    console.error('Lỗi khi lấy user position:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
-  }
-});
-
-app.put('/api/user-position', async (req, res) => {
-  try {
-    const { userId, ...updateData } = req.body;
-    const userPosition = await UserPosition.findOneAndUpdate(
-      { userId },
-      { ...updateData, lastActivity: new Date() },
-      { new: true, upsert: true }
-    );
-    res.json({ success: true, data: userPosition });
-  } catch (error) {
-    console.error('Lỗi khi cập nhật user position:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
-  }
-});
-
-app.delete('/api/user-position', async (req, res) => {
-  try {
-    const { userId } = req.query;
-    await UserPosition.findOneAndDelete({ userId });
-    res.json({ success: true, message: 'Đã xóa user position' });
-  } catch (error) {
-    console.error('Lỗi khi xóa user position:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
-  }
-});
-
-app.get('/api/user-positions', async (req, res) => {
-  try {
-    const userPositions = await UserPosition.find().populate('userId', 'username name');
-    res.json({ success: true, data: userPositions });
-  } catch (error) {
-    console.error('Lỗi khi lấy tất cả user positions:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1095,8 +991,8 @@ app.get('/api/seat', async (req, res) => {
       // Tạo dữ liệu mặc định nếu chưa có
       seat = new Seat({
         grid: [
-          [ { name: "FK OWEN", group: "FK" }, { name: "FK GIGI", group: "FK" }, { name: "FK ANGEL", group: "FK" }, null ],
-          [ { name: "TT TEDDY", group: "TT" }, null, null, null ],
+          [ { name: "FK OWEN", group: "" }, { name: "FK GIGI", group: "" }, { name: "FK ANGEL", group: "" }, null ],
+          [ { name: "TT TEDDY", group: "" }, null, null, null ],
           [ null, null, null, null ],
         ],
         tagList: [],
