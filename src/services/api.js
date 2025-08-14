@@ -46,8 +46,15 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Response error text:", errorText);
+      }
+      
       return this.handleResponse(response);
     } catch (error) {
+      console.error("❌ Request error:", error);
       throw error;
     }
   }
@@ -236,6 +243,65 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify({ month, year, status })
     });
+  }
+
+  // Tạo bản sao lịch đi ca
+  async createScheduleCopy(copyData) {
+    return await this.request('/schedule-copy', {
+      method: 'POST',
+      body: JSON.stringify(copyData)
+    });
+  }
+
+  // Lấy bản sao lịch đi ca theo ID
+  async getScheduleCopy(copyId) {
+    return await this.request(`/schedule-copy/${copyId}`);
+  }
+
+  // Tạo tab mới cho lịch đi ca
+  async createScheduleTab(tabData) {
+    return await this.request('/schedule-tabs', {
+      method: 'POST',
+      body: JSON.stringify(tabData)
+    });
+  }
+
+  // Cập nhật bản sao lịch đi ca
+  async updateScheduleCopy(copyId, copyData) {
+    return await this.request(`/schedule-copy/${copyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(copyData)
+    });
+  }
+
+         // Xóa bản sao lịch đi ca
+       async deleteScheduleCopy(copyId) {
+         try {
+           const response = await this.request(`/schedule-copy/${copyId}`, {
+             method: 'DELETE'
+           });
+           return response;
+         } catch (error) {
+           console.error("❌ API Service: Lỗi khi xóa bản sao:", error);
+           throw error;
+         }
+       }
+
+  // Xóa tab lịch đi ca
+  async deleteScheduleTab(tabId) {
+    return await this.request(`/schedule-tabs/${tabId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Lấy tất cả bản sao lịch đi ca
+  async getAllScheduleCopies() {
+    return await this.request('/schedule-copy');
+  }
+
+  // Lấy tất cả tabs lịch đi ca
+  async getAllScheduleTabs() {
+    return await this.request('/schedule-tabs');
   }
 
   // Lấy schedule theo group

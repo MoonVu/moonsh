@@ -64,6 +64,7 @@ const ScheduleTab = require('./models/ScheduleTab');
 const Schedule = require('./models/Schedule');
 const DemoLichDiCa = require('./models/DemoLichDiCa');
 const UserPosition = require('./models/UserPosition');
+const ScheduleCopy = require('./models/ScheduleCopy');
 
 // Import routes
 const scheduleRoutes = require('./routes/schedules');
@@ -429,12 +430,14 @@ app.post('/api/schedule-tabs', authenticateToken, async (req, res) => {
       name,
       type,
       visible: visible !== undefined ? visible : true,
-      data: data || []
+      data: data || {},
+      created_by: req.user._id || req.user.id
     });
     await tab.save();
     res.json({ success: true, message: 'Tạo tab thành công', tab });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Lỗi khi tạo tab:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -1096,6 +1099,178 @@ app.get('/api/seat/version', async (req, res) => {
   } catch (error) {
     console.error('Lỗi khi lấy version seat:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+});
+
+// ==================== SCHEDULE COPY API ====================
+
+// Tạo bản sao lịch đi ca
+app.post('/api/schedule-copy', authenticateToken, async (req, res) => {
+  try {
+    const { month, year, name, scheduleData, phanCa, description, tags } = req.body;
+    
+    if (!month || !year || !name) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Thiếu tham số month, year hoặc name' 
+      });
+    }
+
+    // Tạo bản sao mới
+    const scheduleCopy = new ScheduleCopy({
+      name,
+      month: Number(month),
+      year: Number(year),
+      scheduleData: new Map(Object.entries(scheduleData || {})),
+      phanCa: phanCa || {},
+      createdBy: req.user._id,
+      description: description || '',
+      tags: tags || []
+    });
+
+    await scheduleCopy.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Đã tạo bản sao thành công',
+      data: scheduleCopy.getBasicInfo()
+    });
+  } catch (err) {
+    console.error('❌ Lỗi khi tạo bản sao:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
+});
+
+// Lấy danh sách bản sao
+app.get('/api/schedule-copy', authenticateToken, async (req, res) => {
+  try {
+    const { month, year, page = 1, limit = 20 } = req.query;
+    
+    let query = {};
+    if (month && year) {
+      query.month = Number(month);
+      query.year = Number(year);
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const copies = await ScheduleCopy.find(query)
+      .populate('createdBy', 'username group_name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await ScheduleCopy.countDocuments(query);
+
+    res.json({ 
+      success: true, 
+      data: copies.map(copy => copy.getBasicInfo()),
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (err) {
+    console.error('❌ Lỗi khi lấy danh sách bản sao:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
+});
+
+// Lấy chi tiết bản sao
+app.get('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
+  try {
+    const copy = await ScheduleCopy.findById(req.params.id)
+      .populate('createdBy', 'username group_name');
+    
+    if (!copy) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Bản sao không tồn tại' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: copy
+    });
+  } catch (err) {
+    console.error('❌ Lỗi khi lấy chi tiết bản sao:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
+});
+
+// Cập nhật bản sao lịch đi ca
+app.put('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
+  try {
+    const { month, year, name, scheduleData, phanCa, description, tags } = req.body;
+    
+    const copy = await ScheduleCopy.findById(req.params.id);
+    if (!copy) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Bản sao không tồn tại' 
+      });
+    }
+
+    // Cập nhật dữ liệu
+    if (month !== undefined) copy.month = Number(month);
+    if (year !== undefined) copy.year = Number(year);
+    if (name !== undefined) copy.name = name;
+    if (scheduleData !== undefined) copy.scheduleData = new Map(Object.entries(scheduleData));
+    if (phanCa !== undefined) copy.phanCa = phanCa;
+    if (description !== undefined) copy.description = description;
+    if (tags !== undefined) copy.tags = tags;
+
+    await copy.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Đã cập nhật bản sao thành công',
+      data: copy.getBasicInfo()
+    });
+  } catch (err) {
+    console.error('❌ Lỗi khi cập nhật bản sao:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
+});
+
+// Xóa bản sao
+app.delete('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
+  try {
+    const copy = await ScheduleCopy.findByIdAndDelete(req.params.id);
+    
+    if (!copy) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Bản sao không tồn tại' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Đã xóa bản sao thành công',
+      data: copy.getBasicInfo()
+    });
+  } catch (err) {
+    console.error('❌ Lỗi khi xóa bản sao:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
   }
 });
 

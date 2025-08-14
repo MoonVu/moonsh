@@ -51,11 +51,11 @@ sudo systemctl enable nginx
 ### 2.1 Clone hoặc upload code
 ```bash
 # Cách 1: Git clone
-git clone https://github.com/your-repo/moonne-menu.git
-cd moonne-menu
+git clone https://github.com/your-repo/moonne.git
+cd moonne
 
 # Cách 2: Upload qua FTP/SFTP
-# Upload toàn bộ thư mục moonne-menu lên server
+# Upload toàn bộ thư mục moonne lên server
 ```
 
 ### 2.2 Cài đặt dependencies
@@ -223,7 +223,7 @@ curl -X POST https://yourdomain.com/api/init-demo
 
 ### 8.1 Update Code
 ```bash
-cd moonne-menu
+cd moonne
 git pull origin main
 
 # Backend

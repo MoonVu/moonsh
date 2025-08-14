@@ -44,7 +44,7 @@ cd /var/www/moonne
 
 # Upload code (qua FTP hoặc git clone)
 # Sau đó:
-cd moonne-menu/backend
+cd moonne/backend
 npm install
 
 cd ../src

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Tabs, Spin, message, Input } from "antd";
+import { Tabs, Spin, message, Input, Button, Popconfirm } from "antd";
 import apiService from "./services/api";
 import DemoNhanSu from "./DemoNhanSu";
 import EditOutlined from '@ant-design/icons/EditOutlined';
 import DemoLichDiCa from "./DemoLichDiCa";
+import { DeleteOutlined } from '@ant-design/icons';
 
 export default function LichDiCaTabs({ currentUser }) {
   const [tabs, setTabs] = useState([]);
@@ -16,6 +17,18 @@ export default function LichDiCaTabs({ currentUser }) {
   useEffect(() => {
     fetchTabs();
     // eslint-disable-next-line
+  }, []);
+
+  // Expose refresh function để DemoLichDiCa có thể gọi
+  useEffect(() => {
+    window.refreshTabs = () => {
+      console.log("🔄 Triggering tabs refresh from window.refreshTabs");
+      fetchTabs();
+    };
+    
+    return () => {
+      delete window.refreshTabs;
+    };
   }, []);
 
   const fetchTabs = async () => {
@@ -53,6 +66,32 @@ export default function LichDiCaTabs({ currentUser }) {
       message.success("Đã cập nhật tên tab!");
     } catch (err) {
       message.error("Không cập nhật được tên tab!");
+    }
+  };
+
+  const handleDeleteCopy = async (tabId, copyId) => {
+    try {
+      // Xóa bản sao khỏi backend
+      const deleteCopyResponse = await apiService.deleteScheduleCopy(copyId);
+      if (!deleteCopyResponse || !deleteCopyResponse.success) {
+        alert(`❌ Lỗi khi xóa bản sao: ${deleteCopyResponse?.error || "Không xác định"}`);
+        return;
+      }
+
+      // Xóa tab khỏi backend
+      const deleteTabResponse = await apiService.deleteScheduleTab(tabId);
+      if (!deleteTabResponse || !deleteTabResponse.success) {
+        alert(`❌ Lỗi khi xóa tab: ${deleteTabResponse?.error || "Không xác định"}`);
+        return;
+      }
+
+      alert("✅ Đã xóa bản sao thành công!");
+      
+      // Refresh lại danh sách tab
+      fetchTabs();
+    } catch (err) {
+      console.error("❌ Lỗi khi xóa bản sao:", err);
+      alert("❌ Lỗi khi xóa bản sao: " + err.message);
     }
   };
 
@@ -101,15 +140,44 @@ export default function LichDiCaTabs({ currentUser }) {
   );
 
   return (
-    <div>
+    <div className="lich-di-ca-tabs">
       <Tabs
         activeKey={activeKey}
         onChange={setActiveKey}
         items={visibleTabs.map(tab => ({
           key: tab._id,
-          label: tab.name,
+          label: (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span>{tab.name}</span>
+              {tab.data?.copyId && (
+                <Popconfirm
+                  title="Xóa bản sao"
+                  description="Bạn có chắc chắn muốn xóa bản sao này không? Hành động này không thể hoàn tác."
+                  onConfirm={() => handleDeleteCopy(tab._id, tab.data.copyId)}
+                  okText="Xóa"
+                  cancelText="Hủy"
+                  okType="danger"
+                >
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    size="small"
+                    style={{ marginLeft: 8 }}
+                    title="Xóa bản sao"
+                  />
+                </Popconfirm>
+              )}
+            </div>
+          ),
           children: tab.type === "demo_nhansu" ? (
             <DemoNhanSu tabId={tab._id} />
+          ) : tab.data?.copyId ? (
+            <DemoLichDiCa 
+              tabId={tab._id} 
+              isCopyTab={true}
+              copyData={tab.data}
+            />
           ) : (
             <DemoLichDiCa tabId={tab._id} />
           )
