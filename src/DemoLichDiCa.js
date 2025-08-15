@@ -20,9 +20,9 @@ const STATUS_OPTIONS = ["", "OFF", "1/2", "VP", "QL", "X", "KL"];
 
 // 3 ca chính
 const CA_CHINH = [
-  { label: "CA SÁNG", time: "07h20~18h20", keywords: ["sáng", "sang", "morning"] },
-  { label: "CA CHIỀU", time: "17h00~04h00", keywords: ["chiều", "chieu", "afternoon"] },
-  { label: "CA ĐÊM", time: "21h00~08h00", keywords: ["đêm", "dem", "night"] }
+  { label: "CA SÁNG", time: "07h20-18h20", keywords: ["sáng", "sang", "morning"] },
+  { label: "CA CHIỀU", time: "17h00-04h00", keywords: ["chiều", "chieu", "afternoon"] },
+  { label: "CA ĐÊM", time: "21h00-08h00", keywords: ["đêm", "dem", "night"] }
 ];
 
 function getDaysInMonth(month, year) {
@@ -411,7 +411,7 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
           });
           
           if (tabResponse && tabResponse.success) {
-            alert(`✅ Đã tạo bản sao và tab mới thành công: ${copyName}`);
+            alert(`✅ Đã tạo ${copyName}`);
             // Trigger refresh để hiển thị tab mới
             if (window.refreshTabs) {
               window.refreshTabs();
@@ -458,9 +458,7 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
         // Bước 1: Xóa bản sao khỏi MongoDB trước
         let copyDeleted = false;
         try {
-          console.log("🗑️ Đang xóa bản sao khỏi MongoDB...");
           const deleteCopyResponse = await apiService.deleteScheduleCopy(copyData.copyId);
-          
           if (deleteCopyResponse && deleteCopyResponse.success) {
             console.log("✅ Đã xóa bản sao khỏi MongoDB thành công");
             copyDeleted = true;
@@ -504,7 +502,7 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
         if (copyDeleted && tabDeleted) {
           alert("✅ Đã xóa hoàn toàn bản sao và tab khỏi database!");
         } else if (copyDeleted) {
-          alert("✅ Đã xóa bản sao khỏi database!\n⚠️ Tab có thể chưa được xóa hoàn toàn.");
+          alert("✅ Đã xóa thành công!");
         } else {
           alert("❌ Có lỗi xảy ra khi xóa dữ liệu!");
         }
@@ -518,8 +516,6 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
     // Function xóa chỉ tab local (fallback)
     const handleDeleteTabOnly = async () => {
       try {
-        console.log("🔄 Tiến hành xóa tab local...");
-        
         // Xóa dữ liệu khỏi localStorage nếu có
         if (copyData?.copyId) {
           const localKey = `copy_${copyData.copyId}_data`;
@@ -540,7 +536,6 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
         }
         
         // Chuyển về tab Demo gốc
-        window.location.href = '/lich-di-ca';
       } catch (err) {
         console.error("❌ Lỗi khi xóa tab local:", err);
         throw err;
