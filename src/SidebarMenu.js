@@ -17,8 +17,10 @@ import {
   ApartmentOutlined,
   EnvironmentOutlined,
   ApiOutlined,
+  CrownOutlined,
 } from '@ant-design/icons';
 import { Menu, Tooltip } from 'antd';
+import { useAuth } from './hooks/useAuth';
 import './SidebarMenu.css';
 
 // LocalStorage key cho việc lưu trạng thái openKeys
@@ -75,19 +77,23 @@ const createLabelWithTooltip = (label) => {
   );
 };
 
-// Chuyển cấu trúc menu sang dạng items với route paths làm keys
-const allMenuItems = [
+// Hàm tạo menu items với kiểm tra quyền
+const createMenuItems = (hasRole, hasPermission, isAdmin) => [
   {
     key: 'quantri',
     icon: <SettingOutlined />,
     label: createLabelWithTooltip('QUẢN TRỊ'),
     children: [
-      { key: '/taikhoan', icon: <UserOutlined />, label: createLabelWithTooltip('Tài khoản') },
+      // Tài khoản - chỉ admin hoặc có quyền users.view
+      ...(hasPermission('users', 'view') || isAdmin() ? [
+        { key: '/taikhoan', icon: <UserOutlined />, label: createLabelWithTooltip('Tài khoản') }
+      ] : []),
       {
         key: 'lichlamviec',
         icon: <CalendarOutlined />,
         label: createLabelWithTooltip('Lịch làm việc'),
         children: [
+          // Lịch đi ca - tất cả user đều có thể xem
           { key: '/lichdica', label: createLabelWithTooltip('Lịch đi ca'), icon: <TableOutlined /> },
           {
             key: 'lichvephep',
@@ -98,12 +104,21 @@ const allMenuItems = [
               { key: '/chitiet', label: createLabelWithTooltip('Chi tiết'), icon: <IdcardOutlined /> },
             ],
           },
-          { key: '/vitri', label: createLabelWithTooltip('Vị trí chỗ ngồi'), icon: <EnvironmentOutlined /> },
-        ],
+          // Vị trí chỗ ngồi - cần quyền seats.view
+          ...(hasPermission('seats', 'view') ? [
+            { key: '/vitri', label: createLabelWithTooltip('Vị trí chỗ ngồi'), icon: <EnvironmentOutlined /> }
+          ] : []),
+        ].filter(Boolean),
       },
-    ],
+      // Admin menu - chỉ admin
+      ...(isAdmin() ? [
+        { key: '/admin', icon: <CrownOutlined />, label: createLabelWithTooltip('Quản lý quyền') }
+      ] : []),
+    ].filter(Boolean),
   },
-  {
+  
+  // BANK section - chỉ admin hoặc role có quyền reports
+  ...(hasPermission('reports', 'view') || isAdmin() ? [{
     key: 'bank',
     icon: <HomeOutlined />,
     label: createLabelWithTooltip('BANK'),
@@ -113,8 +128,10 @@ const allMenuItems = [
       { key: '/bankvqm', label: createLabelWithTooltip('Danh sách bank VQM'), icon: <TableOutlined /> },
       { key: '/luutru', label: createLabelWithTooltip('Lưu trữ bank khóa'), icon: <ContainerOutlined /> },
     ],
-  },
-  {
+  }] : []),
+  
+  // XNK section - chỉ role XNK hoặc admin
+  ...(hasRole('XNK', 'admin') ? [{
     key: 'xnk',
     icon: <AppstoreOutlined />,
     label: createLabelWithTooltip('XNK'),
@@ -124,8 +141,10 @@ const allMenuItems = [
       { key: '/thongkeloi', label: createLabelWithTooltip('Thống kê lỗi sai trong tháng'), icon: <TableOutlined /> },
       { key: '/donchuyenloi', label: createLabelWithTooltip('Các đơn chuyển lỗi'), icon: <ContainerOutlined /> },
     ],
-  },
-  {
+  }] : []),
+  
+  // CSKH section - chỉ role CSKH hoặc admin
+  ...(hasRole('CSKH', 'admin') ? [{
     key: 'cskh',
     icon: <DesktopOutlined />,
     label: createLabelWithTooltip('CSKH'),
@@ -134,12 +153,13 @@ const allMenuItems = [
       { key: '/rut', label: createLabelWithTooltip('Đơn rút tiền'), icon: <ContainerOutlined /> },
       { key: '/nap', label: createLabelWithTooltip('Đơn nạp tiền'), icon: <ContainerOutlined /> },
     ],
-  },
-];
+  }] : []),
+].filter(Boolean);
 
 export default function SidebarMenu({ currentMenu }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { hasRole, hasPermission, isAdmin, isAuthenticated } = useAuth();
   
   // State cho openKeys với localStorage persistence
   const [openKeys, setOpenKeys] = useState(() => {
@@ -153,10 +173,18 @@ export default function SidebarMenu({ currentMenu }) {
   // Tính selectedKeys dựa trên pathname hiện tại
   const selectedKeys = useMemo(() => [location.pathname], [location.pathname]);
 
+  // Tạo menu items dựa trên quyền
+  const menuItems = useMemo(() => {
+    if (!isAuthenticated) return [];
+    return createMenuItems(hasRole, hasPermission, isAdmin);
+  }, [hasRole, hasPermission, isAdmin, isAuthenticated]);
+
   // Effect để tự động mở các parent menu khi navigate
   useEffect(() => {
-    let path = findKeyPath(allMenuItems, location.pathname) 
-            || findBestPrefixPath(allMenuItems, location.pathname);
+    if (!menuItems.length) return;
+    
+    let path = findKeyPath(menuItems, location.pathname) 
+            || findBestPrefixPath(menuItems, location.pathname);
     
     if (!path) return;
 
@@ -166,7 +194,7 @@ export default function SidebarMenu({ currentMenu }) {
       setOpenKeys(nextOpenKeys);
       localStorage.setItem(LS_OPEN_KEYS, JSON.stringify(nextOpenKeys));
     }
-  }, [location.pathname, openKeys]);
+  }, [location.pathname, openKeys, menuItems]);
 
   // Xử lý thay đổi openKeys
   const handleOpenChange = (keys) => {
@@ -189,7 +217,7 @@ export default function SidebarMenu({ currentMenu }) {
       <Menu
         mode="inline"
         theme="light"
-        items={allMenuItems}
+        items={menuItems}
         openKeys={openKeys}
         selectedKeys={selectedKeys}
         onOpenChange={handleOpenChange}

@@ -93,7 +93,15 @@ export default function ViTriChoNgoi() {
   useEffect(() => {
     apiService.getUsers()
       .then(users => {
-        setAccounts(users.filter(a => a.status !== 'Ngưng sử dụng'));
+        // Handle both array and object response formats
+        const usersArray = Array.isArray(users) ? users : (users?.data || []);
+        console.log("🔍 ViTriChoNgoi getUsers response:", { 
+          type: typeof users, 
+          isArray: Array.isArray(users), 
+          finalArray: Array.isArray(usersArray),
+          count: usersArray.length 
+        });
+        setAccounts(usersArray.filter(a => a.status !== 'Ngưng sử dụng'));
       })
       .catch((err) => {
         console.error('Lỗi khi gọi API getUsers:', err);

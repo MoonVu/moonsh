@@ -66,8 +66,12 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
           // Load users data
           const usersRes = await apiService.getAllUsers();
           const usersArr = Array.isArray(usersRes) ? usersRes : (usersRes?.data || []);
-          setUsers(usersArr);
-          console.log("✅ Loaded users for copy tab:", Array.isArray(usersArr) ? usersArr.length : 0, "users");
+          
+          // Ensure users is always an array
+          const safeUsersArr = Array.isArray(usersArr) ? usersArr : [];
+          setUsers(safeUsersArr);
+          console.log("✅ Loaded users for copy tab:", safeUsersArr.length, "users");
+          console.log("🔍 Users data type:", typeof usersRes, "Array check:", Array.isArray(usersRes));
           
                      // Load dữ liệu schedule copy đầy đủ từ backend
            try {
@@ -1052,11 +1056,15 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
         apiService.getSchedulesByMonth(month, year)
       ]);
       const usersArr = Array.isArray(usersRes) ? usersRes : (usersRes?.data || []);
-      console.log("users count:", usersArr.length);
+      
+      // Ensure users is always an array
+      const safeUsersArr = Array.isArray(usersArr) ? usersArr : [];
+      console.log("users count:", safeUsersArr.length);
+      console.log("🔍 Users API response type:", typeof usersRes, "Final array:", Array.isArray(safeUsersArr));
 
       // Xử lý users data
-      setUsers(usersArr);
-      if (!Array.isArray(usersArr) || usersArr.length === 0) {
+      setUsers(safeUsersArr);
+      if (safeUsersArr.length === 0) {
         console.log("❌ Users API returned empty or invalid:", usersRes);
       } else {
         console.log("✅ Loaded users data:", usersArr.length, "users");
@@ -1320,11 +1328,15 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
 
   // Sử dụng useMemo để tránh gọi getStaffsByCa() mỗi lần render không cần thiết
   const staffsByCa = useMemo(() => {
+    // Defensive programming: ensure users is array
+    const usersArray = Array.isArray(users) ? users : [];
+    
     console.log("🔄 Recalculating staffsByCa with:", { 
       phanCa: Object.keys(phanCa).length, 
-      users: users.length,
+      users: usersArray.length,
+      usersType: typeof users,
       phanCaKeys: Object.keys(phanCa),
-      usersSample: users.slice(0, 3).map(u => ({ id: u._id, name: u.username, dept: u.group_name }))
+      usersSample: usersArray.slice(0, 3).map(u => ({ id: u._id, name: u.username, dept: u.group_name }))
     });
     if (Object.keys(phanCa).length > 0) {
       return getStaffsByCa();

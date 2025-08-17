@@ -116,14 +116,24 @@ export default function DemoNhanSu({ currentUser, tabId }) {
     try {
       setLoading(true);
       const res = await apiService.getUsers();
-      setUsers(res);
+      
+      // Handle both array and object response formats
+      const usersArray = Array.isArray(res) ? res : (res?.data || []);
+      console.log("🔍 DemoNhanSu getUsers response:", { 
+        type: typeof res, 
+        isArray: Array.isArray(res), 
+        finalArray: Array.isArray(usersArray),
+        count: usersArray.length 
+      });
+      
+      setUsers(usersArray);
       
       // Chỉ khởi tạo waiting/phanCa nếu chưa có dữ liệu schedule
       if (Object.keys(phanCa).length === 0) {
         const wait = {};
         const caInit = {};
         GROUPS.forEach(g => {
-          wait[g.value] = res.filter(u => u.group_name && g.subs && g.subs.includes(u.group_name)).map(u => String(u._id));
+          wait[g.value] = usersArray.filter(u => u.group_name && g.subs && g.subs.includes(u.group_name)).map(u => String(u._id));
           caInit[g.value] = DEFAULT_BLOCKS.map(b => ({ ...b, users: [] }));
         });
         setWaiting(wait);

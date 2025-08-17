@@ -68,8 +68,16 @@ const ScheduleCopy = require('./models/ScheduleCopy');
 
 // Import routes
 const scheduleRoutes = require('./routes/schedules');
+const authRoutes = require('./src/routes/auth');
+const adminRoutes = require('./src/routes/admin');
+const usersRoutes = require('./src/routes/users');
+const healthRoutes = require('./src/routes/health');
+const rolesRoutes = require('./src/routes/roles');
 
-// Authentication middleware
+// Import new auth middleware
+const { attachUser } = require('./src/middleware/auth');
+
+// Legacy authentication middleware (deprecated - chỉ để compatibility)
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -78,32 +86,48 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) {
+      console.log('❌ Legacy token verification failed:', err.message);
       return res.status(403).json({ error: 'Invalid token' });
     }
+    
+    // Handle both old and new token formats
+    let user;
+    if (decoded.userId) {
+      // New format from authService
+      user = {
+        _id: decoded.userId,
+        id: decoded.userId,
+        username: decoded.username,
+        role: decoded.role,
+        groupCode: decoded.groupCode
+      };
+    } else {
+      // Old format from legacy login
+      user = decoded;
+    }
+    
+    console.log('✅ Legacy middleware user:', { id: user._id || user.id, username: user.username, role: user.role });
     req.user = user;
     next();
   });
 };
 
-// Routes
+// ==================== NEW AUTH SYSTEM ROUTES ====================
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/users', usersRoutes);  
+app.use('/api/health', healthRoutes);
+app.use('/api/roles', rolesRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true,
-    data: {
-      status: 'OK', 
-      message: 'Moon Backend Server đang hoạt động',
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
-    }
-  });
-});
+// ==================== LEGACY ROUTES ====================
 
-// Login
+// Legacy health check route đã được chuyển sang /api/health router
+
+// LEGACY Login endpoint - Deprecated! Sử dụng /api/auth/login thay thế
 app.post('/api/login', async (req, res) => {
+  console.log('⚠️ Warning: Sử dụng legacy login endpoint. Vui lòng chuyển sang /api/auth/login');
   const { username, password } = req.body;
   try {
     // So sánh username không phân biệt hoa thường
@@ -111,9 +135,15 @@ app.post('/api/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Tên đăng nhập không tồn tại' });
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ error: 'Sai mật khẩu' });
-    // Tạo token
+    // Tạo token với role
     const token = jwt.sign(
-      { _id: user._id, username: user.username, group_name: user.group_name },
+      { 
+        _id: user._id, 
+        username: user.username, 
+        group_name: user.group_name,
+        role: user.role || 'FK',
+        groupCode: user.groupCode 
+      },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -285,9 +315,11 @@ app.post('/api/init-demo', (req, res) => {
 app.get('/api/users', authenticateToken, async (req, res) => {
   try {
     const users = await User.find({});
-    res.json(users);
+    console.log('📊 /api/users returning:', users.length, 'users');
+    res.json({ success: true, data: users });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ /api/users error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -310,20 +342,7 @@ app.post('/api/users', authenticateToken, async (req, res) => {
   }
 });
 
-// Sửa user
-app.put('/api/users/:id', authenticateToken, async (req, res) => {
-  try {
-    const { username, password, group_name, status, start_date } = req.body;
-    const updateData = { username, group_name, status, start_date };
-    if (password) {
-      updateData.password = await bcrypt.hash(password, 10);
-    }
-    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
-    res.json({ success: true, message: 'Cập nhật thành công', user });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Sửa user - MOVED TO /src/routes/users.js
 
 // Xóa user
 app.delete('/api/users/:id', authenticateToken, async (req, res) => {

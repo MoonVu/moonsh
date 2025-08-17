@@ -1,3 +1,5 @@
+@import './components/auth/AuthComponents.css';
+
 .user-menu-root {
   display: flex;
   align-items: center;

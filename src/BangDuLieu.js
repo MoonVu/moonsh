@@ -19,7 +19,7 @@ const GROUPS = [
 ];
 const STATUSES = ["Hoạt động", "Ngưng sử dụng", "Tạm khóa"];
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 25;
 
 const STATUS_LABELS = {
   'Hoạt động': 'Hoạt động',
@@ -70,8 +70,17 @@ export default function BangDuLieu() {
     setLoading(true);
     apiService.getUsers()
       .then(users => {
+        // Handle both array and object response formats
+        const usersArray = Array.isArray(users) ? users : (users?.data || []);
+        console.log("🔍 BangDuLieu getUsers response:", { 
+          type: typeof users, 
+          isArray: Array.isArray(users), 
+          finalArray: Array.isArray(usersArray),
+          count: usersArray.length 
+        });
+        
         // Map dữ liệu về đúng format cũ
-        setData(users.map(u => ({
+        setData(usersArray.map(u => ({
           key: u.id || u._id,
           tenTaiKhoan: u.username,
           group: u.group_name,
@@ -135,6 +144,9 @@ export default function BangDuLieu() {
       if (editForm.ngayBatDau && editForm.ngayBatDau !== "Chưa nhập" && editForm.ngayBatDau.trim() !== "") {
         updateData.start_date = editForm.ngayBatDau;
       }
+
+      console.log('📤 Frontend sending updateData:', updateData);
+      console.log('📅 editForm.ngayBatDau:', editForm.ngayBatDau);
 
       // Thực hiện logic xử lý trước
       await apiService.updateUser(editRow, updateData);
@@ -253,7 +265,22 @@ export default function BangDuLieu() {
       setShowAdd(false);
       fetchUsers();
     } catch (err) {
-      setError(err.message);
+      // Cải thiện error handling với thông báo thân thiện
+      let errorMessage = err.message;
+      
+      if (err.message.includes('400') || err.message.includes('HTTP error! status: 400')) {
+        if (addForm.password && addForm.password.length < 6) {
+          errorMessage = "Mật khẩu tối thiểu 6 ký tự.";
+        } else {
+          errorMessage = "Dữ liệu nhập vào không hợp lệ. Vui lòng kiểm tra lại.";
+        }
+      } else if (err.message.includes('409') || err.message.includes('already exists')) {
+        errorMessage = "Tên tài khoản đã tồn tại. Vui lòng chọn tên khác.";
+      } else if (err.message.includes('500')) {
+        errorMessage = "Lỗi hệ thống. Vui lòng thử lại sau.";
+      }
+      
+      setError(errorMessage);
       // Nếu có lỗi, không tắt popup để user có thể sửa
     }
     setLoading(false);
@@ -334,7 +361,31 @@ export default function BangDuLieu() {
               Thống kê nhóm quyền
             </button>
           </div>
-          <button className="btn-edit" onClick={handleAdd}>Thêm tài khoản mới</button>
+          <button 
+            className="btn-add-user"
+            onClick={handleAdd}
+            style={{
+              background: '#52c41a',
+              borderColor: '#52c41a',
+              color: '#fff',
+              border: '2px solid #52c41a',
+              borderRadius: '6px',
+              padding: '8px 16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = '#389e0d';
+              e.target.style.borderColor = '#389e0d';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = '#52c41a';
+              e.target.style.borderColor = '#52c41a';
+            }}
+          >
+            Thêm tài khoản mới
+          </button>
         </div>
       </div>
       <table>
@@ -430,9 +481,31 @@ export default function BangDuLieu() {
                         <input type="password" placeholder="Mật khẩu mới" value={newPwd} onChange={e => setNewPwd(e.target.value)} />
                         {pwdError && <div style={{ color: 'red', fontSize: 13 }}>{pwdError}</div>}
                         {pwdErrorDetail && <div style={{ color: 'orange', fontSize: 12 }}>{pwdErrorDetail}</div>}
-                        {pwdSuccess && <div style={{ color: 'green', fontSize: 13 }}>{pwdSuccess}</div>}
+                        {pwdSuccess && <div style={{ color: 'green', fontSize: 13, textAlign: 'center' }}>{pwdSuccess}</div>}
                         <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
-                          <button className="btn-edit" style={{ flex: 1 }} onClick={async () => {
+                          <button 
+                            className="btn-save-password" 
+                            style={{ 
+                              flex: 1, 
+                              background: '#52c41a', 
+                              color: '#fff', 
+                              border: '1px solid #52c41a', 
+                              borderRadius: '6px', 
+                              padding: '6px 12px', 
+                              fontWeight: '600', 
+                              fontSize: '14px', 
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }} 
+                            onMouseEnter={(e) => {
+                              e.target.style.background = '#389e0d';
+                              e.target.style.borderColor = '#389e0d';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = '#52c41a';
+                              e.target.style.borderColor = '#52c41a';
+                            }}
+                            onClick={async () => {
                             setPwdError(""); setPwdSuccess(""); setPwdErrorDetail("");
                             if (!newPwd) { setPwdError("Vui lòng nhập mật khẩu mới!"); return; }
                             try {
@@ -553,14 +626,43 @@ export default function BangDuLieu() {
             </div>
             {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
             <div style={{ marginTop: 16 }}>
-              <button className="btn-edit" onClick={async () => {
-                if (!addForm.tenTaiKhoan || !addForm.password) {
-                  setError("Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!");
-                  return;
-                }
-                setError("");
-                await handleAddSave();
-              }}>Lưu</button>
+              <button 
+                className="btn-save"
+                onClick={async () => {
+                  if (!addForm.tenTaiKhoan || !addForm.password) {
+                    setError("Vui lòng nhập đầy đủ tên tài khoản và mật khẩu!");
+                    return;
+                  }
+                  if (addForm.password.length < 6) {
+                    setError("Mật khẩu tối thiểu 6 ký tự.");
+                    return;
+                  }
+                  setError("");
+                  await handleAddSave();
+                }}
+                style={{
+                  marginRight: '8px',
+                  padding: '6px 16px',
+                  border: '1px solid #1890ff',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '16px',
+                  transition: 'background 0.2s, color 0.2s',
+                  background: '#e6f4ff',
+                  color: '#1890ff'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#1890ff';
+                  e.target.style.color = '#fff';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#e6f4ff';
+                  e.target.style.color = '#1890ff';
+                }}
+              >
+                Lưu
+              </button>
               <button className="btn-delete" onClick={() => setShowAdd(false)} style={{ marginLeft: 8 }}>Hủy</button>
             </div>
           </div>
@@ -616,7 +718,32 @@ export default function BangDuLieu() {
               <input name="ngayBatDau" type="date" value={editForm.ngayBatDau || ""} onChange={handleEditChange} />
             </div>
             <div style={{ marginTop: 16 }}>
-              <button className="btn-edit" onClick={handleEditSave}>Lưu</button>
+              <button 
+                className="btn-save-edit"
+                onClick={handleEditSave}
+                style={{
+                  marginRight: '8px',
+                  padding: '6px 16px',
+                  border: '1px solid #1890ff',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '16px',
+                  transition: 'background 0.2s, color 0.2s',
+                  background: '#e6f4ff',
+                  color: '#1890ff'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#1890ff';
+                  e.target.style.color = '#fff';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#e6f4ff';
+                  e.target.style.color = '#1890ff';
+                }}
+              >
+                Lưu
+              </button>
               <button className="btn-delete" onClick={() => setShowEdit(false)} style={{ marginLeft: 8 }}>Hủy</button>
             </div>
           </div>
@@ -630,7 +757,33 @@ export default function BangDuLieu() {
             <h3>Bạn có chắc chắn muốn xóa không?</h3>
             <div style={{ marginTop: 16 }}>
               <button className="btn-delete" onClick={handleDeleteConfirm}>Đồng ý</button>
-              <button className="btn-edit" onClick={handleDeleteCancel} style={{ marginLeft: 8 }}>Hủy</button>
+              <button 
+                className="btn-cancel-delete"
+                onClick={handleDeleteCancel} 
+                style={{
+                  marginLeft: 8,
+                  marginRight: '8px',
+                  padding: '6px 16px',
+                  border: '1px solid #1890ff',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '16px',
+                  transition: 'background 0.2s, color 0.2s',
+                  background: '#e6f4ff',
+                  color: '#1890ff'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#1890ff';
+                  e.target.style.color = '#fff';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#e6f4ff';
+                  e.target.style.color = '#1890ff';
+                }}
+              >
+                Hủy
+              </button>
             </div>
           </div>
         </div>

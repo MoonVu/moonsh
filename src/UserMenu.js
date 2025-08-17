@@ -3,10 +3,13 @@ import "./UserMenu.css";
 import { FaUserCircle, FaChevronDown, FaSignOutAlt, FaKey, FaBell } from "react-icons/fa";
 import ClockGMT7 from "./ClockGMT7";
 import apiService from "./services/api";
+import { useAuth } from "./hooks/useAuth";
+import { RoleBadge, GroupBadge } from "./components/auth/AccessControl";
 
-export default function UserMenu({ user, onChangePwd, onLogout }) {
+export default function UserMenu() {
+  const { user, logout, changePassword, isAuthenticated } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
-  const [avatar, setAvatar] = useState(user.avatar || "");
+  const [avatar, setAvatar] = useState(user?.avatar || "");
   const [showNoti, setShowNoti] = useState(false);
   const [noti, setNoti] = useState([]);
   const [showNotiDetail, setShowNotiDetail] = useState(null);
@@ -33,9 +36,9 @@ export default function UserMenu({ user, onChangePwd, onLogout }) {
   };
 
   useEffect(() => {
-    if (!user || !user.tenTaiKhoan) return;
+    if (!user?.username && !user?.tenTaiKhoan) return;
     apiService.getNotifications().then(n => setNoti(n)).catch(() => setNoti([]));
-  }, [user.tenTaiKhoan]);
+  }, [user?.username, user?.tenTaiKhoan]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -75,6 +78,10 @@ export default function UserMenu({ user, onChangePwd, onLogout }) {
   // Sort thông báo mới nhất lên đầu
   const sortedNoti = [...noti].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const displayNoti = sortedNoti.slice(0, 5);
+
+  if (!isAuthenticated || !user) {
+    return null;
+  }
 
   return (
     <>
@@ -117,8 +124,10 @@ export default function UserMenu({ user, onChangePwd, onLogout }) {
           </span>
         </div>
         <div className="user-menu-info">
-            <span className="user-menu-name">{user.username || user.tenTaiKhoan}</span>
-            <span style={{ display: 'block', marginTop: 2, fontSize: 14, color: '#29547A', fontWeight: 500 }}>{user.group_name || user.group}</span>
+            <span className="user-menu-name">{user?.username || user?.tenTaiKhoan || 'Guest'}</span>
+            <div style={{ display: 'flex', gap: 4, marginTop: 2, alignItems: 'center' }}>
+              {user?.groupCode && <GroupBadge groupCode={user.groupCode} />}
+            </div>
         </div>
           <div className="user-menu-chevron" ref={userMenuRef} onClick={() => setShowMenu((v) => !v)}>
             <FaChevronDown />
@@ -134,8 +143,10 @@ export default function UserMenu({ user, onChangePwd, onLogout }) {
               )}
             </div>
             <div>
-                  <div className="user-menu-popup-name">{user.username || user.tenTaiKhoan}</div>
-                  <div className="user-menu-popup-role" style={{ marginTop: 2, fontSize: 14, color: '#29547A', fontWeight: 500 }}>{user.group_name || user.group}</div>
+                  <div className="user-menu-popup-name">{user?.username || user?.tenTaiKhoan || 'Guest'}</div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
+                    {user?.groupCode && <GroupBadge groupCode={user.groupCode} />}
+                  </div>
             </div>
           </div>
           <div className="user-menu-popup-actions">
@@ -145,12 +156,9 @@ export default function UserMenu({ user, onChangePwd, onLogout }) {
                 <button className="user-menu-popup-btn" onClick={async () => {
                   setShowMenu(false);
                   try {
-                    await apiService.logout();
+                    await logout();
                   } catch (e) {
-                    console.error("Lỗi khi gọi API logout:", e);
-                  }
-                  if (onLogout) {
-                    onLogout();
+                    console.error("Lỗi khi đăng xuất:", e);
                   }
                 }}>
               <FaSignOutAlt style={{ marginRight: 15 }} /> Đăng xuất
@@ -186,15 +194,17 @@ export default function UserMenu({ user, onChangePwd, onLogout }) {
                       setPwdError("Mật khẩu mới không khớp!"); return;
                     }
                     try {
-                      // Thực hiện logic đổi mật khẩu trước
-                      await apiService.changePassword({ oldPassword: oldPwd, newPassword: newPwd });
+                      // Sử dụng changePassword từ auth context
+                      const result = await changePassword(oldPwd, newPwd, confirmPwd);
                       
-                      // Sau khi logic hoàn thành thành công, mới reset form
-                      setPwdSuccess("Đổi mật khẩu thành công!");
-                      setOldPwd(""); setNewPwd(""); setConfirmPwd("");
+                      if (result.success) {
+                        setPwdSuccess("Đổi mật khẩu thành công!");
+                        setOldPwd(""); setNewPwd(""); setConfirmPwd("");
+                      } else {
+                        setPwdError(result.error || "Đổi mật khẩu thất bại!");
+                      }
                     } catch (err) {
                       setPwdError(err.message || "Đổi mật khẩu thất bại!");
-                      // Nếu có lỗi, không reset form để user có thể sửa
                     }
                   }}>Lưu</button>
                   <button className="btn-delete" onClick={() => { setShowChangePwd(false); setPwdError(""); setPwdSuccess(""); }} style={{ marginLeft: 8 }}>Hủy</button>

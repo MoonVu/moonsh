@@ -4,14 +4,17 @@ const API_BASE_URL = 'http://172.16.1.6:5000';
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
-    this.token = localStorage.getItem('authToken');
+    // Ưu tiên token mới, fallback về authToken cũ
+    this.token = localStorage.getItem('token') || localStorage.getItem('authToken');
   }
 
   setToken(token) {
     this.token = token;
     if (token) {
-      localStorage.setItem('authToken', token);
+      localStorage.setItem('token', token); // Sử dụng key mới
+      localStorage.setItem('authToken', token); // Giữ key cũ cho compatibility
     } else {
+      localStorage.removeItem('token');
       localStorage.removeItem('authToken');
     }
   }
@@ -149,8 +152,58 @@ class ApiService {
 
   // Users (Tài khoản)
   async getUsers() {
-    const data = await this.request('/users');
-    return data.data || data;
+    console.log("🔍 api.getUsers() token check:", { 
+      hasToken: !!this.token,
+      tokenLength: this.token?.length,
+      tokenStart: this.token?.substring(0, 20)
+    });
+    
+    const data = await this.request('/users-all');
+    console.log("🔍 api.getUsers() raw response:", { 
+      type: typeof data, 
+      hasData: !!data?.data,
+      isArray: Array.isArray(data),
+      dataIsArray: Array.isArray(data?.data),
+      keys: Object.keys(data || {}),
+      success: data?.success,
+      error: data?.error,
+      dataContent: data
+    });
+    
+    console.log("🔍 Detailed response structure:");
+    console.log("- data:", data);
+    console.log("- data.data:", data?.data);
+    console.log("- data.success:", data?.success);
+    // Ensure we always return an array
+    let result;
+    if (data?.success && data?.data) {
+      // Handle paginated response: {success: true, data: {users: [], pagination: {}}}
+      if (Array.isArray(data.data.users)) {
+        result = data.data.users;
+        console.log("✅ Found paginated users:", result.length);
+      }
+      // Handle direct array response: {success: true, data: []}
+      else if (Array.isArray(data.data)) {
+        result = data.data;
+        console.log("✅ Found direct array users:", result.length);
+      } else {
+        console.warn("⚠️ data.data is not array or users object:", data.data);
+        result = [];
+      }
+    } else if (Array.isArray(data)) {
+      result = data;
+      console.log("✅ Found raw array users:", result.length);
+    } else {
+      console.warn("⚠️ Unexpected getUsers response format:", data);
+      result = [];
+    }
+    
+    console.log("🔍 api.getUsers() final result:", { 
+      type: typeof result, 
+      isArray: Array.isArray(result),
+      length: result?.length || 'no length'
+    });
+    return result;
   }
 
   async createUser(userData) {
@@ -390,7 +443,46 @@ class ApiService {
 
   // Lấy danh sách tất cả users để map thông tin
   async getAllUsers() {
-    return await this.request('/users');
+    const data = await this.request('/users-all');
+    console.log("🔍 api.getAllUsers() raw response:", { 
+      type: typeof data, 
+      hasData: !!data?.data,
+      isArray: Array.isArray(data),
+      dataIsArray: Array.isArray(data?.data),
+      success: data?.success,
+      error: data?.error
+    });
+    
+    // Handle response format consistently with getUsers()
+    let result;
+    if (data?.success && data?.data) {
+      // Handle paginated response: {success: true, data: {users: [], pagination: {}}}
+      if (Array.isArray(data.data.users)) {
+        result = data.data.users;
+        console.log("✅ getAllUsers found paginated users:", result.length);
+      }
+      // Handle direct array response: {success: true, data: []}
+      else if (Array.isArray(data.data)) {
+        result = data.data;
+        console.log("✅ getAllUsers found direct array users:", result.length);
+      } else {
+        console.warn("⚠️ getAllUsers data.data is not array or users object:", data.data);
+        result = [];
+      }
+    } else if (Array.isArray(data)) {
+      result = data;
+      console.log("✅ getAllUsers found raw array users:", result.length);
+    } else {
+      console.warn("⚠️ Unexpected getAllUsers response format:", data);
+      result = [];
+    }
+    
+    console.log("🔍 api.getAllUsers() final result:", { 
+      type: typeof result, 
+      isArray: Array.isArray(result),
+      length: result?.length || 'no length'
+    });
+    return result;
   }
 
   // Xóa user khỏi shifts của một nhóm
@@ -480,4 +572,8 @@ class ApiService {
 
 // Export singleton instance
 const apiService = new ApiService();
+
+// Export authAPI for compatibility
+export { authAPI } from './authAPI';
+
 export default apiService; 

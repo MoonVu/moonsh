@@ -12,6 +12,10 @@ import LichDiCaTabs from "./LichDiCaTabs";
 import Breadcrumb from "./components/Breadcrumb";
 import apiService from "./services/api";
 import { ScheduleProvider } from "./contexts/ScheduleContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import { RequireAdmin } from "./components/auth/ProtectedRoute";
+import AdminPage from "./pages/AdminPage";
 import './App.css';
 
 // Error Boundary Component
@@ -46,7 +50,7 @@ class ErrorBoundary extends React.Component {
 }
 
 // Component chính cho layout đã đăng nhập
-const MainLayout = ({ currentUser, onLogout, onChangePwd }) => {
+const MainLayout = () => {
   const location = useLocation();
   
   // Lấy menu hiện tại từ URL
@@ -57,33 +61,38 @@ const MainLayout = ({ currentUser, onLogout, onChangePwd }) => {
   };
 
   return (
-    <div style={{ display: "flex" }}>
-      <SidebarMenu 
-        onMenuClick={(menu) => {}} 
-        currentMenu={getCurrentMenu()}
-      />
-
-      <div style={{ flex: 1, padding: 20, marginLeft: 240 }}>
-        <UserMenu 
-          user={currentUser || { tenTaiKhoan: "", group: "", avatar: "" }} 
-          onChangePwd={onChangePwd} 
-          onLogout={onLogout} 
+    <ProtectedRoute>
+      <div style={{ display: "flex" }}>
+        <SidebarMenu 
+          onMenuClick={(menu) => {}} 
+          currentMenu={getCurrentMenu()}
         />
 
-        <Breadcrumb />
+        <div style={{ flex: 1, padding: 20, marginLeft: 240 }}>
+          <UserMenu />
+          <Breadcrumb />
 
-        <div className="content-container">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/taikhoan" element={<BangDuLieu />} />
-            <Route path="/task" element={<TaskYeuCau user={currentUser} />} />
-            <Route path="/vitri" element={<ViTriChoNgoi />} />
-            <Route path="/lichdica" element={<LichDiCaTabs currentUser={currentUser} />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <div className="content-container">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/taikhoan" element={<BangDuLieu />} />
+              <Route path="/task" element={<TaskYeuCau />} />
+              <Route path="/vitri" element={<ViTriChoNgoi />} />
+              <Route path="/lichdica" element={<LichDiCaTabs />} />
+              <Route 
+                path="/admin" 
+                element={
+                  <RequireAdmin>
+                    <AdminPage />
+                  </RequireAdmin>
+                } 
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
         </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 };
 
@@ -103,48 +112,20 @@ const HomePage = () => {
   );
 };
 
+// AdminPage đã được import từ file riêng
+
 function App() {
-  // Trạng thái đăng nhập dựa vào authToken
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("authToken"));
-  const [currentUser, setCurrentUser] = useState(null);
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      apiService.getProfile()
-        .then(setCurrentUser)
-        .catch(() => {
-          setCurrentUser(null);
-          setIsLoggedIn(false);
-        });
-    } else {
-      setCurrentUser(null);
-    }
-  }, [isLoggedIn]);
-
-  const handleChangePwd = () => {
-    alert("Chức năng đổi mật khẩu!");
-  };
-
-  const handleLogout = () => {
-    apiService.logout();
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-  };
-
-  if (!isLoggedIn) {
-    return <Login onLoginSuccess={() => setIsLoggedIn(true)} />;
-  }
-
   return (
     <ErrorBoundary>
       <Router>
-        <ScheduleProvider>
-          <MainLayout 
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            onChangePwd={handleChangePwd}
-          />
-        </ScheduleProvider>
+        <AuthProvider>
+          <ScheduleProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/*" element={<MainLayout />} />
+            </Routes>
+          </ScheduleProvider>
+        </AuthProvider>
       </Router>
     </ErrorBoundary>
   );

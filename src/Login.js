@@ -1,40 +1,46 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Navigate, useLocation } from "react-router-dom";
 import "./Login.css";
-import apiService from "./services/api";
+import { useLogin, useAuth } from "./hooks/useAuth";
 
-export default function Login({ onLoginSuccess }) {
+export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [welcomeText, setWelcomeText] = useState("CHÀO MỪNG");
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  const { login, isLoading, error, clearError } = useLogin();
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  
+  // Redirect location sau khi đăng nhập
+  const from = location.state?.from?.pathname || "/";
+
+  // Nếu đã đăng nhập, redirect
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
 
   const handleSubmit = async e => {
     e.preventDefault();
     if (!username || !password) {
-      setError("Vui lòng nhập đầy đủ thông tin");
       return;
     }
     
-    setLoading(true);
-    setError("");
+    clearError();
     
     try {
-      await apiService.login(username, password);
+      const result = await login(username, password);
       
-      // Hiệu ứng thành công - chỉ thay đổi text và rơi xuống
-      setWelcomeText(`CHÀO MỪNG ${username.toUpperCase()}`);
-      setShowSuccess(true);
-      
-      // Sau 1 giây mới vào ứng dụng
-      setTimeout(() => {
-        onLoginSuccess && onLoginSuccess();
-      }, 1000);
-      
+      if (result.success) {
+        // Hiệu ứng thành công
+        setWelcomeText(`CHÀO MỪNG ${username.toUpperCase()}`);
+        setShowSuccess(true);
+        
+        // Redirect sẽ được xử lý bởi useAuth context
+      }
     } catch (err) {
-      setError(err.message || "Đăng nhập thất bại");
-      setLoading(false);
+      console.error('Login error:', err);
     }
   };
 
@@ -96,9 +102,9 @@ export default function Login({ onLoginSuccess }) {
           <button 
             className="login-btn" 
             type="submit" 
-            disabled={loading}
+            disabled={isLoading}
           >
-            {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+            {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
         </form>
         
