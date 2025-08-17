@@ -17,14 +17,35 @@ class ApiService {
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
     }
+    console.log('🔑 API Service token updated:', token ? 'YES' : 'NO');
+  }
+
+  // Method để refresh token từ localStorage
+  refreshToken() {
+    const newToken = localStorage.getItem('token') || localStorage.getItem('authToken');
+    if (newToken !== this.token) {
+      this.token = newToken;
+      console.log('🔄 API Service token refreshed:', newToken ? 'YES' : 'NO');
+    }
+    return this.token;
   }
 
   // Helper method để tạo headers với token
   getHeaders() {
-    return {
+    // Tự động refresh token từ localStorage
+    this.refreshToken();
+    
+    const headers = {
       'Content-Type': 'application/json',
       ...(this.token && { 'Authorization': `Bearer ${this.token}` })
     };
+    
+    console.log('📤 Request headers:', { 
+      hasAuth: !!headers.Authorization,
+      tokenPreview: this.token ? this.token.substring(0, 20) + '...' : 'NO TOKEN'
+    });
+    
+    return headers;
   }
 
   // Helper method để xử lý response
@@ -575,5 +596,6 @@ const apiService = new ApiService();
 
 // Export authAPI for compatibility
 export { authAPI } from './authAPI';
+export { apiService };
 
 export default apiService; 

@@ -131,7 +131,7 @@ const createMenuItems = (hasRole, hasPermission, isAdmin) => [
   }] : []),
   
   // XNK section - chỉ role XNK hoặc admin
-  ...(hasRole('XNK', 'admin') ? [{
+  ...(hasRole('XNK', 'ADMIN') ? [{
     key: 'xnk',
     icon: <AppstoreOutlined />,
     label: createLabelWithTooltip('XNK'),
@@ -144,7 +144,7 @@ const createMenuItems = (hasRole, hasPermission, isAdmin) => [
   }] : []),
   
   // CSKH section - chỉ role CSKH hoặc admin
-  ...(hasRole('CSKH', 'admin') ? [{
+  ...(hasRole('CSKH', 'ADMIN') ? [{
     key: 'cskh',
     icon: <DesktopOutlined />,
     label: createLabelWithTooltip('CSKH'),

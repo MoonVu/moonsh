@@ -133,7 +133,7 @@ export function RequirePermission({ resource, action, children, fallback = null 
  */
 export function RequireAdmin({ children, fallback = null }) {
   return (
-    <RequireRole roles={['admin']} fallback={fallback}>
+    <RequireRole roles={['ADMIN']} fallback={fallback}>
       {children}
     </RequireRole>
   );

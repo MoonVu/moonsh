@@ -4,6 +4,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI } from '../services/authAPI';
+import { apiService } from '../services/api';
 
 // Initial state
 const initialState = {
@@ -156,20 +157,35 @@ export function AuthProvider({ children }) {
 
   const login = async (username, password) => {
     try {
+      console.log('🔐 Frontend login attempt:', { username, password: password ? '[HIDDEN]' : 'undefined' });
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
 
       const response = await authAPI.login(username, password);
+      console.log('📡 Frontend login response:', response);
       
       if (response.success) {
         // Lưu token
-        localStorage.setItem('token', response.data.token);
+        const token = response.data.token;
+        localStorage.setItem('token', token);
+        localStorage.setItem('authToken', token); // Backup key
+        console.log('💾 Token saved to localStorage:', token ? 'YES' : 'NO');
         
-        // Update state
-        dispatch({
-          type: AUTH_ACTIONS.LOGIN_SUCCESS,
-          payload: response.data
-        });
+        // QUAN TRỌNG: Update API service token
+        try {
+          apiService.setToken(token);
+        } catch (setTokenError) {
+          console.error('Error setting token on apiService:', setTokenError);
+          // Không throw error vì login đã thành công
+        }
+        
+        // Delay authentication state update để animation có thời gian chạy
+        setTimeout(() => {
+          dispatch({
+            type: AUTH_ACTIONS.LOGIN_SUCCESS,
+            payload: response.data
+          });
+        }, 1100); // Giảm thời gian delay
 
         return { success: true };
       } else {
@@ -180,11 +196,32 @@ export function AuthProvider({ children }) {
         return { success: false, error: response.error };
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Lỗi đăng nhập';
+      console.error('Login error details:', error);
+      
+      // Xử lý các loại lỗi khác nhau
+      let errorMessage = 'Đăng nhập thất bại';
+      
+      if (error.message) {
+        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          errorMessage = 'Tên đăng nhập hoặc mật khẩu không đúng';
+        } else if (error.message.includes('Mật khẩu không đúng')) {
+          errorMessage = 'Mật khẩu không đúng';
+        } else if (error.message.includes('Tên đăng nhập không tồn tại')) {
+          errorMessage = 'Tên đăng nhập không tồn tại';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Lỗi kết nối mạng. Vui lòng thử lại';
+        } else {
+          errorMessage = error.message;
+        }
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
         payload: errorMessage
       });
+      
       return { success: false, error: errorMessage };
     }
   };
@@ -235,10 +272,14 @@ export function AuthProvider({ children }) {
 
   // Permission helpers
   const hasRole = (...roles) => {
+    // Admin có tất cả roles
+    if (state.role === 'ADMIN') return true;
     return state.role && roles.includes(state.role);
   };
 
   const hasPermission = (resource, action) => {
+    // Admin có tất cả permissions
+    if (state.role === 'ADMIN') return true;
     if (!state.permissions) return false;
     const permission = `${resource}.${action}`;
     return state.permissions.includes(permission);
@@ -250,7 +291,7 @@ export function AuthProvider({ children }) {
   };
 
   const isAdmin = () => {
-    return state.role === 'admin';
+    return state.role === 'ADMIN';
   };
 
   const canAccess = (resource, action) => {

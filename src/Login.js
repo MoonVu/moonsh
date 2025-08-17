@@ -24,7 +24,7 @@ export default function Login() {
   const handleSubmit = async e => {
     e.preventDefault();
     if (!username || !password) {
-      return;
+      return; // useLogin sẽ tự handle error
     }
     
     clearError();
@@ -33,14 +33,26 @@ export default function Login() {
       const result = await login(username, password);
       
       if (result.success) {
-        // Hiệu ứng thành công
+        // Clear any previous errors
+        clearError();
+        
+        // Hiệu ứng thành công - chỉ thay đổi text và rơi xuống
         setWelcomeText(`CHÀO MỪNG ${username.toUpperCase()}`);
         setShowSuccess(true);
         
-        // Redirect sẽ được xử lý bởi useAuth context
+        // Sau 1 giây mới vào ứng dụng (cho hiệu ứng animation)
+        setTimeout(() => {
+          // useAuth context sẽ tự redirect qua ProtectedRoute logic
+          // Không cần làm gì thêm, chỉ chờ cho animation hoàn thành
+        }, 1000);
       }
+      
     } catch (err) {
+      // Reset animation state nếu có lỗi
+      setShowSuccess(false);
+      setWelcomeText("CHÀO MỪNG");
       console.error('Login error:', err);
+      // useLogin hook sẽ tự hiển thị error message
     }
   };
 

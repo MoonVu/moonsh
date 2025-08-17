@@ -37,7 +37,7 @@ export function ShowForPermission({ resource, action, children, fallback = null,
  */
 export function ShowForAdmin({ children, fallback = null, hideLoading = false }) {
   return (
-    <ShowForRole roles="admin" fallback={fallback} hideLoading={hideLoading}>
+    <ShowForRole roles="ADMIN" fallback={fallback} hideLoading={hideLoading}>
       {children}
     </ShowForRole>
   );
@@ -255,7 +255,7 @@ export function RoleBadge({ className = "" }) {
   };
   
   const roleColors = {
-    admin: 'role-admin',
+    ADMIN: 'role-admin',
     XNK: 'role-xnk',
     CSKH: 'role-cskh', 
     FK: 'role-fk'

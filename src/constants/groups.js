@@ -18,9 +18,9 @@ export const GROUP_LABELS = {
 
 // Mapping groupCode -> role
 export const GROUP_TO_ROLE = {
-  'TT': 'admin',
-  'PCQ': 'admin', 
-  'CQ': 'admin',
+  'TT': 'ADMIN',
+  'PCQ': 'ADMIN', 
+  'CQ': 'ADMIN',
   'XNK': 'XNK',
   'CSKH': 'CSKH',
   'CSOL': 'CSKH',
@@ -32,7 +32,7 @@ export const GROUP_TO_ROLE = {
 
 // Mapping role -> display label
 export const ROLE_LABELS = {
-  'admin': 'Quản trị viên',
+  'ADMIN': 'Quản trị viên',
   'XNK': 'Xuất nhập khoản',
   'CSKH': 'Chăm sóc khách hàng',
   'FK': 'Duyệt đơn'
@@ -40,7 +40,7 @@ export const ROLE_LABELS = {
 
 // Mapping role -> color class
 export const ROLE_COLORS = {
-  'admin': 'role-admin',
+  'ADMIN': 'role-admin',
   'XNK': 'role-xnk',
   'CSKH': 'role-cskh',
   'FK': 'role-fk'
@@ -62,7 +62,7 @@ export const GROUP_COLORS = {
 
 // Roles list
 export const ROLES = {
-  ADMIN: 'admin',
+  ADMIN: 'ADMIN',
   XNK: 'XNK',
   CSKH: 'CSKH',
   FK: 'FK'

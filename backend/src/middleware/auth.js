@@ -141,7 +141,7 @@ const requirePermission = (resource, permission) => {
 /**
  * Middleware kiểm tra admin
  */
-const requireAdmin = requireRole('admin');
+const requireAdmin = requireRole(ROLES.ADMIN);
 
 /**
  * Middleware tùy chọn - không bắt buộc đăng nhập
