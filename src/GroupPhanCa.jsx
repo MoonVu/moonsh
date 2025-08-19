@@ -5,6 +5,8 @@ import UserOutlined from '@ant-design/icons/UserOutlined';
 import EditOutlined from '@ant-design/icons/EditOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { useAuth } from "./hooks/useAuth";
+import { ShowForPermission as AccessControl } from "./components/auth/AccessControl";
 
 const GroupPhanCa = memo(({ 
   group, 
@@ -21,6 +23,7 @@ const GroupPhanCa = memo(({
   onRemoveFromWaiting,
   onRemoveFromCa
 }) => {
+  const { hasPermission, hasRole, isAdmin } = useAuth();
   const caArr = phanCa || [];
   
   // State cho inline editing
@@ -281,7 +284,29 @@ const GroupPhanCa = memo(({
             borderRadius: '12px 12px 0 0',
             borderBottom: `2.5px solid ${group.color}`
           }}}
-          extra={<Button icon={<PlusOutlined />} size="small" type="primary" style={{ background: group.color, borderColor: group.color, color: '#fff', fontWeight: 700, boxShadow: `0 2px 8px ${group.color}33` }} onClick={() => onAddBlock(group.value)}>Thêm ca</Button>}
+          extra={
+            <AccessControl 
+              resource="schedules" 
+              action="edit"
+              fallback={null}
+            >
+              <Button 
+                icon={<PlusOutlined />} 
+                size="small" 
+                type="primary" 
+                style={{ 
+                  background: group.color, 
+                  borderColor: group.color, 
+                  color: '#fff', 
+                  fontWeight: 700, 
+                  boxShadow: `0 2px 8px ${group.color}33` 
+                }} 
+                onClick={() => onAddBlock(group.value)}
+              >
+                Thêm ca
+              </Button>
+            </AccessControl>
+          }
         >
           {renderBangPhanCa()}
         </Card>

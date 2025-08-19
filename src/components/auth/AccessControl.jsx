@@ -9,7 +9,7 @@ import './AuthComponents.css';
 /**
  * Component hiển thị có điều kiện theo role
  */
-export function ShowForRole({ roles, children, fallback = null, hideLoading = false }) {
+function ShowForRole({ roles, children, fallback = null, hideLoading = false }) {
   const { hasRole, isLoading } = useRole(...(Array.isArray(roles) ? roles : [roles]));
 
   if (isLoading && !hideLoading) {
@@ -22,7 +22,7 @@ export function ShowForRole({ roles, children, fallback = null, hideLoading = fa
 /**
  * Component hiển thị có điều kiện theo permission
  */
-export function ShowForPermission({ resource, action, children, fallback = null, hideLoading = false }) {
+function ShowForPermission({ resource, action, children, fallback = null, hideLoading = false }) {
   const { hasPermission, isLoading } = usePermission(resource, action);
 
   if (isLoading && !hideLoading) {
@@ -35,7 +35,7 @@ export function ShowForPermission({ resource, action, children, fallback = null,
 /**
  * Component hiển thị cho admin
  */
-export function ShowForAdmin({ children, fallback = null, hideLoading = false }) {
+function ShowForAdmin({ children, fallback = null, hideLoading = false }) {
   return (
     <ShowForRole roles="ADMIN" fallback={fallback} hideLoading={hideLoading}>
       {children}
@@ -46,7 +46,7 @@ export function ShowForAdmin({ children, fallback = null, hideLoading = false })
 /**
  * Component ẩn theo role
  */
-export function HideForRole({ roles, children }) {
+function HideForRole({ roles, children }) {
   const { hasRole } = useAuth();
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   
@@ -56,7 +56,7 @@ export function HideForRole({ roles, children }) {
 /**
  * Component ẩn theo permission  
  */
-export function HideForPermission({ resource, action, children }) {
+function HideForPermission({ resource, action, children }) {
   const { hasPermission } = useAuth();
   
   return hasPermission(resource, action) ? null : children;
@@ -65,7 +65,7 @@ export function HideForPermission({ resource, action, children }) {
 /**
  * Button với kiểm tra quyền
  */
-export function SecureButton({ 
+function SecureButton({ 
   roles, 
   resource, 
   action, 
@@ -117,7 +117,7 @@ export function SecureButton({
 /**
  * Link với kiểm tra quyền
  */
-export function SecureLink({ 
+function SecureLink({ 
   roles, 
   resource, 
   action, 
@@ -166,7 +166,7 @@ export function SecureLink({
 /**
  * Menu item với kiểm tra quyền
  */
-export function SecureMenuItem({ 
+function SecureMenuItem({ 
   roles, 
   resource, 
   action, 
@@ -203,7 +203,7 @@ export function SecureMenuItem({
 /**
  * Tab với kiểm tra quyền
  */
-export function SecureTab({ 
+function SecureTab({ 
   roles, 
   resource, 
   action, 
@@ -242,7 +242,7 @@ export function SecureTab({
 /**
  * Component để hiển thị thông tin user role hiện tại
  */
-export function RoleBadge({ className = "" }) {
+function RoleBadge({ className = "" }) {
   const { role, user } = useAuth();
   
   if (!role || !user) return null;
@@ -271,7 +271,7 @@ export function RoleBadge({ className = "" }) {
 /**
  * Component để hiển thị group badge
  */
-export function GroupBadge({ groupCode, className = "" }) {
+function GroupBadge({ groupCode, className = "" }) {
   if (!groupCode) return null;
   
   const groupDisplayNames = {
@@ -297,7 +297,7 @@ export function GroupBadge({ groupCode, className = "" }) {
 /**
  * Component wrapper chung cho conditional access
  */
-export function AccessGuard({ 
+function AccessGuard({ 
   roles, 
   resource, 
   action, 
@@ -339,7 +339,8 @@ export function AccessGuard({
   return hasAccess ? children : fallback;
 }
 
-export default {
+// Named exports
+export {
   ShowForRole,
   ShowForPermission,
   ShowForAdmin,
@@ -352,4 +353,24 @@ export default {
   RoleBadge,
   GroupBadge,
   AccessGuard
+};
+
+// Main AccessControl component (same as ShowForPermission)
+export const AccessControl = ShowForPermission;
+
+// Default export
+export default {
+  ShowForRole,
+  ShowForPermission,
+  ShowForAdmin,
+  HideForRole,
+  HideForPermission,
+  SecureButton,
+  SecureLink,
+  SecureMenuItem,
+  SecureTab,
+  RoleBadge,
+  GroupBadge,
+  AccessGuard,
+  AccessControl: ShowForPermission
 };

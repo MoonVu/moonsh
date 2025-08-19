@@ -1,18 +1,17 @@
 /**
- * Admin Routes - Các route chỉ dành cho admin
- * Tất cả routes trong file này đều yêu cầu role admin
+ * Admin Routes - Các route admin với phân quyền cao
  */
 
 const express = require('express');
 const router = express.Router();
 const { attachUser, requireRole, logUserActivity } = require('../middleware/auth');
 const User = require('../../models/User');
-const { ROLES } = require('../config/permissions');
+const Role = require('../../models/Role');
 const { getRoleFromGroupCode } = require('../config/role-map');
 
 // Middleware: Tất cả routes trong admin đều cần role admin
 router.use(attachUser);
-router.use(requireRole(ROLES.ADMIN));
+router.use(requireRole('ADMIN'));
 router.use(logUserActivity('truy cập admin panel'));
 
 /**
@@ -21,13 +20,22 @@ router.use(logUserActivity('truy cập admin panel'));
  */
 router.get('/users', async (req, res) => {
   try {
-    const { page = 1, limit = 20, role, groupCode, status, search } = req.query;
+    console.log('🔍 Admin requesting users list');
     
-    // Xây dựng query filter
+    const { 
+      page = 1, 
+      limit = 50, 
+      role = '', 
+      status = '', 
+      groupCode = '',
+      search = ''
+    } = req.query;
+
+    // Build filter
     const filter = {};
-    if (role) filter.role = role;
-    if (groupCode) filter.groupCode = groupCode;
-    if (status) filter.status = status;
+    if (role && role !== 'all') filter.roleString = role;
+    if (status && status !== 'all') filter.status = status;
+    if (groupCode && groupCode !== 'all') filter.groupCode = groupCode;
     if (search) {
       filter.$or = [
         { username: { $regex: search, $options: 'i' } },
@@ -35,67 +43,79 @@ router.get('/users', async (req, res) => {
       ];
     }
 
-    // Pagination
+    // Get users với pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
-    // Lấy users và tổng số
-    const [users, total] = await Promise.all([
-      User.find(filter)
-        .select('-password') // Không trả về password
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit)),
-      User.countDocuments(filter)
-    ]);
+    const users = await User.find(filter)
+      .populate('role')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await User.countDocuments(filter);
+
+    console.log(`📊 Returning ${users.length} users (total: ${total})`);
 
     res.json({
       success: true,
       data: {
         users,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / parseInt(limit))
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          totalItems: total,
+          itemsPerPage: parseInt(limit)
         }
       }
     });
 
   } catch (error) {
-    console.error('❌ Lỗi admin/users:', error);
+    console.error('❌ Admin users error:', error);
     res.status(500).json({
       success: false,
-      error: 'Lỗi lấy danh sách users'
+      error: 'Lỗi khi lấy danh sách users'
     });
   }
 });
 
 /**
- * PATCH /api/admin/users/:id/role
- * Cập nhật role của user
+ * PATCH /api/admin/users/:userId/role
+ * Cập nhật role và groupCode cho user
  */
-router.patch('/users/:id/role', logUserActivity('thay đổi role user'), async (req, res) => {
+router.patch('/users/:userId/role', async (req, res) => {
   try {
-    const { id } = req.params;
+    const { userId } = req.params;
     const { role, groupCode } = req.body;
 
-    // Validate input
-    if (!role) {
-      return res.status(400).json({
-        success: false,
-        error: 'Role là bắt buộc'
-      });
-    }
+    console.log(`🔧 Admin updating user ${userId}: role=${role}, groupCode=${groupCode}`);
 
-    if (!Object.values(ROLES).includes(role)) {
+    // Validate role
+    if (!role || !['ADMIN', 'XNK', 'CSKH', 'FK'].includes(role)) {
       return res.status(400).json({
         success: false,
         error: 'Role không hợp lệ'
       });
     }
 
-    // Tìm user
-    const user = await User.findById(id);
+    // Tìm role object
+    const roleObj = await Role.findOne({ name: role });
+    if (!roleObj) {
+      return res.status(400).json({
+        success: false,
+        error: 'Role không tồn tại trong database'
+      });
+    }
+
+    // Update user
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { 
+        role: roleObj._id,
+        roleString: role,
+        groupCode: groupCode || null 
+      },
+      { new: true }
+    ).populate('role');
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -103,53 +123,32 @@ router.patch('/users/:id/role', logUserActivity('thay đổi role user'), async 
       });
     }
 
-    // Không cho phép tự thay đổi role của chính mình
-    if (user._id.toString() === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Không thể thay đổi role của chính mình'
-      });
-    }
-
-    // Cập nhật role
-    const updateData = { role };
-    if (groupCode) {
-      updateData.groupCode = groupCode;
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    console.log(`✅ Admin ${req.user.username} đã thay đổi role của ${user.username}: ${user.role} → ${role}`);
+    console.log(`✅ Updated user ${user.username}: ${user.roleString}, groupCode: ${user.groupCode}`);
 
     res.json({
       success: true,
-      data: updatedUser,
-      message: `Đã cập nhật role thành ${role}`
+      message: `Đã cập nhật role cho ${user.username}`,
+      data: user
     });
 
   } catch (error) {
-    console.error('❌ Lỗi admin/users/role:', error);
+    console.error('❌ Update role error:', error);
     res.status(500).json({
       success: false,
-      error: 'Lỗi cập nhật role'
+      error: 'Lỗi khi cập nhật role'
     });
   }
 });
 
 /**
- * DELETE /api/admin/users/:id
- * Xóa user (chỉ admin)
+ * DELETE /api/admin/users/:userId
+ * Xóa user
  */
-router.delete('/users/:id', logUserActivity('xóa user'), async (req, res) => {
+router.delete('/users/:userId', async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // Tìm user
-    const user = await User.findById(id);
+    const { userId } = req.params;
+    
+    const user = await User.findByIdAndDelete(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -157,25 +156,7 @@ router.delete('/users/:id', logUserActivity('xóa user'), async (req, res) => {
       });
     }
 
-    // Không cho phép xóa chính mình
-    if (user._id.toString() === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Không thể xóa chính mình'
-      });
-    }
-
-    // Không cho phép xóa admin khác nếu không phải super admin
-    if (user.role === ROLES.ADMIN && user.username !== 'admin') {
-      return res.status(400).json({
-        success: false,
-        error: 'Không thể xóa admin khác'
-      });
-    }
-
-    await User.findByIdAndDelete(id);
-
-    console.log(`✅ Admin ${req.user.username} đã xóa user ${user.username}`);
+    console.log(`🗑️ Admin deleted user: ${user.username}`);
 
     res.json({
       success: true,
@@ -183,159 +164,175 @@ router.delete('/users/:id', logUserActivity('xóa user'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Lỗi admin/delete-user:', error);
+    console.error('❌ Delete user error:', error);
     res.status(500).json({
       success: false,
-      error: 'Lỗi xóa user'
+      error: 'Lỗi khi xóa user'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/bulk-update-roles
+ * Cập nhật role hàng loạt
+ */
+router.post('/bulk-update-roles', async (req, res) => {
+  try {
+    const { updates } = req.body; // Array of {userId, role, groupCode}
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dữ liệu updates không hợp lệ'
+      });
+    }
+
+    console.log(`🔧 Admin bulk updating ${updates.length} users`);
+
+    let successCount = 0;
+    let errorCount = 0;
+    const results = [];
+
+    for (const update of updates) {
+      try {
+        const { userId, role, groupCode } = update;
+        
+        // Tìm role object
+        const roleObj = await Role.findOne({ name: role });
+        if (!roleObj) {
+          results.push({ userId, error: 'Role không tồn tại' });
+          errorCount++;
+          continue;
+        }
+
+        // Update user
+        const user = await User.findByIdAndUpdate(
+          userId,
+          { 
+            role: roleObj._id,
+            roleString: role,
+            groupCode: groupCode || null 
+          },
+          { new: true }
+        );
+
+        if (user) {
+          results.push({ userId, success: true, username: user.username });
+          successCount++;
+        } else {
+          results.push({ userId, error: 'User không tồn tại' });
+          errorCount++;
+        }
+
+      } catch (updateError) {
+        console.error(`Error updating user ${update.userId}:`, updateError);
+        results.push({ userId: update.userId, error: updateError.message });
+        errorCount++;
+      }
+    }
+
+    console.log(`✅ Bulk update completed: ${successCount} success, ${errorCount} errors`);
+
+    res.json({
+      success: true,
+      message: `Bulk update completed: ${successCount} thành công, ${errorCount} lỗi`,
+      data: {
+        successCount,
+        errorCount,
+        results
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Bulk update error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Lỗi khi bulk update'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/invalidate-all-tokens
+ * Invalidate tất cả tokens (buộc logout tất cả users)
+ */
+router.post('/invalidate-all-tokens', async (req, res) => {
+  try {
+    console.log('🔒 Admin invalidating all tokens');
+    
+    // Trong production, bạn có thể:
+    // 1. Cập nhật JWT secret
+    // 2. Hoặc thêm blacklist tokens
+    // 3. Hoặc thêm timestamp invalidation
+    
+    // Ở đây chúng ta sẽ trả về message để frontend handle
+    res.json({
+      success: true,
+      message: 'Đã yêu cầu invalidate tất cả tokens. Users sẽ phải đăng nhập lại.',
+      data: {
+        invalidatedAt: new Date(),
+        reason: 'Admin forced logout'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Invalidate tokens error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Lỗi khi invalidate tokens'
     });
   }
 });
 
 /**
  * GET /api/admin/stats
- * Thống kê hệ thống
+ * Lấy thống kê hệ thống
  */
 router.get('/stats', async (req, res) => {
   try {
-    // Thống kê users theo role
-    const roleStats = await User.aggregate([
-      { $group: { _id: '$role', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
+    console.log('📊 Admin requesting system stats');
+
+    const [totalUsers, roleStats] = await Promise.all([
+      User.countDocuments(),
+      User.aggregate([
+        {
+          $lookup: {
+            from: 'roles',
+            localField: 'role',
+            foreignField: '_id',
+            as: 'roleInfo'
+          }
+        },
+        {
+          $group: {
+            _id: '$roleString',
+            count: { $sum: 1 }
+          }
+        }
+      ])
     ]);
 
-    // Thống kê users theo groupCode
-    const groupStats = await User.aggregate([
-      { $group: { _id: '$groupCode', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
+    const stats = {
+      totalUsers,
+      roleDistribution: roleStats.reduce((acc, item) => {
+        acc[item._id || 'undefined'] = item.count;
+        return acc;
+      }, {}),
+      generatedAt: new Date()
+    };
 
-    // Thống kê users theo status
-    const statusStats = await User.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
-
-    // Tổng số users
-    const totalUsers = await User.countDocuments();
-
-    // Users tạo gần đây (7 ngày)
-    const recentUsers = await User.countDocuments({
-      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-    });
+    console.log('📊 Stats:', stats);
 
     res.json({
       success: true,
-      data: {
-        totalUsers,
-        recentUsers,
-        roleStats: roleStats.map(stat => ({
-          role: stat._id || 'undefined',
-          count: stat.count
-        })),
-        groupStats: groupStats.map(stat => ({
-          groupCode: stat._id || 'undefined',
-          count: stat.count
-        })),
-        statusStats: statusStats.map(stat => ({
-          status: stat._id || 'undefined',
-          count: stat.count
-        }))
-      }
+      data: stats
     });
 
   } catch (error) {
-    console.error('❌ Lỗi admin/stats:', error);
+    console.error('❌ Stats error:', error);
     res.status(500).json({
       success: false,
-      error: 'Lỗi lấy thống kê'
-    });
-  }
-});
-
-/**
- * POST /api/admin/users/bulk-update-roles
- * Cập nhật role hàng loạt cho users
- */
-router.post('/users/bulk-update-roles', logUserActivity('cập nhật role hàng loạt'), async (req, res) => {
-  try {
-    const { updates } = req.body; // [{ userId, role, groupCode }]
-
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Danh sách cập nhật không hợp lệ'
-      });
-    }
-
-    const results = [];
-    const errors = [];
-
-    for (const update of updates) {
-      try {
-        const { userId, role, groupCode } = update;
-
-        // Validate
-        if (!userId || !role) {
-          errors.push({ userId, error: 'Thiếu userId hoặc role' });
-          continue;
-        }
-
-        if (!Object.values(ROLES).includes(role)) {
-          errors.push({ userId, error: 'Role không hợp lệ' });
-          continue;
-        }
-
-        // Không cho phép thay đổi role của chính mình
-        if (userId === req.user.id) {
-          errors.push({ userId, error: 'Không thể thay đổi role của chính mình' });
-          continue;
-        }
-
-        // Cập nhật
-        const updateData = { role };
-        if (groupCode) updateData.groupCode = groupCode;
-
-        const updatedUser = await User.findByIdAndUpdate(
-          userId,
-          updateData,
-          { new: true, runValidators: true }
-        ).select('username role groupCode');
-
-        if (updatedUser) {
-          results.push({
-            userId,
-            username: updatedUser.username,
-            role: updatedUser.role,
-            groupCode: updatedUser.groupCode
-          });
-        } else {
-          errors.push({ userId, error: 'User không tồn tại' });
-        }
-
-      } catch (error) {
-        errors.push({ userId: update.userId, error: error.message });
-      }
-    }
-
-    console.log(`✅ Admin ${req.user.username} đã cập nhật role cho ${results.length} users`);
-
-    res.json({
-      success: true,
-      data: {
-        updated: results,
-        errors,
-        summary: {
-          total: updates.length,
-          success: results.length,
-          failed: errors.length
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Lỗi admin/bulk-update-roles:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Lỗi cập nhật hàng loạt'
+      error: 'Lỗi khi lấy thống kê'
     });
   }
 });

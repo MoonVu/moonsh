@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../../models/User');
 const { getRoleFromGroupCode } = require('../config/role-map');
-const { isValidRole } = require('../config/permissions');
+const Role = require('../../models/Role');
 
 class AuthService {
   /**
@@ -30,14 +30,17 @@ class AuthService {
       
       const user = await User.findOne({ 
         username: { $regex: new RegExp(`^${trimmedUsername}$`, 'i') }
-      }).select('+password');
+      }).select('+password').populate('role');
       
       console.log('🔍 User found:', user ? {
         id: user._id,
         username: user.username,
         status: user.status,
         role: user.role,
-        groupCode: user.groupCode
+        roleId: user.role?._id,
+        roleName: user.role?.name,
+        groupCode: user.groupCode,
+        hasRoleObject: !!user.role
       } : 'null');
       
       if (!user) {
@@ -102,13 +105,23 @@ class AuthService {
    * @returns {string} JWT token
    */
   generateToken(user) {
+    // Đảm bảo role đã được populated
+    if (!user.role || !user.role._id) {
+      console.warn(`⚠️ User ${user.username} không có role object khi tạo token`);
+    }
+    
     const payload = {
       userId: user._id,
+      roleId: user.role?._id || user.role, // Support both ObjectId and string
       username: user.username,
-      role: user.role,
-      groupCode: user.groupCode,
       iat: Math.floor(Date.now() / 1000)
     };
+
+    console.log('🔑 Generating token with payload:', { 
+      userId: payload.userId, 
+      roleId: payload.roleId,
+      username: payload.username 
+    });
 
     return jwt.sign(
       payload,
@@ -167,8 +180,8 @@ class AuthService {
 
       const { userId } = tokenResult.data;
       
-      // Lấy user từ database  
-      const user = await User.findById(userId);
+      // Lấy user từ database với role populated
+      const user = await User.findById(userId).populate('role');
       if (!user) {
         return {
           success: false,

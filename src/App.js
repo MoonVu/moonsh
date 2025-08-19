@@ -16,6 +16,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { RequireAdmin } from "./components/auth/ProtectedRoute";
 import AdminPage from "./pages/AdminPage";
+import TokenExpiredNotice from "./components/TokenExpiredNotice";
 import './App.css';
 
 // Error Boundary Component
@@ -119,6 +120,7 @@ function App() {
     <ErrorBoundary>
       <Router>
         <AuthProvider>
+          <TokenExpiredNotice />
           <ScheduleProvider>
             <Routes>
               <Route path="/login" element={<Login />} />

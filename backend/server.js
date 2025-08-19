@@ -73,12 +73,13 @@ const adminRoutes = require('./src/routes/admin');
 const usersRoutes = require('./src/routes/users');
 const healthRoutes = require('./src/routes/health');
 const rolesRoutes = require('./src/routes/roles');
+const permissionsRoutes = require('./src/routes/permissions');
 
 // Import new auth middleware
 const { attachUser } = require('./src/middleware/auth');
 
 // Legacy authentication middleware (deprecated - chỉ để compatibility)
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -86,31 +87,60 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) {
       console.log('❌ Legacy token verification failed:', err.message);
       return res.status(403).json({ error: 'Invalid token' });
     }
     
-    // Handle both old and new token formats
-    let user;
-    if (decoded.userId) {
-      // New format from authService
-      user = {
-        _id: decoded.userId,
-        id: decoded.userId,
-        username: decoded.username,
-        role: decoded.role,
-        groupCode: decoded.groupCode
-      };
-    } else {
-      // Old format from legacy login
-      user = decoded;
+    try {
+      // Handle both old and new token formats
+      let user;
+      if (decoded.userId) {
+        // New format from authService - cần populate role từ database
+        const fullUser = await User.findById(decoded.userId).populate('role');
+        if (!fullUser) {
+          return res.status(401).json({ error: 'User không tồn tại' });
+        }
+        user = {
+          _id: fullUser._id,
+          id: fullUser._id,
+          username: fullUser.username,
+          role: fullUser.role, // Populated role object
+          groupCode: fullUser.groupCode,
+          group_name: fullUser.group_name,
+          status: fullUser.status
+        };
+      } else {
+        // Old format from legacy login - cần populate role từ database
+        const fullUser = await User.findById(decoded._id).populate('role');
+        if (!fullUser) {
+          return res.status(401).json({ error: 'User không tồn tại' });
+        }
+        user = {
+          _id: fullUser._id,
+          id: fullUser._id,
+          username: fullUser.username,
+          role: fullUser.role, // Populated role object thay vì string
+          groupCode: fullUser.groupCode,
+          group_name: fullUser.group_name,
+          status: fullUser.status
+        };
+      }
+      
+      console.log('✅ Legacy middleware user:', { 
+        id: user._id || user.id, 
+        username: user.username, 
+        role: user.role?._id,
+        roleName: user.role?.name,
+        hasRoleObject: !!user.role
+      });
+      req.user = user;
+      next();
+    } catch (dbError) {
+      console.error('❌ Legacy middleware database error:', dbError);
+      return res.status(500).json({ error: 'Lỗi xác thực database' });
     }
-    
-    console.log('✅ Legacy middleware user:', { id: user._id || user.id, username: user.username, role: user.role });
-    req.user = user;
-    next();
   });
 };
 
@@ -120,6 +150,11 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/users', usersRoutes);  
 app.use('/api/health', healthRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/permissions', permissionsRoutes);
+
+// ==================== NEW RBAC ROUTES ====================
+app.use('/api/me', require('./src/routes/me'));
+app.use('/api/users-rbac', require('./src/routes/users-rbac'));
 
 // ==================== LEGACY ROUTES ====================
 

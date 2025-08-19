@@ -5,6 +5,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI } from '../services/authAPI';
 import { apiService } from '../services/api';
+import { permissionsAPI } from '../services/permissionsAPI';
 
 // Initial state
 const initialState = {
@@ -44,8 +45,8 @@ function authReducer(state, action) {
         isAuthenticated: true,
         isLoading: false,
         user: action.payload.user,
-        role: action.payload.user.role,
-        permissions: action.payload.user.permissions || [],
+        role: action.payload.user.role?.name || action.payload.user.role,
+        permissions: permissionsAPI.extractUserPermissions(action.payload.user),
         token: action.payload.token,
         error: null
       };
@@ -72,8 +73,8 @@ function authReducer(state, action) {
       return {
         ...state,
         user: action.payload,
-        role: action.payload.role,
-        permissions: action.payload.permissions || []
+        role: action.payload.role?.name || action.payload.role,
+        permissions: permissionsAPI.extractUserPermissions(action.payload)
       };
 
     case AUTH_ACTIONS.SET_ERROR:
@@ -95,8 +96,8 @@ function authReducer(state, action) {
         isAuthenticated: true,
         isLoading: false,
         user: action.payload.user,
-        role: action.payload.user.role,
-        permissions: action.payload.user.permissions || [],
+        role: action.payload.user.role?.name || action.payload.user.role,
+        permissions: permissionsAPI.extractUserPermissions(action.payload.user),
         token: action.payload.token,
         error: null
       };
@@ -270,19 +271,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Permission helpers
+  // Permission helpers sử dụng permissionsAPI
   const hasRole = (...roles) => {
-    // Admin có tất cả roles
-    if (state.role === 'ADMIN') return true;
-    return state.role && roles.includes(state.role);
+    return permissionsAPI.userHasRole(state.user, ...roles);
   };
 
   const hasPermission = (resource, action) => {
-    // Admin có tất cả permissions
-    if (state.role === 'ADMIN') return true;
-    if (!state.permissions) return false;
-    const permission = `${resource}.${action}`;
-    return state.permissions.includes(permission);
+    return permissionsAPI.userHasPermission(state.user, resource, action);
   };
 
   const hasScope = (scope) => {
@@ -291,7 +286,7 @@ export function AuthProvider({ children }) {
   };
 
   const isAdmin = () => {
-    return state.role === 'ADMIN';
+    return state.user?.role?.name === 'ADMIN';
   };
 
   const canAccess = (resource, action) => {

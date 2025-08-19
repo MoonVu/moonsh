@@ -7,6 +7,8 @@ import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { useAuth } from "./hooks/useAuth";
+import { ShowForPermission as AccessControl } from "./components/auth/AccessControl";
 
 const STATUS_COLORS = {
   OFF: "#174ea6", // xanh đậm
@@ -31,6 +33,7 @@ function getDaysInMonth(month, year) {
 
 export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null }) {
   const { refreshSchedulesCounter } = useSchedule();
+  const { hasPermission, hasRole, isAdmin } = useAuth();
   
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -1392,63 +1395,93 @@ export default function DemoLichDiCa({ tabId, isCopyTab = false, copyData = null
             Số ngày: {daysInMonth}
           </span>
           {!isCopyTab && (
-            <button
-              onClick={handleCreateCopy}
-              disabled={creatingCopy}
-              className="create-copy-button"
+            <AccessControl 
+              resource="schedules" 
+              action="edit"
+              fallback={null}
             >
-              {creatingCopy ? "Đang tạo bản sao..." : "Tạo bản sao"}
-            </button>
+              <button
+                onClick={handleCreateCopy}
+                disabled={creatingCopy}
+                className="create-copy-button"
+              >
+                {creatingCopy ? "Đang tạo bản sao..." : "Tạo bản sao"}
+              </button>
+            </AccessControl>
           )}
                      {isCopyTab && (
-             <button
-               onClick={() => setShowEditShiftModal(true)}
-               className="edit-shift-button"
-               style={{ marginRight: '8px' }}
+             <AccessControl 
+               resource="schedules" 
+               action="edit"
+               fallback={null}
              >
-               ✏️ Chỉnh sửa ca
-             </button>
+               <button
+                 onClick={() => setShowEditShiftModal(true)}
+                 className="edit-shift-button"
+                 style={{ marginRight: '8px' }}
+               >
+                 ✏️ Chỉnh sửa ca
+               </button>
+             </AccessControl>
            )}
                        {isCopyTab && (
-              <button
-                onClick={handleSaveCopy}
-                disabled={savingCopy}
-                className="save-copy-button"
-                style={{ marginRight: '8px' }}
+              <AccessControl 
+                resource="schedules" 
+                action="edit"
+                fallback={null}
               >
-                {savingCopy ? "Đang lưu bản sao..." : "Lưu bản sao"}
-              </button>
+                <button
+                  onClick={handleSaveCopy}
+                  disabled={savingCopy}
+                  className="save-copy-button"
+                  style={{ marginRight: '8px' }}
+                >
+                  {savingCopy ? "Đang lưu bản sao..." : "Lưu bản sao"}
+                </button>
+              </AccessControl>
             )}
             {isCopyTab && (
-              <button
-                onClick={handleExportToExcel}
-                className="export-excel-button"
-                style={{ 
-                  marginRight: '8px',
-                  backgroundColor: '#52c41a',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-                                 title="Xuất dữ liệu ra file Excel (.xlsx)"
-               >
-                ┌( ಠ_ಠ)┘ Xuất Excel
-               </button>
+              <AccessControl 
+                permission="reports" 
+                action="view"
+                fallback={null}
+              >
+                <button
+                  onClick={handleExportToExcel}
+                  className="export-excel-button"
+                  style={{ 
+                    marginRight: '8px',
+                    backgroundColor: '#52c41a',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                                   title="Xuất dữ liệu ra file Excel (.xlsx)"
+                 >
+                  ┌( ಠ_ಠ)┘ Xuất Excel
+                 </button>
+              </AccessControl>
             )}
            {isCopyTab && (
-             <button
-               onClick={() => {
-                 if (window.confirm("Bạn có chắc chắn muốn xóa tất cả không? Dữ liệu sẽ không thể khôi phục")) {
-                   handleDeleteCopy();
-                 }
-               }}
-               className="delete-copy-button"
-               title="Xóa bản sao"
+             <AccessControl 
+               resource="schedules" 
+               action="delete"
+               fallback={null}
              >
-               🗑️ Xóa bản sao
-             </button>
+               <button
+                 onClick={() => {
+                   if (window.confirm("Bạn có chắc chắn muốn xóa tất cả không? Dữ liệu sẽ không thể khôi phục")) {
+                     handleDeleteCopy();
+                   }
+                 }}
+                 className="delete-copy-button"
+                 title="Xóa bản sao"
+               >
+                 🗑️ Xóa bản sao
+               </button>
+             </AccessControl>
            )}
         </div>
       </div>

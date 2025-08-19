@@ -7,12 +7,14 @@ import GridRow from './GridRow';
 import { useSeatData } from './hooks/useSeatData';
 import { useGridOperations } from './hooks/useGridOperations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
+import { useAuth } from './hooks/useAuth';
 
 // Import components
 import ActionPanel from './components/ActionPanel';
 import DeleteRowPopup from './components/DeleteRowPopup';
 import DeleteColumnPopup from './components/DeleteColumnPopup';
 import WalkwayPopups from './components/WalkwayPopups';
+import { ShowForPermission as AccessControl } from './components/auth/AccessControl';
 import UnassignedTags from './components/UnassignedTags';
 import ReplaceConfirmPopup from './components/ReplaceConfirmPopup';
 import StatusBar from './components/StatusBar';
@@ -34,6 +36,8 @@ const GROUP_COLORS = {
 };
 
 export default function ViTriChoNgoi() {
+  const { hasPermission, hasRole, isAdmin } = useAuth();
+  
   // Custom hooks
   const {
     grid,

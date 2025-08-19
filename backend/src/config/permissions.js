@@ -1,6 +1,6 @@
 /**
- * Cấu hình quyền hệ thống Moonne
- * Ma trận quyền: ADMIN | XNK | CSKH | FK
+ * Constants cơ bản cho hệ thống phân quyền
+ * Chỉ chứa constants, logic phân quyền được chuyển sang database
  */
 
 // Định nghĩa các roles trong hệ thống
@@ -18,115 +18,84 @@ const PERMISSIONS = {
   DELETE: 'delete'
 };
 
-// Ma trận quyền - định nghĩa quyền cho từng role
+// Định nghĩa các resources trong hệ thống
+const RESOURCES = {
+  ADMINISTRATOR_ACCESS: 'administrator_access',
+  USER_MANAGEMENT: 'user_management',
+  CONTENT_MANAGEMENT: 'content_management',
+  FINANCIAL_MANAGEMENT: 'financial_management',
+  REPORTING: 'reporting',
+  PAYROLL: 'payroll',
+  DISPUTES_MANAGEMENT: 'disputes_management',
+  API_CONTROLS: 'api_controls',
+  DATABASE_MANAGEMENT: 'database_management',
+  REPOSITORY_MANAGEMENT: 'repository_management',
+  SCHEDULES: 'schedules',
+  USERS: 'users',
+  TASKS: 'tasks',
+  SEATS: 'seats',
+  NOTIFICATIONS: 'notifications',
+  REPORTS: 'reports',
+  SYSTEM: 'system'
+};
+
+// Định nghĩa quyền cho từng role
 const ROLE_PERMISSIONS = {
-  [ROLES.ADMIN]: {
-    schedules: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
-    users: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
-    tasks: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
-    seats: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
-    notifications: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
-    reports: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
-    system: [PERMISSIONS.VIEW, PERMISSIONS.EDIT]
+  ADMIN: {
+    [RESOURCES.ADMINISTRATOR_ACCESS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.USER_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.CONTENT_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.FINANCIAL_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.REPORTING]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.PAYROLL]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.DISPUTES_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.API_CONTROLS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.DATABASE_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.REPOSITORY_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.SCHEDULES]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.USERS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.TASKS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.SEATS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.NOTIFICATIONS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.REPORTS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.SYSTEM]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE]
   },
-  
-  [ROLES.XNK]: {
-    schedules: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
-    tasks: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
-    seats: [PERMISSIONS.VIEW],
-    notifications: [PERMISSIONS.VIEW],
-    reports: [PERMISSIONS.VIEW]
+  XNK: {
+    [RESOURCES.USER_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.CONTENT_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.FINANCIAL_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.REPORTING]: [PERMISSIONS.VIEW],
+    [RESOURCES.SCHEDULES]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.TASKS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.SEATS]: [PERMISSIONS.VIEW],
+    [RESOURCES.NOTIFICATIONS]: [PERMISSIONS.VIEW],
+    [RESOURCES.REPORTS]: [PERMISSIONS.VIEW]
   },
-  
-  [ROLES.CSKH]: {
-    schedules: [PERMISSIONS.VIEW],
-    tasks: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
-    seats: [PERMISSIONS.VIEW],
-    notifications: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
-    reports: [PERMISSIONS.VIEW]
+  CSKH: {
+    [RESOURCES.USER_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.CONTENT_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.DISPUTES_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.REPORTING]: [PERMISSIONS.VIEW],
+    [RESOURCES.SCHEDULES]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.TASKS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.SEATS]: [PERMISSIONS.VIEW],
+    [RESOURCES.NOTIFICATIONS]: [PERMISSIONS.VIEW],
+    [RESOURCES.REPORTS]: [PERMISSIONS.VIEW]
   },
-  
-  [ROLES.FK]: {
-    schedules: [PERMISSIONS.VIEW],
-    tasks: [PERMISSIONS.VIEW],
-    seats: [PERMISSIONS.VIEW],
-    notifications: [PERMISSIONS.VIEW],
-    reports: [PERMISSIONS.VIEW]
+  FK: {
+    [RESOURCES.FINANCIAL_MANAGEMENT]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.PAYROLL]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT, PERMISSIONS.DELETE],
+    [RESOURCES.REPORTING]: [PERMISSIONS.VIEW],
+    [RESOURCES.SCHEDULES]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.TASKS]: [PERMISSIONS.VIEW, PERMISSIONS.EDIT],
+    [RESOURCES.SEATS]: [PERMISSIONS.VIEW],
+    [RESOURCES.NOTIFICATIONS]: [PERMISSIONS.VIEW],
+    [RESOURCES.REPORTS]: [PERMISSIONS.VIEW]
   }
 };
 
-// Danh sách tất cả permissions trong hệ thống
-const ALL_PERMISSIONS = [
-  // Schedule permissions
-  'schedules.view', 'schedules.edit', 'schedules.delete',
-  
-  // User permissions  
-  'users.view', 'users.edit', 'users.delete',
-  
-  // Task permissions
-  'tasks.view', 'tasks.edit', 'tasks.delete',
-  
-  // Seat permissions
-  'seats.view', 'seats.edit', 'seats.delete',
-  
-  // Notification permissions
-  'notifications.view', 'notifications.edit', 'notifications.delete',
-  
-  // Report permissions
-  'reports.view', 'reports.edit',
-  
-  // System permissions
-  'system.view', 'system.edit'
-];
-
 /**
- * Kiểm tra user có permission hay không
- * @param {string} userRole - Role của user
- * @param {string} resource - Tài nguyên cần kiểm tra (schedules, users, etc.)
- * @param {string} permission - Permission cần kiểm tra (view, edit, delete)
- * @returns {boolean}
- */
-function hasPermission(userRole, resource, permission) {
-  if (!userRole || !resource || !permission) {
-    return false;
-  }
-  
-  const rolePermissions = ROLE_PERMISSIONS[userRole];
-  if (!rolePermissions) {
-    return false;
-  }
-  
-  const resourcePermissions = rolePermissions[resource];
-  if (!resourcePermissions) {
-    return false;
-  }
-  
-  return resourcePermissions.includes(permission);
-}
-
-/**
- * Lấy tất cả permissions của một role
- * @param {string} userRole - Role của user
- * @returns {Array} - Danh sách permissions
- */
-function getRolePermissions(userRole) {
-  const rolePermissions = ROLE_PERMISSIONS[userRole];
-  if (!rolePermissions) {
-    return [];
-  }
-  
-  const permissions = [];
-  Object.keys(rolePermissions).forEach(resource => {
-    rolePermissions[resource].forEach(permission => {
-      permissions.push(`${resource}.${permission}`);
-    });
-  });
-  
-  return permissions;
-}
-
-/**
- * Kiểm tra role có hợp lệ hay không
+ * Kiểm tra role có hợp lệ hay không (chỉ check format)
  * @param {string} role - Role cần kiểm tra
  * @returns {boolean}
  */
@@ -137,9 +106,7 @@ function isValidRole(role) {
 module.exports = {
   ROLES,
   PERMISSIONS,
+  RESOURCES,
   ROLE_PERMISSIONS,
-  ALL_PERMISSIONS,
-  hasPermission,
-  getRolePermissions,
   isValidRole
 };

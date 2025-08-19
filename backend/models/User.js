@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { ROLES } = require('../src/config/permissions');
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
@@ -7,10 +6,15 @@ const userSchema = new mongoose.Schema({
   group_name: String, // Giữ nguyên để hiển thị/lọc
   groupCode: String,  // Mã nhóm để mapping
   role: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Role',
+    required: true
+  },
+  // Giữ lại role string để backward compatibility
+  roleString: { 
     type: String, 
-    enum: Object.values(ROLES),
-    required: true,
-    default: ROLES.FK  // Mặc định là role thấp nhất
+    enum: ['ADMIN', 'XNK', 'CSKH', 'FK'],
+    default: 'FK'
   },
   status: { type: String, enum: ['Hoạt động', 'Tạm khóa', 'Ngưng sử dụng'], default: 'Hoạt động' },
   start_date: Date
@@ -18,12 +22,28 @@ const userSchema = new mongoose.Schema({
 
 // Index cho role để truy vấn nhanh hơn
 userSchema.index({ role: 1 });
+userSchema.index({ roleString: 1 });
 userSchema.index({ groupCode: 1 });
 
-// Virtual để lấy thông tin quyền
-userSchema.virtual('permissions').get(function() {
-  const { getRolePermissions } = require('../src/config/permissions');
-  return getRolePermissions(this.role);
+// Populate role khi query
+userSchema.pre(['find', 'findOne', 'findOneAndUpdate'], function() {
+  this.populate('role');
 });
+
+// Virtual để lấy thông tin quyền từ role
+userSchema.virtual('permissions').get(function() {
+  if (this.role && this.role.getAllPermissions) {
+    return this.role.getAllPermissions();
+  }
+  return [];
+});
+
+// Method để kiểm tra permission
+userSchema.methods.hasPermission = function(resource, action) {
+  if (this.role && this.role.hasPermission) {
+    return this.role.hasPermission(resource, action);
+  }
+  return false;
+};
 
 module.exports = mongoose.model('User', userSchema);

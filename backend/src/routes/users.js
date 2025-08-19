@@ -7,8 +7,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { attachUser, requireRole, requirePermission, logUserActivity } = require('../middleware/auth');
 const User = require('../../models/User');
-const { ROLES } = require('../config/permissions');
-const { getRoleFromGroupCode } = require('../config/role-map');
+const Role = require('../../models/Role');
 
 // Middleware: Tất cả routes cần authentication
 router.use(attachUser);

@@ -1,156 +1,176 @@
-/**
- * Seed script: Tạo dữ liệu mẫu cho roles và permissions
- * Chạy: node db/seed/roles_permissions_seed.js
- */
-
 const mongoose = require('mongoose');
-const { ROLES, ALL_PERMISSIONS, ROLE_PERMISSIONS } = require('../../src/config/permissions');
-const { GROUP_TO_ROLE_MAP } = require('../../src/config/role-map');
+const Role = require('../../models/Role');
+const Permission = require('../../models/Permission');
+const { ROLE_PERMISSIONS, RESOURCES, PERMISSIONS } = require('../../src/config/permissions');
 
-// Load environment variables  
-require('dotenv').config({ path: '../../config.env' });
-
-// Schema cho Role collection (nếu muốn tách riêng)
-const roleSchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
-  displayName: String,
-  description: String,
-  permissions: [String],
-  isActive: { type: Boolean, default: true }
-}, { timestamps: true });
-
-// Schema cho Permission collection (nếu muốn tách riêng)
-const permissionSchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
-  resource: String,  // schedules, users, tasks, etc.
-  action: String,    // view, edit, delete
-  description: String
-}, { timestamps: true });
-
+/**
+ * Seed roles và permissions vào database
+ */
 async function seedRolesAndPermissions() {
   try {
-    // Kết nối MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/moonne');
-    console.log('✅ Đã kết nối MongoDB');
+    console.log('🌱 Bắt đầu seed roles và permissions...');
 
-    const Role = mongoose.model('Role', roleSchema);
-    const Permission = mongoose.model('Permission', permissionSchema);
+    // Kiểm tra có users nào đang sử dụng roles không
+    const User = require('../../models/User');
+    const userCount = await User.countDocuments({ role: { $exists: true, $ne: null } });
+    
+    if (userCount > 0) {
+      console.log(`⚠️ Có ${userCount} users đang sử dụng roles. Chỉ cập nhật permissions, không xóa roles.`);
+      
+      // Chỉ xóa permissions, giữ roles
+      await Permission.deleteMany({});
+      console.log('🗑️ Đã xóa permissions cũ, giữ nguyên roles');
+    } else {
+      // Xóa dữ liệu cũ nếu không có users
+      await Role.deleteMany({});
+      await Permission.deleteMany({});
+      console.log('🗑️ Đã xóa dữ liệu cũ');
+    }
 
-    // 1. Seed Permissions
-    console.log('\n📝 Seeding permissions...');
-    await Permission.deleteMany({}); // Xóa dữ liệu cũ
-
-    const permissionsData = [];
-    ALL_PERMISSIONS.forEach(perm => {
-      const [resource, action] = perm.split('.');
-      permissionsData.push({
-        name: perm,
-        resource,
-        action,
-        description: `${action.charAt(0).toUpperCase() + action.slice(1)} ${resource}`
+    // Tạo permissions từ RESOURCES và PERMISSIONS
+    const permissionsToCreate = [];
+    
+    Object.values(RESOURCES).forEach(resource => {
+      Object.values(PERMISSIONS).forEach(action => {
+        permissionsToCreate.push({
+          resource: resource,
+          action: action,
+          displayName: `${getResourceLabel(resource)} - ${getActionLabel(action)}`,
+          description: `Quyền ${getActionLabel(action)} cho ${getResourceLabel(resource)}`,
+          category: getResourceCategory(resource),
+          isActive: true
+        });
       });
     });
 
-    await Permission.insertMany(permissionsData);
-    console.log(`✅ Đã tạo ${permissionsData.length} permissions`);
+    const createdPermissions = await Permission.insertMany(permissionsToCreate);
+    console.log(`✅ Đã tạo ${createdPermissions.length} permissions`);
 
-    // 2. Seed Roles
-    console.log('\n👥 Seeding roles...');
-    await Role.deleteMany({}); // Xóa dữ liệu cũ
-
-    const rolesData = [
+    // Tạo roles với permissions từ config
+    const rolesToCreate = [
       {
-        name: ROLES.ADMIN,
+        name: 'ADMIN',
         displayName: 'Quản trị viên',
-        description: 'Quyền cao nhất, quản lý toàn hệ thống',
-        permissions: Object.keys(ROLE_PERMISSIONS[ROLES.ADMIN]).flatMap(resource => 
-          ROLE_PERMISSIONS[ROLES.ADMIN][resource].map(action => `${resource}.${action}`)
-        )
+        description: 'Có toàn quyền truy cập hệ thống',
+        permissions: convertRolePermissions('ADMIN'),
+        isActive: true
       },
       {
-        name: ROLES.XNK,
-        displayName: 'Xuất nhập khoản',
-        description: 'XNK',
-        permissions: Object.keys(ROLE_PERMISSIONS[ROLES.XNK]).flatMap(resource => 
-          ROLE_PERMISSIONS[ROLES.XNK][resource].map(action => `${resource}.${action}`)
-        )
+        name: 'XNK',
+        displayName: 'XNK', 
+        description: 'Xuất Nhập Khoản',
+        permissions: convertRolePermissions('XNK'),
+        isActive: true
       },
       {
-        name: ROLES.CSKH,
-        displayName: 'Chăm sóc khách hàng',
+        name: 'CSKH',
+        displayName: 'CSKH',
         description: 'CSKH',
-        permissions: Object.keys(ROLE_PERMISSIONS[ROLES.CSKH]).flatMap(resource => 
-          ROLE_PERMISSIONS[ROLES.CSKH][resource].map(action => `${resource}.${action}`)
-        )
+        permissions: convertRolePermissions('CSKH'),
+        isActive: true
       },
       {
-        name: ROLES.FK,
+        name: 'FK',
         displayName: 'Duyệt đơn',
-        description: 'FK',
-        permissions: Object.keys(ROLE_PERMISSIONS[ROLES.FK]).flatMap(resource => 
-          ROLE_PERMISSIONS[ROLES.FK][resource].map(action => `${resource}.${action}`)
-        )
+        description: 'Duyệt đơn',
+        permissions: convertRolePermissions('FK'),
+        isActive: true
       }
     ];
 
-    await Role.insertMany(rolesData);
-    console.log(`✅ Đã tạo ${rolesData.length} roles`);
+    const createdRoles = await Role.insertMany(rolesToCreate);
+    console.log(`✅ Đã tạo ${createdRoles.length} roles`);
 
-    // 3. Hiển thị thống kê
-    console.log('\n📊 Thống kê sau khi seed:');
-    
-    const roleStats = await Role.find({}).select('name displayName permissions');
-    roleStats.forEach(role => {
-      console.log(`  ${role.displayName} (${role.name}): ${role.permissions.length} permissions`);
-    });
-
-    console.log('\n🗂️ Mapping GroupCode → Role:');
-    Object.entries(GROUP_TO_ROLE_MAP).forEach(([groupCode, role]) => {
-      console.log(`  ${groupCode} → ${role}`);
-    });
-
-    // 4. Tạo admin user mẫu (nếu chưa có)
-    const User = mongoose.model('User', new mongoose.Schema({}, { strict: false }));
-    const adminExists = await User.findOne({ role: ROLES.ADMIN });
-    
-    if (!adminExists) {
-      console.log('\n👤 Tạo admin user mẫu...');
-      const bcrypt = require('bcryptjs');
-      
-      const adminUser = new User({
-        username: 'admin',
-        password: await bcrypt.hash('admin123', 10),
-        group_name: 'Quản trị viên',
-        groupCode: 'TT',
-        role: ROLES.ADMIN,
-        status: 'Hoạt động',
-        start_date: new Date()
-      });
-      
-      await adminUser.save();
-      console.log('✅ Đã tạo admin user: admin/admin123');
-    }
+    console.log('🎉 Seed hoàn thành!');
+    return { permissions: createdPermissions, roles: createdRoles };
 
   } catch (error) {
-    console.error('❌ Lỗi seed:', error);
-    process.exit(1);
-  } finally {
-    await mongoose.disconnect();
-    console.log('\n🔌 Đã ngắt kết nối MongoDB');
+    console.error('❌ Lỗi khi seed:', error);
+    throw error;
   }
 }
 
-// Chạy seed nếu file được gọi trực tiếp
-if (require.main === module) {
-  seedRolesAndPermissions()
-    .then(() => {
-      console.log('🎉 Seed hoàn tất!');
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error('💥 Seed thất bại:', error);
-      process.exit(1);
-    });
+/**
+ * Convert role permissions từ config sang format database
+ */
+function convertRolePermissions(roleName) {
+  const rolePerms = ROLE_PERMISSIONS[roleName] || {};
+  const permissions = [];
+
+  Object.entries(rolePerms).forEach(([resource, actions]) => {
+    if (Array.isArray(actions)) {
+      permissions.push({
+        resource: resource,
+        actions: actions
+      });
+    }
+  });
+
+  return permissions;
 }
 
-module.exports = seedRolesAndPermissions;
+/**
+ * Lấy label cho resource
+ */
+function getResourceLabel(resource) {
+  const labels = {
+    'administrator_access': 'Quyền quản trị',
+    'user_management': 'Quản lý người dùng',
+    'content_management': 'Quản lý nội dung',
+    'financial_management': 'Quản lý tài chính',
+    'reporting': 'Báo cáo',
+    'payroll': 'Bảng lương',
+    'disputes_management': 'Xử lý khiếu nại',
+    'api_controls': 'Điều khiển API',
+    'database_management': 'Quản lý cơ sở dữ liệu',
+    'repository_management': 'Quản lý kho dữ liệu',
+    'schedules': 'Lịch trình',
+    'users': 'Người dùng',
+    'tasks': 'Nhiệm vụ',
+    'seats': 'Chỗ ngồi',
+    'notifications': 'Thông báo',
+    'reports': 'Báo cáo',
+    'system': 'Hệ thống'
+  };
+  return labels[resource] || resource;
+}
+
+/**
+ * Lấy label cho action
+ */
+function getActionLabel(action) {
+  const labels = {
+    'view': 'Xem',
+    'edit': 'Sửa',
+    'delete': 'Xóa'
+  };
+  return labels[action] || action;
+}
+
+/**
+ * Lấy category cho resource
+ */
+function getResourceCategory(resource) {
+  const categories = {
+    'administrator_access': 'admin',
+    'user_management': 'management',
+    'content_management': 'management', 
+    'financial_management': 'finance',
+    'reporting': 'reports',
+    'payroll': 'finance',
+    'disputes_management': 'support',
+    'api_controls': 'system',
+    'database_management': 'system',
+    'repository_management': 'system',
+    'schedules': 'operations',
+    'users': 'management',
+    'tasks': 'operations',
+    'seats': 'operations',
+    'notifications': 'system',
+    'reports': 'reports',
+    'system': 'system'
+  };
+  return categories[resource] || 'general';
+}
+
+module.exports = { seedRolesAndPermissions };

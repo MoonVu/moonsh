@@ -6,6 +6,7 @@ import debounce from 'lodash.debounce';
 import { useSchedule } from './contexts/ScheduleContext';
 import GroupPhanCa from './GroupPhanCa';
 import MonthDataCard from './MonthDataCard';
+import { useAuth } from "./hooks/useAuth";
 
 const GROUPS = [
   { label: "CSKH", value: "CSKH", subs: ["CSKH", "CSOL", "CSDL", "Truyền thông"], color: "#12B3D6" },
@@ -23,6 +24,7 @@ const DEFAULT_BLOCKS = [
 export default function DemoNhanSu({ currentUser, tabId }) {
   console.log("🔄 DemoNhanSu component re-render");
   const { triggerRefresh } = useSchedule();
+  const { hasPermission, hasRole, isAdmin } = useAuth();
   const [users, setUsers] = useState([]);
   // Dữ liệu phân ca: { group: [{ label, time, users: [{ userId, note }] }] }
   const [phanCa, setPhanCa] = useState({});

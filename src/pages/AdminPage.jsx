@@ -1,401 +1,424 @@
-/**
- * Admin Page - Trang quản lý quyền với matrix UI gọn nhẹ
- */
-
 import React, { useState, useEffect } from 'react';
-import { useAdminUsers, useRoles, usePermissionsMatrix } from '../hooks/useAuth';
-import { ALL_ROLES, ALL_GROUPS, getGroupLabel, getRoleLabel } from '../constants/groups';
+import { useAuth } from '../hooks/useAuth';
+import { authAPI, adminAPI } from '../services/authAPI';
+import { permissionsAPI } from '../services/permissionsAPI';
 import './AdminPage.css';
 
-const AdminPage = () => {
-  const [activeTab, setActiveTab] = useState('users');
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  const [filters, setFilters] = useState({
-    search: '',
-    role: '',
-    groupCode: '',
-    status: ''
-  });
+// Resource definitions matching backend
+const RESOURCES = {
+  ADMIN_ACCESS: { key: 'administrator_access', label: 'Administrator Access' },
+  USER_MANAGEMENT: { key: 'user_management', label: 'User Management' },
+  CONTENT_MANAGEMENT: { key: 'content_management', label: 'Content Management' },
+  FINANCIAL_MANAGEMENT: { key: 'financial_management', label: 'Financial Management' },
+  REPORTING: { key: 'reporting', label: 'Reporting' },
+  PAYROLL: { key: 'payroll', label: 'Payroll' },
+  DISPUTES_MANAGEMENT: { key: 'disputes_management', label: 'Disputes Management' },
+  API_CONTROLS: { key: 'api_controls', label: 'API Controls' },
+  DATABASE_MANAGEMENT: { key: 'database_management', label: 'Database Management' },
+  REPOSITORY_MANAGEMENT: { key: 'repository_management', label: 'Repository Management' },
+  SCHEDULES: { key: 'schedules', label: 'Schedules' },
+  USERS: { key: 'users', label: 'Users' },
+  TASKS: { key: 'tasks', label: 'Tasks' },
+  SEATS: { key: 'seats', label: 'Seats' },
+  NOTIFICATIONS: { key: 'notifications', label: 'Notifications' },
+  REPORTS: { key: 'reports', label: 'Reports' },
+  SYSTEM: { key: 'system', label: 'System' }
+};
 
-  const { 
-    users, 
-    loading: usersLoading, 
-    fetchUsers, 
-    updateUserRole, 
-    bulkUpdateRoles 
-  } = useAdminUsers();
+const PERMISSIONS = {
+  VIEW: 'view',
+  EDIT: 'edit', 
+  DELETE: 'delete'
+};
 
-  const { 
-    roles, 
-    loading: rolesLoading 
-  } = useRoles();
+const ROLES = {
+  ADMIN: 'ADMIN',
+  XNK: 'XNK',
+  CSKH: 'CSKH', 
+  FK: 'FK'
+};
 
-  const { 
-    matrix, 
-    summary, 
-    loading: matrixLoading 
-  } = usePermissionsMatrix();
+// Resource display names (Vietnamese)
+const RESOURCE_DISPLAY_NAMES = {
+  [RESOURCES.ADMIN_ACCESS.key]: 'Quyền quản trị',
+  [RESOURCES.USER_MANAGEMENT.key]: 'Quản lý người dùng',
+  [RESOURCES.CONTENT_MANAGEMENT.key]: 'Quản lý nội dung',
+  [RESOURCES.FINANCIAL_MANAGEMENT.key]: 'Quản lý tài chính',
+  [RESOURCES.REPORTING.key]: 'Báo cáo',
+  [RESOURCES.PAYROLL.key]: 'Bảng lương',
+  [RESOURCES.DISPUTES_MANAGEMENT.key]: 'Xử lý khiếu nại',
+  [RESOURCES.API_CONTROLS.key]: 'Điều khiển API',
+  [RESOURCES.DATABASE_MANAGEMENT.key]: 'Quản lý cơ sở dữ liệu',
+  [RESOURCES.REPOSITORY_MANAGEMENT.key]: 'Quản lý kho dữ liệu',
+  [RESOURCES.SCHEDULES.key]: 'Lịch trình',
+  [RESOURCES.USERS.key]: 'Người dùng',
+  [RESOURCES.TASKS.key]: 'Nhiệm vụ',
+  [RESOURCES.SEATS.key]: 'Chỗ ngồi',
+  [RESOURCES.NOTIFICATIONS.key]: 'Thông báo',
+  [RESOURCES.REPORTS.key]: 'Báo cáo chi tiết',
+  [RESOURCES.SYSTEM.key]: 'Hệ thống'
+};
 
+// Permission display names (Vietnamese) 
+const PERMISSION_DISPLAY_NAMES = {
+  [PERMISSIONS.VIEW]: 'Xem',
+  [PERMISSIONS.EDIT]: 'Chỉnh sửa', 
+  [PERMISSIONS.DELETE]: 'Xóa'
+};
+
+// Role display names (Vietnamese)
+const ROLE_DISPLAY_NAMES = {
+  [ROLES.ADMIN]: 'Quản trị viên',
+  [ROLES.XNK]: 'XNK',
+  [ROLES.CSKH]: 'CSKH',
+  [ROLES.FK]: 'Duyệt đơn'
+};
+
+export default function AdminPage() {
+  const { isAdmin, hasPermission } = useAuth();
+  const [selectedRole, setSelectedRole] = useState('');
+  const [permissions, setPermissions] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // Initialize permissions for selected role
   useEffect(() => {
-    fetchUsers(filters);
-  }, [fetchUsers, filters]);
+    if (selectedRole) {
+      loadRolePermissions(selectedRole);
+    }
+  }, [selectedRole]);
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const loadRolePermissions = async (role) => {
+    try {
+      setLoading(true);
+      console.log('🔍 Loading permissions for role:', role);
+      
+      const response = await permissionsAPI.getRolePermissions(role);
+      console.log('✅ Loaded permissions from backend:', response.data);
+      setPermissions(response.data || {});
+    } catch (error) {
+      console.error('Error loading permissions:', error);
+      setMessage('Lỗi khi tải quyền');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUserSelect = (userId) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+
+
+  const handlePermissionChange = (resourceKey, permission, checked) => {
+    setPermissions(prev => ({
+      ...prev,
+      [resourceKey]: {
+        ...prev[resourceKey],
+        [permission]: checked
+      }
+    }));
   };
 
-  const handleBulkRoleUpdate = async (role) => {
-    if (selectedUsers.length === 0) {
-      alert('Vui lòng chọn ít nhất một user');
+  const handleSelectAll = (checked) => {
+    const newPermissions = {};
+    Object.values(RESOURCES).forEach(resource => {
+      newPermissions[resource.key] = {
+        [PERMISSIONS.VIEW]: checked,
+        [PERMISSIONS.EDIT]: checked,
+        [PERMISSIONS.DELETE]: checked
+      };
+    });
+    setPermissions(newPermissions);
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedRole) {
+      setMessage('Vui lòng chọn role trước');
       return;
     }
 
     try {
-      const updates = selectedUsers.map(userId => ({ userId, role }));
-      await bulkUpdateRoles(updates);
-      setSelectedUsers([]);
-      alert(`Đã cập nhật role ${getRoleLabel(role)} cho ${selectedUsers.length} users`);
+      setLoading(true);
+      console.log('💾 Saving permissions for role:', selectedRole, permissions);
+      
+      const response = await permissionsAPI.updateRolePermissions(selectedRole, permissions);
+      
+      if (response.success) {
+        setMessage(`✅ ${response.message}`);
+        console.log('✅ Permissions saved successfully:', response.data);
+      } else {
+        throw new Error(response.message || 'Lỗi không xác định');
+      }
+      
+      setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      alert('Lỗi cập nhật: ' + error.message);
+      console.error('Error updating permissions:', error);
+      setMessage(`❌ Lỗi: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSingleRoleUpdate = async (userId, role, groupCode) => {
-    try {
-      await updateUserRole(userId, role, groupCode);
-      alert('Cập nhật thành công');
-    } catch (error) {
-      alert('Lỗi cập nhật: ' + error.message);
+  const handleDiscard = () => {
+    if (selectedRole) {
+      loadRolePermissions(selectedRole);
     }
+    setMessage('');
   };
 
-  if (usersLoading && users.length === 0) {
-    return <div className="admin-loading">Đang tải dữ liệu...</div>;
+  if (!isAdmin()) {
+    return (
+      <div className="admin-page-error">
+        <h2>Access Denied</h2>
+        <p>You don't have permission to access this page.</p>
+      </div>
+    );
   }
 
   return (
     <div className="admin-page">
-      <div className="admin-header">
-        <h2>🛡️ Quản lý Quyền</h2>
-        <div className="admin-tabs">
-          <button 
-            className={`tab ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
-          >
-            👥 Users
-          </button>
-          <button 
-            className={`tab ${activeTab === 'permissions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('permissions')}
-          >
-            🔐 Permissions
-          </button>
-        </div>
-      </div>
-
-      {activeTab === 'users' && (
-        <UsersManagement 
-          users={users}
-          loading={usersLoading}
-          filters={filters}
-          selectedUsers={selectedUsers}
-          onFilterChange={handleFilterChange}
-          onUserSelect={handleUserSelect}
-          onBulkRoleUpdate={handleBulkRoleUpdate}
-          onSingleRoleUpdate={handleSingleRoleUpdate}
-        />
-      )}
-
-      {activeTab === 'permissions' && (
-        <PermissionsMatrix 
-          matrix={matrix}
-          summary={summary}
-          loading={matrixLoading}
-        />
-      )}
-    </div>
-  );
-};
-
-// Component quản lý users
-const UsersManagement = ({ 
-  users, 
-  loading, 
-  filters, 
-  selectedUsers, 
-  onFilterChange, 
-  onUserSelect, 
-  onBulkRoleUpdate,
-  onSingleRoleUpdate 
-}) => {
-  return (
-    <div className="users-management">
-      {/* Filters */}
-      <div className="filters-bar">
-        <input
-          type="text"
-          placeholder="🔍 Tìm kiếm user..."
-          value={filters.search}
-          onChange={(e) => onFilterChange('search', e.target.value)}
-          className="filter-input"
-        />
+      <div className="admin-page-container">
+        <h1 className="admin-page-title">Cập nhật nhóm quyền</h1>
         
-        <select
-          value={filters.role}
-          onChange={(e) => onFilterChange('role', e.target.value)}
-          className="filter-select"
-        >
-          <option value="">Tất cả roles</option>
-          {ALL_ROLES.map(role => (
-            <option key={role.value} value={role.value}>
-              {role.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filters.groupCode}
-          onChange={(e) => onFilterChange('groupCode', e.target.value)}
-          className="filter-select"
-        >
-          <option value="">Tất cả groups</option>
-          {ALL_GROUPS.map(group => (
-            <option key={group.code} value={group.code}>
-              {group.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Bulk actions */}
-      {selectedUsers.length > 0 && (
-        <div className="bulk-actions">
-          <span>Đã chọn {selectedUsers.length} users:</span>
-          {ALL_ROLES.map(role => (
-            <button
-              key={role.value}
-              onClick={() => onBulkRoleUpdate(role.value)}
-              className={`bulk-btn role-${role.value}`}
-            >
-              → {role.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Users table */}
-      <div className="users-table">
-        <div className="table-header">
-          <div className="col-check">
-            <input
-              type="checkbox"
-              checked={selectedUsers.length === users.length && users.length > 0}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  const allIds = users.map(u => u._id);
-                  selectedUsers.length === 0 && onUserSelect(allIds[0]);
-                } else {
-                  selectedUsers.forEach(id => onUserSelect(id));
-                }
-              }}
-            />
+        {message && (
+          <div className={`admin-message ${message.includes('Error') ? 'error' : 'success'}`}>
+            {message}
           </div>
-          <div className="col-username">Username</div>
-          <div className="col-group">Group</div>
-          <div className="col-role">Role</div>
-          <div className="col-actions">Actions</div>
+        )}
+
+        <div className="role-selection">
+          <label htmlFor="role-select" className="role-label">
+            Bộ phận <span className="required">*</span>
+          </label>
+          <select
+            id="role-select"
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+            className="role-select"
+          >
+            <option value="">Chọn role...</option>
+            <option value={ROLES.ADMIN}>{ROLE_DISPLAY_NAMES[ROLES.ADMIN]}</option>
+            <option value={ROLES.XNK}>{ROLE_DISPLAY_NAMES[ROLES.XNK]}</option>
+            <option value={ROLES.CSKH}>{ROLE_DISPLAY_NAMES[ROLES.CSKH]}</option>
+            <option value={ROLES.FK}>{ROLE_DISPLAY_NAMES[ROLES.FK]}</option>
+          </select>
         </div>
 
-        <div className="table-body">
-          {users.map(user => (
-            <UserRow 
-              key={user._id}
-              user={user}
-              isSelected={selectedUsers.includes(user._id)}
-              onSelect={() => onUserSelect(user._id)}
-              onRoleUpdate={onSingleRoleUpdate}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+        {selectedRole && (
+          <div className="permissions-section">
+            <h2 className="permissions-title">Chức năng</h2>
+            
+            <div className="permissions-header">
+              <div className="resource-column">
+                <div className="select-all-container">
+                  <label className="permission-label">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="permission-checkbox"
+                    />
+                    Quyền quản trị
+                  </label>
+                  <button 
+                    type="button"
+                    className="select-all-btn"
+                    onClick={() => handleSelectAll(true)}
+                  >
+                    Chọn tất cả
+                  </button>
+                </div>
+              </div>
+              <div className="actions-header">
+                <span className="action-header">Xem</span>
+                <span className="action-header">Chỉnh sửa</span>
+                <span className="action-header">Xóa</span>
+              </div>
+            </div>
 
-// Component row user
-const UserRow = ({ user, isSelected, onSelect, onRoleUpdate }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editRole, setEditRole] = useState(user.role);
-  const [editGroupCode, setEditGroupCode] = useState(user.groupCode);
-
-  const handleSave = () => {
-    onRoleUpdate(user._id, editRole, editGroupCode);
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setEditRole(user.role);
-    setEditGroupCode(user.groupCode);
-    setIsEditing(false);
-  };
-
-  return (
-    <div className={`table-row ${isSelected ? 'selected' : ''}`}>
-      <div className="col-check">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={onSelect}
-        />
-      </div>
-      
-      <div className="col-username">
-        <span className="username">{user.username}</span>
-        <span className={`status ${user.status}`}>{user.status}</span>
-      </div>
-      
-      <div className="col-group">
-        {isEditing ? (
-          <select
-            value={editGroupCode}
-            onChange={(e) => setEditGroupCode(e.target.value)}
-            className="edit-select"
-          >
-            {ALL_GROUPS.map(group => (
-              <option key={group.code} value={group.code}>
-                {group.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className={`group-badge ${user.groupCode}`}>
-            {getGroupLabel(user.groupCode)}
-          </span>
-        )}
-      </div>
-      
-      <div className="col-role">
-        {isEditing ? (
-          <select
-            value={editRole}
-            onChange={(e) => setEditRole(e.target.value)}
-            className="edit-select"
-          >
-            {ALL_ROLES.map(role => (
-              <option key={role.value} value={role.value}>
-                {role.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className={`role-badge ${user.role}`}>
-            {getRoleLabel(user.role)}
-          </span>
-        )}
-      </div>
-      
-      <div className="col-actions">
-        {isEditing ? (
-          <div className="edit-actions">
-            <button onClick={handleSave} className="btn-save">✓</button>
-            <button onClick={handleCancel} className="btn-cancel">✕</button>
-          </div>
-        ) : (
-          <button 
-            onClick={() => setIsEditing(true)}
-            className="btn-edit"
-          >
-            ✏️
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Component matrix permissions
-const PermissionsMatrix = ({ matrix, summary, loading }) => {
-  if (loading) {
-    return <div className="matrix-loading">Đang tải permissions matrix...</div>;
-  }
-
-  if (!summary || Object.keys(summary).length === 0) {
-    return <div className="matrix-empty">Không có dữ liệu permissions</div>;
-  }
-
-  const resources = ['schedules', 'users', 'tasks', 'seats', 'notifications', 'reports'];
-  const actions = ['view', 'edit', 'delete'];
-  const roles = Object.keys(summary);
-
-  return (
-    <div className="permissions-matrix">
-      <div className="matrix-header">
-        <h3>Ma trận Quyền</h3>
-        <p>Xem quyền của từng role trên các resources</p>
-      </div>
-
-      <div className="matrix-table">
-        <table>
-          <thead>
-            <tr>
-              <th className="resource-header">Resource</th>
-              {roles.map(role => (
-                <th key={role} className={`role-header role-${role}`}>
-                  {getRoleLabel(role)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {resources.map(resource => (
-              <React.Fragment key={resource}>
-                {actions.map((action, actionIndex) => (
-                  <tr key={`${resource}-${action}`} className="matrix-row">
-                    <td className="resource-cell">
-                      {actionIndex === 0 && (
-                        <span className="resource-name">{resource}</span>
-                      )}
-                      <span className="action-name">{action}</span>
-                    </td>
-                    {roles.map(role => {
-                      const hasPermission = summary[role]?.[resource]?.[action] || false;
-                      return (
-                        <td key={`${role}-${resource}-${action}`} className="permission-cell">
-                          <div className={`permission-box ${hasPermission ? 'granted' : 'denied'}`}>
-                            {hasPermission ? '✓' : '✕'}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
+            <div className="permissions-matrix">
+              {/* Admin & System Resources */}
+              <div className="permission-category">
+                <h3 className="category-title">Quản trị & Hệ thống</h3>
+                {[RESOURCES.ADMIN_ACCESS, RESOURCES.API_CONTROLS, RESOURCES.DATABASE_MANAGEMENT, RESOURCES.REPOSITORY_MANAGEMENT, RESOURCES.SYSTEM].map(resource => (
+                  <div key={resource.key} className="permission-row">
+                    <div className="resource-name">
+                      {RESOURCE_DISPLAY_NAMES[resource.key]}
+                    </div>
+                    <div className="permission-actions">
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.VIEW] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.VIEW, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Xem</span>
+                      </label>
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.EDIT] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.EDIT, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Chỉnh sửa</span>
+                      </label>
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.DELETE] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.DELETE, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Xóa</span>
+                      </label>
+                    </div>
+                  </div>
                 ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </div>
 
-      {/* Legend */}
-      <div className="matrix-legend">
-        <div className="legend-item">
-          <div className="permission-box granted">✓</div>
-          <span>Có quyền</span>
-        </div>
-        <div className="legend-item">
-          <div className="permission-box denied">✕</div>
-          <span>Không có quyền</span>
-        </div>
+              {/* User & Content Management */}
+              <div className="permission-category">
+                <h3 className="category-title">Quản lý người dùng & Nội dung</h3>
+                {[RESOURCES.USER_MANAGEMENT, RESOURCES.USERS, RESOURCES.CONTENT_MANAGEMENT, RESOURCES.DISPUTES_MANAGEMENT].map(resource => (
+                  <div key={resource.key} className="permission-row">
+                    <div className="resource-name">
+                      {RESOURCE_DISPLAY_NAMES[resource.key]}
+                    </div>
+                    <div className="permission-actions">
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.VIEW] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.VIEW, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Xem</span>
+                      </label>
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.EDIT] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.EDIT, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Chỉnh sửa</span>
+                      </label>
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.DELETE] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.DELETE, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Xóa</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Operations */}
+              <div className="permission-category">
+                <h3 className="category-title">Vận hành</h3>
+                {[RESOURCES.SCHEDULES, RESOURCES.TASKS, RESOURCES.SEATS, RESOURCES.NOTIFICATIONS].map(resource => (
+                  <div key={resource.key} className="permission-row">
+                    <div className="resource-name">
+                      {RESOURCE_DISPLAY_NAMES[resource.key]}
+                    </div>
+                    <div className="permission-actions">
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.VIEW] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.VIEW, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Xem</span>
+                      </label>
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.EDIT] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.EDIT, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Chỉnh sửa</span>
+                      </label>
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.DELETE] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.DELETE, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Xóa</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Finance & Reporting */}
+              <div className="permission-category">
+                <h3 className="category-title">Tài chính & Báo cáo</h3>
+                {[RESOURCES.FINANCIAL_MANAGEMENT, RESOURCES.PAYROLL, RESOURCES.REPORTING, RESOURCES.REPORTS].map(resource => (
+                  <div key={resource.key} className="permission-row">
+                    <div className="resource-name">
+                      {RESOURCE_DISPLAY_NAMES[resource.key]}
+                    </div>
+                    <div className="permission-actions">
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.VIEW] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.VIEW, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Xem</span>
+                      </label>
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.EDIT] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.EDIT, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Chỉnh sửa</span>
+                      </label>
+                      <label className="permission-checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={permissions[resource.key]?.[PERMISSIONS.DELETE] || false}
+                          onChange={(e) => handlePermissionChange(resource.key, PERMISSIONS.DELETE, e.target.checked)}
+                          className="permission-checkbox"
+                        />
+                        <span className="permission-label-text">Xóa</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="button"
+                onClick={handleDiscard}
+                className="btn-discard"
+                disabled={loading}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="btn-submit"
+                disabled={loading || !selectedRole}
+              >
+                {loading ? 'Đang lưu...' : 'Lưu'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-};
-
-export default AdminPage;
+}
