@@ -8,6 +8,8 @@ const bcrypt = require('bcryptjs');
 const { attachUser, requireRole, requirePermission, logUserActivity } = require('../middleware/auth');
 const User = require('../../models/User');
 const Role = require('../../models/Role');
+const { ROLES } = require('../config/permissions');
+const { getRoleFromGroupCode } = require('../config/role-map');
 
 // Middleware: Tất cả routes cần authentication
 router.use(attachUser);
@@ -157,14 +159,23 @@ router.post('/',
         });
       }
 
-      // Xác định role
-      let userRole = ROLES.FK; // Default role
+      // Xác định role name
+      let roleName = 'FK'; // Default role
       if (req.user.role === ROLES.ADMIN && role) {
         // Admin có thể set role trực tiếp
-        userRole = role;
+        roleName = role;
       } else if (groupCode) {
         // Mapping từ groupCode
-        userRole = getRoleFromGroupCode(groupCode) || ROLES.FK;
+        roleName = getRoleFromGroupCode(groupCode) || 'FK';
+      }
+
+      // Tìm Role object từ database
+      const roleObject = await Role.findOne({ name: roleName });
+      if (!roleObject) {
+        return res.status(400).json({
+          success: false,
+          error: `Role ${roleName} không tồn tại`
+        });
       }
 
       // Hash password
@@ -176,7 +187,8 @@ router.post('/',
         password: hashedPassword,
         group_name: group_name || '',
         groupCode: groupCode || 'FK',
-        role: userRole,
+        role: roleObject._id,
+        roleString: roleName,
         status: status || 'Hoạt động',
         start_date: new Date()
       });

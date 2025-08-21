@@ -79,6 +79,8 @@ const createLabelWithTooltip = (label) => {
 
 // Hàm tạo menu items với kiểm tra quyền
 const createMenuItems = (hasRole, hasPermission, isAdmin) => [
+  // Trang chủ - tất cả user đều có thể truy cập
+  { key: '/trangchu', icon: <HomeOutlined />, label: createLabelWithTooltip('Trang chủ') },
   {
     key: 'quantri',
     icon: <SettingOutlined />,
@@ -120,7 +122,7 @@ const createMenuItems = (hasRole, hasPermission, isAdmin) => [
   // BANK section - chỉ admin hoặc role có quyền reports
   ...(hasPermission('reports', 'view') || isAdmin() ? [{
     key: 'bank',
-    icon: <HomeOutlined />,
+    icon: <ApiOutlined />,
     label: createLabelWithTooltip('BANK'),
     children: [
       { key: '/thongke', label: createLabelWithTooltip('Thống kê (số liệu chung)'), icon: <TableOutlined /> },

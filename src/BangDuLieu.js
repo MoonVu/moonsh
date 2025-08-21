@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./BangDuLieu.css";
 import apiService from "./services/api";
 import { FaEllipsisV, FaKey } from 'react-icons/fa';
+import { useAuth } from "./hooks/useAuth";
 
 const GROUPS = [
   { label: "Chủ Quản", value: "CQ" },
@@ -31,6 +32,7 @@ const STATUS_LABELS = {
 };
 
 export default function BangDuLieu() {
+  const { hasPermission } = useAuth();
   const [data, setData] = useState([]);
   const [editRow, setEditRow] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
@@ -252,11 +254,27 @@ export default function BangDuLieu() {
   const handleAddSave = async () => {
     setLoading(true);
     try {
+      // Debug: Kiểm tra user hiện tại
+      console.log('🔍 Current user info:', {
+        username: currentUser?.username,
+        role: currentUser?.role,
+        roleName: currentUser?.role?.name,
+        hasRole: !!currentUser?.role
+      });
+
+      // Debug: Kiểm tra permissions
+      console.log('🔍 Permission check:', {
+        canEditUsers: hasPermission('users', 'edit'),
+        canViewUsers: hasPermission('users', 'view'),
+        isAdmin: currentUser?.role?.name === 'ADMIN'
+      });
+
       // Thực hiện logic tạo user trước
       await apiService.createUser({
         username: addForm.tenTaiKhoan,
         password: addForm.password || "123456",
         group_name: addForm.group,
+        groupCode: addForm.group, // Thêm groupCode để backend mapping role
         status: addForm.status,
         start_date: addForm.ngayBatDau
       });

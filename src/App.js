@@ -17,6 +17,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { RequireAdmin } from "./components/auth/ProtectedRoute";
 import AdminPage from "./pages/AdminPage";
 import TokenExpiredNotice from "./components/TokenExpiredNotice";
+import TrangChu from "./components/TrangChu";
 import './App.css';
 
 // Error Boundary Component
@@ -75,7 +76,8 @@ const MainLayout = () => {
 
           <div className="content-container">
             <Routes>
-              <Route path="/" element={<HomePage />} />
+              <Route path="/" element={<TrangChu />} />
+              <Route path="/trangchu" element={<TrangChu />} />
               <Route path="/taikhoan" element={<BangDuLieu />} />
               <Route path="/task" element={<TaskYeuCau />} />
               <Route path="/vitri" element={<ViTriChoNgoi />} />
@@ -88,7 +90,7 @@ const MainLayout = () => {
                   </RequireAdmin>
                 } 
               />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/trangchu" replace />} />
             </Routes>
           </div>
         </div>
@@ -97,21 +99,7 @@ const MainLayout = () => {
   );
 };
 
-// Trang chủ
-const HomePage = () => {
-  return (
-    <div style={{ textAlign: 'center', padding: '40px' }}>
-      <h2>Chào mừng đến với hệ thống SHBET</h2>
-      <p>Vui lòng chọn một mục từ menu để bắt đầu.</p>
-      <p>Hệ thống đang được phát triển nên nếu có đóng góp vui lòng nhắn tin cho Moon ở telegram</p>
-      <p>
-  <a href="https://t.me/moonvush" target="_blank" rel="noopener noreferrer">
-    https://t.me/moonvush
-  </a>
-</p>
-    </div>
-  );
-};
+
 
 // AdminPage đã được import từ file riêng
 

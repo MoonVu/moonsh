@@ -35,7 +35,9 @@ userSchema.virtual('permissions').get(function() {
   if (this.role && this.role.getAllPermissions) {
     return this.role.getAllPermissions();
   }
-  return [];
+  // Fallback to config file nếu chưa có role object
+  const { getRolePermissionsArray } = require('../src/config/permissions');
+  return getRolePermissionsArray(this.roleString);
 });
 
 // Method để kiểm tra permission
@@ -43,7 +45,9 @@ userSchema.methods.hasPermission = function(resource, action) {
   if (this.role && this.role.hasPermission) {
     return this.role.hasPermission(resource, action);
   }
-  return false;
+  // Fallback to config file
+  const { hasPermission } = require('../src/config/permissions');
+  return hasPermission(this.roleString, resource, action);
 };
 
 module.exports = mongoose.model('User', userSchema);

@@ -13,12 +13,12 @@ export default function Login() {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   
-  // Redirect location sau khi đăng nhập
-  const from = location.state?.from?.pathname || "/";
+  // Luôn redirect về trang chủ sau khi đăng nhập
+  const redirectTo = "/trangchu";
 
   // Nếu đã đăng nhập, redirect
   if (isAuthenticated) {
-    return <Navigate to={from} replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   const handleSubmit = async e => {

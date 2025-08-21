@@ -5,8 +5,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../../models/User');
-const { getRoleFromGroupCode } = require('../config/role-map');
 const Role = require('../../models/Role');
+const { getRoleFromGroupCode } = require('../config/role-map');
 
 class AuthService {
   /**
@@ -241,7 +241,16 @@ class AuthService {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       // Xác định role từ groupCode
-      const role = getRoleFromGroupCode(groupCode) || 'FK';
+      const roleName = getRoleFromGroupCode(groupCode) || 'FK';
+      
+      // Tìm Role object từ database
+      const roleObject = await Role.findOne({ name: roleName });
+      if (!roleObject) {
+        return {
+          success: false,
+          error: `Role ${roleName} không tồn tại`
+        };
+      }
 
       // Tạo user mới
       const newUser = new User({
@@ -249,7 +258,8 @@ class AuthService {
         password: hashedPassword,
         group_name,
         groupCode,
-        role,
+        role: roleObject._id,
+        roleString: roleName,
         status: 'Hoạt động',
         start_date: new Date()
       });
