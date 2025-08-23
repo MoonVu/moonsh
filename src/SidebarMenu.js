@@ -103,7 +103,7 @@ const createMenuItems = (hasRole, hasPermission, isAdmin) => [
             icon: <SolutionOutlined />,
             children: [
               { key: '/lichve', label: createLabelWithTooltip('Lịch về'), icon: <SolutionOutlined /> },
-              { key: '/chitiet', label: createLabelWithTooltip('Chi tiết'), icon: <IdcardOutlined /> },
+              { key: '/chitiet', label: createLabelWithTooltip('Timeline'), icon: <IdcardOutlined /> },
             ],
           },
           // Vị trí chỗ ngồi - cần quyền seats.view

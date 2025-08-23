@@ -1161,7 +1161,7 @@ app.get('/api/seat/version', async (req, res) => {
 // Tạo bản sao lịch đi ca
 app.post('/api/schedule-copy', authenticateToken, async (req, res) => {
   try {
-    const { month, year, name, scheduleData, phanCa, description, tags } = req.body;
+    const { month, year, name, scheduleData, phanCa, notesData, description, tags } = req.body;
     
     if (!month || !year || !name) {
       return res.status(400).json({ 
@@ -1177,6 +1177,7 @@ app.post('/api/schedule-copy', authenticateToken, async (req, res) => {
       year: Number(year),
       scheduleData: new Map(Object.entries(scheduleData || {})),
       phanCa: phanCa || {},
+      notesData: notesData || {}, // Thêm notesData
       createdBy: req.user._id,
       description: description || '',
       tags: tags || []
@@ -1267,7 +1268,7 @@ app.get('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
 // Cập nhật bản sao lịch đi ca
 app.put('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
   try {
-    const { month, year, name, scheduleData, phanCa, description, tags } = req.body;
+    const { month, year, name, scheduleData, phanCa, notesData, description, tags } = req.body;
     
     const copy = await ScheduleCopy.findById(req.params.id);
     if (!copy) {
@@ -1283,6 +1284,7 @@ app.put('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
     if (name !== undefined) copy.name = name;
     if (scheduleData !== undefined) copy.scheduleData = new Map(Object.entries(scheduleData));
     if (phanCa !== undefined) copy.phanCa = phanCa;
+    if (notesData !== undefined) copy.notesData = notesData;
     if (description !== undefined) copy.description = description;
     if (tags !== undefined) copy.tags = tags;
 

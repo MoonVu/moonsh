@@ -298,7 +298,10 @@ class ApiService {
     return await this.request('/schedules/full');
   }
 
-  // Demo Lịch Đi Ca API
+  // Demo Lịch Đi Ca API - Sử dụng API có sẵn
+  // Không cần tạo model mới, sử dụng demo-lichdica endpoint
+
+  // API cũ (giữ lại để tương thích)
   async getDailyStatus(month, year, userId = null) {
     const params = new URLSearchParams({ month, year });
     if (userId) params.append('userId', userId);
@@ -332,12 +335,50 @@ class ApiService {
     return await this.request(`/schedule-copy/${copyId}`);
   }
 
-  // Tạo tab mới cho lịch đi ca
+  // Tạo tab mới cho lịch đi ca (giữ lại để tương thích)
   async createScheduleTab(tabData) {
     return await this.request('/schedule-tabs', {
       method: 'POST',
       body: JSON.stringify(tabData)
     });
+  }
+
+  // Cập nhật tab lịch đi ca (giữ lại để tương thích)
+  async updateScheduleTab(tabId, tabData) {
+    return await this.request(`/schedule-tabs/${tabId}`, {
+      method: 'PUT',
+      body: JSON.stringify(tabData)
+    });
+  }
+
+  // Lấy tab lịch đi ca theo tháng/năm (giữ lại để tương thích)
+  async getScheduleTabByMonth(month, year) {
+    try {
+      const response = await this.request('/schedule-tabs');
+      if (response && response.success && response.data) {
+        const existingTabs = response.data.filter(tab => 
+          tab.type === "month" && 
+          tab.data && 
+          tab.data.month === month && 
+          tab.data.year === year &&
+          tab.name.includes(`DEMO Lịch đi ca tháng ${month}/${year}`)
+        );
+        
+        if (existingTabs.length > 0) {
+          existingTabs.sort((a, b) => {
+            const timeA = new Date(a.created_at || a.updated_at || 0);
+            const timeB = new Date(b.created_at || b.updated_at || 0);
+            return timeB - timeA;
+          });
+          return existingTabs[0];
+        }
+        return null;
+      }
+      return null;
+    } catch (error) {
+      console.error("❌ Lỗi khi tìm tab theo tháng:", error);
+      return null;
+    }
   }
 
   // Cập nhật bản sao lịch đi ca

@@ -3,10 +3,13 @@ import { Tabs, Spin, message, Input, Button, Popconfirm } from "antd";
 import apiService from "./services/api";
 import DemoNhanSu from "./DemoNhanSu";
 import EditOutlined from '@ant-design/icons/EditOutlined';
-import DemoLichDiCa from "./DemoLichDiCa";
+import { DemoLichDiCa } from "./components";
+import DemoLichCopy from "./components/DemoLichCopy";
 import { DeleteOutlined } from '@ant-design/icons';
+import { useAuth } from "./hooks/useAuth";
 
 export default function LichDiCaTabs({ currentUser }) {
+  const { isAdmin } = useAuth();
   const [tabs, setTabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeKey, setActiveKey] = useState();
@@ -19,17 +22,35 @@ export default function LichDiCaTabs({ currentUser }) {
     // eslint-disable-next-line
   }, []);
 
-  // Expose refresh function để DemoLichDiCa có thể gọi
+  // Expose refresh function và event listener để xử lý chuyển tab
   useEffect(() => {
     window.refreshTabs = () => {
       console.log("🔄 Triggering tabs refresh from window.refreshTabs");
       fetchTabs();
     };
+
+    // Event listener để xử lý chuyển tab sau khi xóa bản sao
+    const handleSwitchTab = (event) => {
+      const { tabType } = event.detail;
+      console.log("🔄 Received switchTab event:", tabType);
+      
+      if (tabType === 'demo') {
+        // Chuyển về tab demo gốc
+        const demoTab = tabs.find(tab => tab.type === 'demo');
+        if (demoTab) {
+          setActiveKey(demoTab._id);
+          console.log("✅ Switched to demo tab:", demoTab._id);
+        }
+      }
+    };
+
+    window.addEventListener('switchTab', handleSwitchTab);
     
     return () => {
       delete window.refreshTabs;
+      window.removeEventListener('switchTab', handleSwitchTab);
     };
-  }, []);
+  }, [tabs]);
 
   const fetchTabs = async () => {
     setLoading(true);
@@ -56,11 +77,22 @@ export default function LichDiCaTabs({ currentUser }) {
       return;
     }
     try {
+      // 1) Cập nhật tên tab
       await apiService.request(`/schedule-tabs/${tabId}`, {
         method: "PUT",
         body: JSON.stringify({ name: value })
       });
-      setTabs(prev => prev.map(t => t._id === tabId ? { ...t, name: value } : t));
+      // 2) Nếu là tab copy, cập nhật luôn tên bản sao trong schedulecopies
+      const targetTab = tabs.find(t => t._id === tabId);
+      if (targetTab?.data?.copyId) {
+        try {
+          await apiService.updateScheduleCopy(targetTab.data.copyId, { name: value });
+        } catch (e) {
+          console.warn("⚠️ Không thể cập nhật tên schedule copy:", e);
+        }
+      }
+      // 3) Cập nhật UI state
+      setTabs(prev => prev.map(t => t._id === tabId ? { ...t, name: value, data: { ...t.data, name: value } } : t));
       setEditingTabId(null);
       setEditingTabName("");
       message.success("Đã cập nhật tên tab!");
@@ -87,7 +119,18 @@ export default function LichDiCaTabs({ currentUser }) {
 
       alert("✅ Đã xóa bản sao thành công!");
       
-      // Refresh lại danh sách tab
+      // Xóa tab khỏi danh sách local ngay lập tức
+      setTabs(prev => prev.filter(tab => tab._id !== tabId));
+      
+      // Chuyển về tab demo gốc nếu tab bị xóa là tab đang active
+      if (activeKey === tabId) {
+        const demoTab = tabs.find(tab => tab.type === 'demo');
+        if (demoTab) {
+          setActiveKey(demoTab._id);
+        }
+      }
+      
+      // Refresh lại danh sách tab từ backend
       fetchTabs();
     } catch (err) {
       console.error("❌ Lỗi khi xóa bản sao:", err);
@@ -97,8 +140,12 @@ export default function LichDiCaTabs({ currentUser }) {
 
   if (loading || creatingDemo) return <Spin style={{ margin: 40 }} />;
 
-  // Tất cả tab đều hiển thị cho mọi user
-  const visibleTabs = tabs;
+  // ADMIN thấy tất cả tab, nhân viên chỉ thấy tab copy (không thấy demo gốc và demo_nhansu)
+  const visibleTabs = isAdmin() ? tabs : tabs.filter(tab => 
+    tab.type !== "demo_nhansu" && // Ẩn tab demo nhân sự khỏi nhân viên
+    tab.type !== "demo" && // Ẩn tab demo gốc khỏi nhân viên
+    tab.data?.copyId // Chỉ hiển thị tab copy cho nhân viên
+  );
 
   const renderTabBar = (props, DefaultTabBar) => (
     <DefaultTabBar {...props}>
@@ -149,7 +196,7 @@ export default function LichDiCaTabs({ currentUser }) {
           label: (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <span>{tab.name}</span>
-              {tab.data?.copyId && (
+              {tab.data?.copyId && isAdmin() && (
                 <Popconfirm
                   title="Xóa bản sao"
                   description="Bạn có chắc chắn muốn xóa bản sao này không? Hành động này không thể hoàn tác."
@@ -164,7 +211,7 @@ export default function LichDiCaTabs({ currentUser }) {
                     icon={<DeleteOutlined />}
                     size="small"
                     style={{ marginLeft: 8 }}
-                    title="Xóa bản sao"
+                    title="Xóa bản sao (chỉ ADMIN)"
                   />
                 </Popconfirm>
               )}
@@ -173,9 +220,8 @@ export default function LichDiCaTabs({ currentUser }) {
           children: tab.type === "demo_nhansu" ? (
             <DemoNhanSu tabId={tab._id} />
           ) : tab.data?.copyId ? (
-            <DemoLichDiCa 
+            <DemoLichCopy 
               tabId={tab._id} 
-              isCopyTab={true}
               copyData={tab.data}
             />
           ) : (

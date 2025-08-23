@@ -27,6 +27,10 @@ const scheduleCopySchema = new mongoose.Schema({
     type: Object,
     default: {}
   },
+  notesData: {
+    type: Object,
+    default: {}
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

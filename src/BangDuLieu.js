@@ -40,7 +40,13 @@ export default function BangDuLieu() {
   const [deleteRow, setDeleteRow] = useState(null);
   const [showDelete, setShowDelete] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState({ tenTaiKhoan: "", group: GROUPS[0].value, status: STATUSES[0], ngayBatDau: "", password: "" });
+  const [addForm, setAddForm] = useState({ 
+    tenTaiKhoan: "", 
+    group: GROUPS[0].value, 
+    status: STATUSES[0], 
+    ngayBatDau: "", 
+    password: "" 
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState({ group: [], status: [] });
@@ -81,14 +87,24 @@ export default function BangDuLieu() {
           count: usersArray.length 
         });
         
-        // Map dữ liệu về đúng format cũ
-        setData(usersArray.map(u => ({
-          key: u.id || u._id,
-          tenTaiKhoan: u.username,
-          group: u.group_name,
-          status: STATUS_LABELS[u.status] || u.status,
-          ngayBatDau: u.start_date && u.start_date !== "Chưa nhập" ? new Date(u.start_date).toISOString().slice(0, 10) : ""
-        })));
+        // Map dữ liệu về đúng format cũ (fix timezone issue)
+        setData(usersArray.map(u => {
+          let start = "";
+          if (u.start_date && u.start_date !== "Chưa chọn ngày") {
+            const d = new Date(u.start_date);
+            if (!isNaN(d)) {
+              start = toLocalDateYYYYMMDD(d);
+            }
+          }
+          
+          return {
+            key: u.id || u._id,
+            tenTaiKhoan: u.username,
+            group: u.group_name,
+            status: STATUS_LABELS[u.status] || u.status,
+            ngayBatDau: start
+          };
+        }));
         setLoading(false);
       })
       .catch(err => {
@@ -143,7 +159,7 @@ export default function BangDuLieu() {
       };
 
       // Chỉ thêm start_date nếu có giá trị và không phải "Chưa nhập"
-      if (editForm.ngayBatDau && editForm.ngayBatDau !== "Chưa nhập" && editForm.ngayBatDau.trim() !== "") {
+      if (editForm.ngayBatDau && editForm.ngayBatDau !== "Chưa chọn ngày" && editForm.ngayBatDau.trim() !== "") {
         updateData.start_date = editForm.ngayBatDau;
       }
 
@@ -240,14 +256,25 @@ export default function BangDuLieu() {
 
   // Xử lý mở popup thêm mới
   const handleAdd = () => {
-    setAddForm({ tenTaiKhoan: "", group: GROUPS[0].value, status: STATUSES[0], ngayBatDau: "", password: "" });
+    setAddForm({ 
+      tenTaiKhoan: "", 
+      group: GROUPS[0].value, 
+      status: STATUSES[0], 
+      ngayBatDau: "", 
+      password: "" 
+    });
     setShowAdd(true);
   };
 
   // Xử lý thay đổi form thêm mới
   const handleAddChange = (e) => {
     const { name, value } = e.target;
-    setAddForm((prev) => ({ ...prev, [name]: value }));
+    console.log(`🔄 Form thay đổi - ${name}:`, value);
+    setAddForm((prev) => {
+      const newForm = { ...prev, [name]: value };
+      console.log('📝 Form mới:', newForm);
+      return newForm;
+    });
   };
 
   // Lưu tài khoản mới
@@ -269,6 +296,21 @@ export default function BangDuLieu() {
         isAdmin: currentUser?.role?.name === 'ADMIN'
       });
 
+      // Xử lý ngày bắt đầu làm việc
+      let startDate = null;
+      if (addForm.ngayBatDau && addForm.ngayBatDau.trim() !== "") {
+        // Đảm bảo ngày được format đúng định dạng YYYY-MM-DD
+        const date = new Date(addForm.ngayBatDau);
+        if (!isNaN(date.getTime())) {
+          startDate = addForm.ngayBatDau;
+          console.log('📅 Ngày bắt đầu làm việc được chọn:', startDate);
+        } else {
+          console.log('⚠️ Ngày không hợp lệ:', addForm.ngayBatDau);
+        }
+      } else {
+        console.log('📅 Không có ngày bắt đầu làm việc (để trống)');
+      }
+
       // Thực hiện logic tạo user trước
       await apiService.createUser({
         username: addForm.tenTaiKhoan,
@@ -276,7 +318,7 @@ export default function BangDuLieu() {
         group_name: addForm.group,
         groupCode: addForm.group, // Thêm groupCode để backend mapping role
         status: addForm.status,
-        start_date: addForm.ngayBatDau
+        start_date: startDate
       });
       
       // Sau khi logic hoàn thành thành công, mới tắt popup
@@ -332,6 +374,14 @@ export default function BangDuLieu() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [actionMenuIdx]);
+
+  // Hàm format ngày theo giờ local (fix timezone issue)
+  function toLocalDateYYYYMMDD(d) {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0'); // getMonth() là 0-indexed
+    const yyyy = d.getFullYear();
+    return `${yyyy}-${mm}-${dd}`;
+  }
 
   // Hàm tính tổng số ngày/tháng/năm làm việc
   function getWorkDuration(dateStr) {
@@ -639,8 +689,23 @@ export default function BangDuLieu() {
               </select>
             </div>
             <div className="form-group">
-              <label>Ngày bắt đầu làm việc:</label>
-              <input name="ngayBatDau" type="date" value={addForm.ngayBatDau || ""} onChange={handleAddChange} />
+              <label>Ngày bắt đầu làm việc: <span style={{ color: '#999', fontSize: '12px' }}>(Tùy chọn)</span></label>
+              <input 
+                name="ngayBatDau" 
+                type="date" 
+                value={addForm.ngayBatDau || ""} 
+                onChange={handleAddChange}
+                min="1900-01-01"
+                max={toLocalDateYYYYMMDD(new Date())}
+                placeholder="Chọn ngày bắt đầu làm việc"
+                style={{ 
+                  padding: '8px 12px',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  width: '100%'
+                }}
+              />
             </div>
             {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
             <div style={{ marginTop: 16 }}>
@@ -655,6 +720,25 @@ export default function BangDuLieu() {
                     setError("Mật khẩu tối thiểu 6 ký tự.");
                     return;
                   }
+                  
+                  // Kiểm tra ngày bắt đầu làm việc nếu có nhập
+                  if (addForm.ngayBatDau && addForm.ngayBatDau.trim() !== "") {
+                    const selectedDate = new Date(addForm.ngayBatDau);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0); // Reset giờ về 00:00:00
+                    
+                    if (isNaN(selectedDate.getTime())) {
+                      setError("Ngày bắt đầu làm việc không hợp lệ!");
+                      return;
+                    }
+                    
+                    if (selectedDate > today) {
+                      setError("Ngày bắt đầu làm việc không thể là ngày trong tương lai!");
+                      return;
+                    }
+                  }
+                  // Nếu không nhập ngày thì để trống (không bắt buộc)
+                  
                   setError("");
                   await handleAddSave();
                 }}
@@ -733,7 +817,21 @@ export default function BangDuLieu() {
             </div>
             <div className="form-group">
               <label>Ngày bắt đầu làm việc: <span style={{ color: '#999', fontSize: '12px' }}>(Tùy chọn)</span></label>
-              <input name="ngayBatDau" type="date" value={editForm.ngayBatDau || ""} onChange={handleEditChange} />
+              <input 
+                name="ngayBatDau" 
+                type="date" 
+                value={editForm.ngayBatDau || ""} 
+                onChange={handleEditChange}
+                min="1900-01-01"
+                max={toLocalDateYYYYMMDD(new Date())}
+                style={{ 
+                  padding: '8px 12px',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  width: '100%'
+                }}
+              />
             </div>
             <div style={{ marginTop: 16 }}>
               <button 

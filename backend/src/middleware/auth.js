@@ -68,9 +68,7 @@ const attachUser = async (req, res, next) => {
       username: user.username, 
       roleId: user.role?._id,
       roleName: user.role?.name,
-      permissionsCount: user.role?.permissions?.length || 0,
-      hasRoleObject: !!user.role,
-      roleType: typeof user.role
+      permissionsCount: user.role?.permissions?.length || 0
     });
     
     // Đính kèm user vào request

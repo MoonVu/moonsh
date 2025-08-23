@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     const filter = {};
     
     // Chỉ admin mới được filter theo role/status nhạy cảm
-    if (req.user.role === ROLES.ADMIN) {
+    if (req.user.role.name === ROLES.ADMIN) {
       if (role) filter.role = role;
       if (status) filter.status = status;
     } else {
@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
     
     // Select fields dựa trên role
     let selectFields = '-password'; // Luôn ẩn password
-    if (req.user.role !== ROLES.ADMIN) {
+    if (req.user.role.name !== ROLES.ADMIN) {
       // User thường không thấy một số field nhạy cảm
       selectFields += ' -role';
     }
@@ -94,7 +94,7 @@ router.get('/:id', async (req, res) => {
     
     // Select fields dựa trên quyền
     let selectFields = '-password';
-    if (req.user.role !== ROLES.ADMIN && req.user.id !== id) {
+    if (req.user.role.name !== ROLES.ADMIN && req.user.id !== id) {
       selectFields += ' -role';
     }
     
@@ -161,7 +161,7 @@ router.post('/',
 
       // Xác định role name
       let roleName = 'FK'; // Default role
-      if (req.user.role === ROLES.ADMIN && role) {
+      if (req.user.role.name === ROLES.ADMIN && role) {
         // Admin có thể set role trực tiếp
         roleName = role;
       } else if (groupCode) {
@@ -198,7 +198,7 @@ router.post('/',
       // Trả về user không có password
       const userResponse = await User.findById(newUser._id).select('-password');
 
-      console.log(`✅ User ${req.user.username} đã tạo user mới: ${username} (${userRole})`);
+      console.log(`✅ User ${req.user.username} đã tạo user mới: ${username} (${roleName})`);
 
       res.status(201).json({
         success: true,
@@ -240,7 +240,7 @@ router.put('/:id',
       }
 
       // Kiểm tra quyền: chỉ admin hoặc chính user đó mới được sửa
-      if (req.user.role !== ROLES.ADMIN && req.user.id !== id) {
+      if (req.user.role.name !== ROLES.ADMIN && req.user.id !== id) {
         return res.status(403).json({
           success: false,
           error: 'Không có quyền sửa user này'
@@ -279,13 +279,13 @@ router.put('/:id',
       if (groupCode !== undefined) {
         updateData.groupCode = groupCode;
         // Cập nhật role theo groupCode nếu không phải admin
-        if (req.user.role !== ROLES.ADMIN) {
+        if (req.user.role.name !== ROLES.ADMIN) {
           updateData.role = getRoleFromGroupCode(groupCode) || user.role;
         }
       }
       
       // Chỉ admin mới được thay đổi status
-      if (status !== undefined && req.user.role === ROLES.ADMIN) {
+      if (status !== undefined && req.user.role.name === ROLES.ADMIN) {
         updateData.status = status;
       }
 
@@ -406,7 +406,7 @@ router.post('/:id/change-password',
 
       // Kiểm tra quyền
       const isSelf = user._id.toString() === req.user.id;
-      const isAdmin = req.user.role === ROLES.ADMIN;
+      const isAdmin = req.user.role.name === ROLES.ADMIN;
 
       if (!isSelf && !isAdmin) {
         return res.status(403).json({
