@@ -3,12 +3,12 @@
 }
 
 .table-container {
-  width: auto;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
-  overflow-x: unset;
+  overflow-x: auto;
   position: relative;
-  margin: 20px;
+  margin: 0;
   background: #fff;
   border-radius: 12px;
   padding: 24px;
@@ -22,7 +22,8 @@ table {
   border-spacing: 0;
   background: #fff;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
+  table-layout: auto;
 }
 
 th, td {
@@ -466,10 +467,48 @@ th, thead, table {
   background: #fff;
   border-radius: 10px;
   min-height: 400px;
-  max-width: calc(100vw - 400px);
+  max-width: calc(100vw - 300px); /* Để lại không gian cho sidebar và user menu */
   width: 100%;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  overflow: hidden;
+  overflow: visible;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* Đảm bảo schedule table hiển thị đẹp */
+.schedule-table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border-radius: 8px;
+  overflow: visible;
+  table-layout: auto;
+}
+
+/* Đảm bảo bảng có thể scroll ngang mượt mà */
+.schedule-table-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  border-radius: 8px;
+  /* Thêm shadow để biết có thể scroll */
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+}
+
+.schedule-table th,
+.schedule-table td {
+  padding: 12px 8px;
+  text-align: center;
+  vertical-align: middle;
+  border: 1px solid #e0e0e0;
+}
+
+.schedule-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #1976d2;
 }
 
 .schedule-header {
@@ -516,7 +555,7 @@ th, thead, table {
   font-weight: 600;
   color: #1976d2;
   background: #e3f2fd;
-  padding: 8px 16px;
+  padding: 7px 11px;
   border-radius: 6px;
   border: 1px solid #bbdefb;
 }
@@ -710,18 +749,23 @@ th, thead, table {
 .table-container {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: auto; /* Cho phép scroll ngang */
   border-radius: 8px;
   border: 1px solid #e0e0e0;
   box-sizing: border-box;
+  /* Đảm bảo scroll ngang mượt mà */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .schedule-table {
-  min-width: 1000px;
-  width: max-content;
+  min-width: 1000px; /* Đảm bảo bảng đủ rộng cho 31 ngày */
+  width: max-content; /* Bảng tự động điều chỉnh theo nội dung */
   border-collapse: collapse;
   background: #fff;
   font-size: 14px;
+  /* Đảm bảo bảng không bị cắt */
+  table-layout: fixed;
 }
 
 .schedule-table thead {
@@ -808,7 +852,7 @@ th, thead, table {
 /* Responsive adjustments */
 @media (max-width: 1440px) {
   .schedule-container {
-    max-width: calc(100vw - 380px);
+    max-width: calc(100vw - 280px); /* Điều chỉnh cho màn hình nhỏ hơn */
   }
   
   .schedule-table {
@@ -828,7 +872,7 @@ th, thead, table {
 
 @media (max-width: 1366px) {
   .schedule-container {
-    max-width: calc(100vw - 360px);
+    max-width: calc(100vw - 260px); /* Điều chỉnh cho màn hình nhỏ hơn */
   }
   
   .schedule-table {
@@ -854,7 +898,7 @@ th, thead, table {
 @media (max-width: 768px) {
   .schedule-container {
     padding: 16px;
-    max-width: calc(100vw - 320px);
+    max-width: calc(100vw - 240px); /* Điều chỉnh cho mobile */
   }
   
   .date-controls {
@@ -900,19 +944,39 @@ th, thead, table {
 
 /* Custom scrollbar for table */
 .table-container::-webkit-scrollbar {
-  height: 8px;
+  height: 12px; /* Tăng chiều cao scrollbar để dễ thao tác */
 }
 
 .table-container::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 4px;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
 }
 
 .table-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
+  background: #1976d2; /* Màu xanh giống theme */
+  border-radius: 6px;
+  border: 1px solid #1565c0;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: #1565c0;
+}
+
+/* Thêm indicator cho scroll ngang */
+.table-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(45deg, transparent 30%, #1976d2 30%, #1976d2 70%, transparent 70%);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Ẩn indicator khi không cần scroll */
+.table-container:not([data-scrollable="true"])::after {
+  display: none;
 }

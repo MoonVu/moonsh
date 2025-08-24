@@ -4,7 +4,7 @@ import apiService from "./services/api";
 import DemoNhanSu from "./DemoNhanSu";
 import EditOutlined from '@ant-design/icons/EditOutlined';
 import { DemoLichDiCa } from "./components";
-import DemoLichCopy from "./components/DemoLichCopy";
+import DemoLichCopy from "./components/Lichdica/DemoLichCopy";
 import { DeleteOutlined } from '@ant-design/icons';
 import { useAuth } from "./hooks/useAuth";
 

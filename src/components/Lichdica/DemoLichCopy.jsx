@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
-import "../BangDuLieu.css";
-import apiService from "../services/api";
-import { useSchedule } from "../contexts/ScheduleContext";
-import { Select, Button, Modal, Form, Input, message } from 'antd';
+import "../../BangDuLieu.css";
+import apiService from "../../services/api";
+import { useSchedule } from "../../contexts/ScheduleContext";
+import { Select, Button, Modal, Form, Input, message, Table } from 'antd';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { useAuth } from "../hooks/useAuth";
-import { ShowForPermission as AccessControl } from "./auth/AccessControl";
+import { useAuth } from "../../hooks/useAuth";
+import { ShowForPermission as AccessControl } from "../auth/AccessControl";
 
-// CSS cho tooltip ghi chú
+// CSS cho tooltip ghi chú và modal thống kê
 const noteTooltipStyles = `
   .schedule-table td:hover .note-tooltip {
     opacity: 1 !important;
@@ -34,6 +34,27 @@ const noteTooltipStyles = `
   /* Đảm bảo tooltip không bị che khuất */
   .schedule-table td {
     overflow: visible !important;
+  }
+
+  /* CSS riêng cho modal thống kê - vượt qua login.css */
+  .off-stats-modal .dept-label {
+    font-size: 25px !important;
+    color: #096dd9 !important;
+    font-weight: 600 !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .off-stats-modal .date-label {
+    font-size: 25px !important;
+    color: #096dd9 !important;
+    font-weight: 600 !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 `;
 
@@ -122,10 +143,14 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [noteForm] = Form.useForm();
   
-  // State cho popup cập nhật ghi chú
-  const [editNoteModalVisible, setEditNoteModalVisible] = useState(false);
-  const [editingNote, setEditingNote] = useState({ staffId: '', day: '', note: '', staffName: '' });
-  const [editNoteForm] = Form.useForm();
+     // State cho popup cập nhật ghi chú
+   const [editNoteModalVisible, setEditNoteModalVisible] = useState(false);
+   const [editingNote, setEditingNote] = useState({ staffId: '', day: '', note: '', staffName: '' });
+   const [editNoteForm] = Form.useForm();
+   
+   // State cho bộ lọc
+   const [filterCa, setFilterCa] = useState([]);
+   const [filterDepartment, setFilterDepartment] = useState([]);
 
   // Lấy thời gian của ca
   const getShiftTime = (shiftLabel) => {
@@ -483,27 +508,35 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
       }));
       setEditNoteModalVisible(false);
       editNoteForm.resetFields();
-    });
+      // Bỏ thông báo thành công
+    })
+    .catch(() => {});
   };
 
-  // Function xóa ghi chú
-  const handleDeleteNote = () => {
-    if (window.confirm(`Bạn có muốn xóa ghi chú ngày ${editingNote.day} của ${editingNote.staffName}?\n\nNội dung: ${editingNote.note}`)) {
-      setNotesData(prev => {
-        const newNotes = { ...prev };
-        if (newNotes[editingNote.staffId]) {
-          delete newNotes[editingNote.staffId][editingNote.day];
-          // Nếu không còn ghi chú nào cho nhân viên này, xóa luôn key
-          if (Object.keys(newNotes[editingNote.staffId]).length === 0) {
-            delete newNotes[editingNote.staffId];
-          }
-        }
-        return newNotes;
-      });
-      setEditNoteModalVisible(false);
-      editNoteForm.resetFields();
-    }
-  };
+     // Function xóa ghi chú
+   const handleDeleteNote = () => {
+     if (window.confirm(`Bạn có muốn xóa ghi chú ngày ${editingNote.day} của ${editingNote.staffName}?\n\nNội dung: ${editingNote.note}`)) {
+       setNotesData(prev => {
+         const newNotes = { ...prev };
+         if (newNotes[editingNote.staffId]) {
+           delete newNotes[editingNote.staffId][editingNote.day];
+           // Nếu không còn ghi chú nào cho nhân viên này, xóa luôn key
+           if (Object.keys(newNotes[editingNote.staffId]).length === 0) {
+             delete newNotes[editingNote.staffId];
+           }
+         }
+         return newNotes;
+       });
+       setEditNoteModalVisible(false);
+       editNoteForm.resetFields();
+     }
+   };
+   
+   // Function xóa bộ lọc
+   const clearFilters = () => {
+     setFilterCa([]);
+     setFilterDepartment([]);
+   };
 
   // Function kiểm tra và dọn dẹp bản sao zombie
   const checkAndCleanupZombieCopy = async () => {
@@ -714,13 +747,13 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
     }
   };
 
-  // Function xuất dữ liệu ra file Excel sử dụng exceljs
-  const handleExportToExcel = async () => {
-    try {
-      if (!staffsByCa || staffsByCa.length === 0) {
-        message.warning("⚠️ Không có dữ liệu để xuất Excel!");
-        return;
-      }
+     // Function xuất dữ liệu ra file Excel sử dụng exceljs
+   const handleExportToExcel = async () => {
+     try {
+       if (!filteredStaffsByCa || filteredStaffsByCa.length === 0) {
+         message.warning("⚠️ Không có dữ liệu để xuất Excel!");
+         return;
+       }
 
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet(`Tháng ${month}-${year}`, {
@@ -759,18 +792,18 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
 
       const toARGB = (hex) => 'FF' + hex.replace('#','').toUpperCase();
 
-      // Dữ liệu
-      staffsByCa.forEach((staff, idx) => {
-        const row = ws.addRow([
-          idx + 1,
-          shouldShowCell('ca', idx) ? `${staff.ca}\n${staff.caTime}` : '',
-          shouldShowCell('department', idx) ? staff.department : '',
-          staff.name,
-          ...Array.from({ length: daysInMonth }, (_, d) => {
-            const status = scheduleData[staff.id]?.[d + 1] || '';
-            return status;
-          })
-        ]);
+             // Dữ liệu
+       filteredStaffsByCa.forEach((staff, idx) => {
+         const row = ws.addRow([
+           idx + 1,
+           shouldShowCell('ca', idx) ? `${staff.ca}\n${staff.caTime}` : '',
+           shouldShowCell('department', idx) ? staff.department : '',
+           staff.name,
+           ...Array.from({ length: daysInMonth }, (_, d) => {
+             const status = scheduleData[staff.id]?.[d + 1] || '';
+             return status;
+           })
+         ])
 
         row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F4FD' } };
         if (shouldShowCell('ca', idx)) {
@@ -810,34 +843,34 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
       });
 
       // Merge cột B (ca) & C (bộ phận)
-      // Merge cột B (ca)
-      let curCaKey = '', caStart = 3 + 1;
-      staffsByCa.forEach((s, i) => {
-        const key = `${s.ca}|${s.caTime || ''}`;
-        if (key !== curCaKey) {
-          if (i > 0) ws.mergeCells(caStart, 2, 3 + i, 2);
-          curCaKey = key; caStart = 4 + i;
-        }
-      });
-      if (staffsByCa.length) ws.mergeCells(caStart, 2, 3 + staffsByCa.length, 2);
+             // Merge cột B (ca)
+       let curCaKey = '', caStart = 3 + 1;
+       filteredStaffsByCa.forEach((s, i) => {
+         const key = `${s.ca}|${s.caTime || ''}`;
+         if (key !== curCaKey) {
+           if (i > 0) ws.mergeCells(caStart, 2, 3 + i, 2);
+           curCaKey = key; caStart = 4 + i;
+         }
+       });
+       if (filteredStaffsByCa.length) ws.mergeCells(caStart, 2, 3 + filteredStaffsByCa.length, 2);
+ 
+       // Merge cột C (department)
+       let curDeptKey = '', deptStart = 4;
+       filteredStaffsByCa.forEach((s, i) => {
+         const key = `${s.department}|${s.ca}|${s.caTime || ''}`;
+         if (key !== curDeptKey) {
+           if (i > 0) ws.mergeCells(deptStart, 3, 3 + i, 3);
+           curDeptKey = key; deptStart = 4 + i;
+         }
+       });
+       if (filteredStaffsByCa.length) ws.mergeCells(deptStart, 3, 3 + filteredStaffsByCa.length, 3);
 
-      // Merge cột C (department)
-      let curDeptKey = '', deptStart = 4;
-      staffsByCa.forEach((s, i) => {
-        const key = `${s.department}|${s.ca}|${s.caTime || ''}`;
-        if (key !== curDeptKey) {
-          if (i > 0) ws.mergeCells(deptStart, 3, 3 + i, 3);
-          curDeptKey = key; deptStart = 4 + i;
-        }
-      });
-      if (staffsByCa.length) ws.mergeCells(deptStart, 3, 3 + staffsByCa.length, 3);
-
-      // Áp dụng viền và căn giữa cho tất cả các ô
-      const headerRowIndex = 3;
-      const firstDataRow = 4;
-      const lastDataRow = 3 + staffsByCa.length;
-      const firstCol = 1;
-      const lastCol = 4 + daysInMonth;
+             // Áp dụng viền và căn giữa cho tất cả các ô
+       const headerRowIndex = 3;
+       const firstDataRow = 4;
+       const lastDataRow = 3 + filteredStaffsByCa.length;
+       const firstCol = 1;
+       const lastCol = 4 + daysInMonth;
 
       // 1) canh giữa TẤT CẢ các ô (header + dữ liệu)
       centerAlign(ws, headerRowIndex, lastDataRow, firstCol, lastCol);
@@ -1051,31 +1084,44 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
     return true;
   };
 
-  // Sử dụng useMemo để tránh gọi getStaffsByCa() mỗi lần render không cần thiết
-  const staffsByCa = useMemo(() => {
-    // Defensive programming: ensure users is array
-    const usersArray = Array.isArray(users) ? users : [];
-    
-    console.log("🔄 Recalculating staffsByCa with:", { 
-      phanCa: Object.keys(phanCa).length, 
-      users: usersArray.length,
-      usersType: typeof users,
-      phanCaKeys: Object.keys(phanCa),
-      usersSample: usersArray.slice(0, 3).map(u => ({ id: u._id, name: u.username, dept: u.group_name }))
-    });
-    if (Object.keys(phanCa).length > 0) {
-      return getStaffsByCa();
-    }
-    return [];
-  }, [phanCa, users]); // Thêm users vào dependency để đảm bảo cập nhật khi users thay đổi
+     // Sử dụng useMemo để tránh gọi getStaffsByCa() mỗi lần render không cần thiết
+   const staffsByCa = useMemo(() => {
+     // Defensive programming: ensure users is array
+     const usersArray = Array.isArray(users) ? users : [];
+     
+     console.log("🔄 Recalculating staffsByCa with:", { 
+       phanCa: Object.keys(phanCa).length, 
+       users: usersArray.length,
+       usersType: typeof users,
+       phanCaKeys: Object.keys(phanCa),
+       usersSample: usersArray.slice(0, 3).map(u => ({ id: u._id, name: u.username, dept: u.group_name }))
+     });
+     if (Object.keys(phanCa).length > 0) {
+       return getStaffsByCa();
+     }
+     return [];
+   }, [phanCa, users]); // Thêm users vào dependency để đảm bảo cập nhật khi users thay đổi
+   
+   // Dữ liệu đã được lọc theo bộ lọc
+   const filteredStaffsByCa = useMemo(() => {
+     if (filterCa.length === 0 && filterDepartment.length === 0) {
+       return staffsByCa;
+     }
+     
+     return staffsByCa.filter(staff => {
+       const matchCa = filterCa.length === 0 || filterCa.some(ca => ca === staff.ca);
+       const matchDept = filterDepartment.length === 0 || filterDepartment.some(dept => dept === staff.department);
+       return matchCa && matchDept;
+     });
+   }, [staffsByCa, filterCa, filterDepartment]);
 
-  // Tính toán rowspans
-  const rowspans = useMemo(() => {
-    if (staffsByCa.length > 0) {
-      return calculateRowspans();
-    }
-    return { ca: [], department: [] };
-  }, [staffsByCa]);
+     // Tính toán rowspans
+   const rowspans = useMemo(() => {
+     if (filteredStaffsByCa.length > 0) {
+       return calculateRowspans();
+     }
+     return { ca: [], department: [] };
+   }, [filteredStaffsByCa]);
 
   if (loading) {
     return (
@@ -1089,8 +1135,27 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
 
   return (
     <div className="schedule-container">
-      {/* CSS cho tooltip ghi chú */}
-      <style>{noteTooltipStyles}</style>
+      {/* CSS cho tooltip ghi chú và đảm bảo thứ tự hiển thị */}
+      <style>{`
+        ${noteTooltipStyles}
+        
+        /* Đảm bảo thứ tự hiển thị đúng */
+        .filter-card { 
+          position: relative; 
+          z-index: 1; 
+        }
+        .off-stats, .table-container { 
+          position: relative; 
+          z-index: 2; 
+        }
+        
+        /* Ngăn chặn bộ lọc bị nhảy lên đầu */
+        .filter-card {
+          position: relative !important;
+          top: auto !important;
+          sticky: none !important;
+        }
+      `}</style>
       
       {/* Bỏ banner thông báo trên bản copy để gọn giao diện */}
       
@@ -1263,6 +1328,177 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
         </div>
       </div>
 
+      {/* 1) THỐNG KÊ OFF — đặt LÊN TRÊN */}
+      <OffStatisticsTable
+        scheduleData={scheduleData}
+        staffsByCa={filteredStaffsByCa}
+        notesData={notesData}
+        daysInMonth={daysInMonth}
+        month={month}
+        year={year}
+      />
+
+      {/* 2) BỘ LỌC — đặt SAU thống kê */}
+      <div
+        className="filter-card"
+        style={{
+          marginBottom: '20px',
+          padding: '16px',
+          background: 'linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%)',
+          borderRadius: '8px',
+          border: '1px solid #e9ecef',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}
+      >
+        <h3 style={{ 
+          margin: '0 0 16px 0', 
+          color: '#1890ff', 
+          fontSize: '18px',
+          fontWeight: '600',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          🔍 Bộ lọc dữ liệu
+        </h3>
+        
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '16px',
+          alignItems: 'end'
+        }}>
+          {/* Lọc theo ca */}
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057' 
+            }}>
+              Thời gian làm việc:
+              {filterCa.length > 0 && (
+                <span style={{ marginLeft: '8px', fontSize: '12px', color: '#52c41a' }}>
+                  ({filterCa.length} ca đã chọn)
+                </span>
+              )}
+            </label>
+            <Select
+              mode="multiple"
+              placeholder="Chọn ca để lọc (có thể chọn nhiều)"
+              style={{ width: '100%' }}
+              allowClear
+              showSearch
+              maxTagCount={3}
+              maxTagTextLength={15}
+              value={filterCa}
+              onChange={setFilterCa}
+              options={(() => {
+                const caOptions = new Set();
+                staffsByCa.forEach(staff => {
+                  if (staff.ca) {
+                    caOptions.add(staff.ca);
+                  }
+                });
+                return Array.from(caOptions).map(ca => ({
+                  label: ca,
+                  value: ca
+                }));
+              })()}
+            />
+          </div>
+          
+          {/* Lọc theo bộ phận */}
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057' 
+            }}>
+              Bộ phận:
+              {filterDepartment.length > 0 && (
+                <span style={{ marginLeft: '8px', fontSize: '12px', color: '#52c41a' }}>
+                  ({filterDepartment.length} bộ phận đã chọn)
+                </span>
+              )}
+            </label>
+            <Select
+              mode="multiple"
+              placeholder="Chọn bộ phận để lọc (có thể chọn nhiều)"
+              style={{ width: '100%' }}
+              allowClear
+              showSearch
+              maxTagCount={3}
+              maxTagTextLength={15}
+              value={filterDepartment}
+              onChange={setFilterDepartment}
+              options={(() => {
+                const deptOptions = new Set();
+                staffsByCa.forEach(staff => {
+                  if (staff.department) {
+                    deptOptions.add(staff.department);
+                  }
+                });
+                return Array.from(deptOptions).map(dept => ({
+                  label: dept,
+                  value: dept
+                }));
+              })()}
+            />
+          </div>
+          
+          {/* Nút xóa bộ lọc */}
+          <div>
+            <Button
+              onClick={clearFilters}
+              title="Xóa tất cả bộ lọc đang áp dụng"
+              style={{ 
+                width: '100%',
+                height: '32px',
+                background: '#ff4d4f',
+                borderColor: '#ff4d4f',
+                color: 'white'
+              }}
+              icon={<span>🗑️</span>}
+            >
+              Xóa bộ lọc
+            </Button>
+          </div>
+        </div>
+        
+        {/* Hiển thị thông tin bộ lọc đang áp dụng */}
+        {(filterCa.length > 0 || filterDepartment.length > 0) && (
+          <div style={{ 
+            marginTop: '16px', 
+            padding: '12px', 
+            background: '#e6f7ff', 
+            borderRadius: '6px',
+            border: '1px solid #91d5ff',
+            fontSize: '14px',
+            color: '#1890ff'
+          }}>
+            <strong>Bộ lọc đang áp dụng:</strong>
+            {filterCa.length > 0 && (
+              <span style={{ marginLeft: '8px' }}>
+                <strong>Ca:</strong> {filterCa.join(', ')}
+              </span>
+            )}
+            {filterDepartment.length > 0 && (
+              <span style={{ marginLeft: '8px' }}>
+                <strong>Bộ phận:</strong> {filterDepartment.join(', ')}
+              </span>
+            )}
+            <span style={{ marginLeft: '8px', color: '#52c41a' }}>
+              (Hiển thị {filteredStaffsByCa.length}/{staffsByCa.length} nhân viên)
+            </span>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+              💡 Bạn có thể chọn nhiều ca và bộ phận cùng lúc để lọc dữ liệu chính xác hơn
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Popup chèn ghi chú */}
       <Modal
         title="Chèn ghi chú vào ô"
@@ -1286,13 +1522,13 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
         }}
       >
         <Form form={noteForm} layout="vertical">
-          <Form.Item label="Tên nhân viên" name="staffId" rules={[{ required: true, message: 'Chọn nhân viên' }]}>
-            <Select
-              showSearch
-              options={staffsByCa.map(s => ({ value: s.id, label: `${s.name} (${s.department})` }))}
-              filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-            />
-          </Form.Item>
+                     <Form.Item label="Tên nhân viên" name="staffId" rules={[{ required: true, message: 'Chọn nhân viên' }]}>
+             <Select
+               showSearch
+               options={filteredStaffsByCa.map(s => ({ value: s.id, label: `${s.name} (${s.department})` }))}
+               filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+             />
+           </Form.Item>
           <Form.Item label="Ngày" name="day" rules={[{ required: true, message: 'Chọn ngày' }]}>
             <Select options={Array.from({ length: daysInMonth }, (_, i) => ({ value: i + 1, label: String(i + 1).padStart(2, '0') }))} />
           </Form.Item>
@@ -1489,6 +1725,7 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
         </Form>
       </Modal>
 
+      {/* 3) BẢNG DỮ LIỆU */}
       <div className="table-container">
         <table className="schedule-table">
           <thead>
@@ -1502,9 +1739,9 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
               ))}
             </tr>
           </thead>
-          <tbody>
-            {staffsByCa.length > 0 ? (
-              staffsByCa.map((staff, idx) => (
+                     <tbody>
+             {filteredStaffsByCa.length > 0 ? (
+               filteredStaffsByCa.map((staff, idx) => (
                 <tr key={staff.id}>
                   <td className="col-stt">{idx + 1}</td>
                   {shouldShowCell('ca', idx) && (
@@ -1661,27 +1898,376 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                   })}
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td colSpan={4 + daysInMonth} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                  {copyData?.copyId ? (
-                    <>
-                      <div style={{ fontSize: '16px', marginBottom: '10px' }}>
-                        📋 Đây là tab bản sao: <strong>{copyData.name || `Bản sao tháng ${month}/${year}`}</strong>
-                      </div>
-                                             <div style={{ fontSize: '14px', color: '#888' }}>
+                         ) : (
+               <tr>
+                 <td colSpan={4 + daysInMonth} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                   {filterCa.length > 0 || filterDepartment.length > 0 ? (
+                     <>
+                       <div style={{ fontSize: '16px', marginBottom: '10px', color: '#ff4d4f' }}>
+                         🔍 Không tìm thấy nhân viên nào phù hợp với bộ lọc
+                       </div>
+                       <div style={{ fontSize: '14px', color: '#888' }}>
+                         Ca: <strong>{filterCa.length > 0 ? filterCa.join(', ') : 'Tất cả'}</strong> | Bộ phận: <strong>{filterDepartment.length > 0 ? filterDepartment.join(', ') : 'Tất cả'}</strong>
+                       </div>
+                       <div style={{ fontSize: '12px', color: '#52c41a', marginTop: '8px' }}>
+                         Hãy thử thay đổi bộ lọc hoặc nhấn "Xóa bộ lọc" để xem tất cả
+                       </div>
+                     </>
+                   ) : copyData?.copyId ? (
+                     <>
+                       <div style={{ fontSize: '16px', marginBottom: '10px' }}>
+                         📋 Đây là tab bản sao: <strong>{copyData.name || `Bản sao tháng ${month}/${year}`}</strong>
+                       </div>
+                       <div style={{ fontSize: '14px', color: '#888' }}>
                          {isAdmin ? "Bạn có thể chỉnh sửa, lưu, xuất Excel và xóa bản sao" : "Bạn chỉ có thể xem dữ liệu (không thể chỉnh sửa)"}
                        </div>
-                    </>
-                  ) : (
-                    "Đây là tab bản sao. Dữ liệu được hiển thị từ bản sao đã lưu."
-                  )}
-                </td>
-              </tr>
-            )}
+                     </>
+                   ) : (
+                     "Đây là tab bản sao. Dữ liệu được hiển thị từ bản sao đã lưu."
+                   )}
+                 </td>
+               </tr>
+             )}
           </tbody>
         </table>
       </div>
     </div>
   );
 }
+
+// Cấu trúc GROUPS từ DemoNhanSu.js
+const GROUPS = [
+  { label: "CSKH", value: "CSKH", subs: ["CSKH", "CSOL", "CSDL", "Truyền thông"], color: "#12B3D6" },
+  { label: "FK", value: "FK", subs: ["FK", "FK-X"], color: "#f59e42" },
+  { label: "XNK", value: "XNK", subs: ["XNK"], color: "#43A047" },
+  { label: "Tổ trưởng", value: "TOTRUONG", subs: ["TT"], color: "#8B5CF6" }
+];
+
+// Component thống kê nhân viên OFF
+const OffStatisticsTable = ({ scheduleData, staffsByCa, notesData, daysInMonth, month, year }) => {
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Tính toán thống kê OFF theo bộ phận
+  const getOffStatistics = useMemo(() => {
+    // Tạo stats object động từ GROUPS
+    const stats = {};
+    GROUPS.forEach(group => {
+      stats[group.label] = { 
+        today: 0, 
+        tomorrow: 0, 
+        details: { today: [], tomorrow: [] },
+        color: group.color,
+        subs: group.subs
+      };
+    });
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const todayDay = today.getDate();
+    const tomorrowDay = tomorrow.getDate();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    // Chỉ tính thống kê nếu đang xem tháng hiện tại
+    if (month === currentMonth && year === currentYear) {
+      staffsByCa.forEach(staff => {
+        const staffDept = staff.department;
+        
+        // Tìm bộ phận chính dựa trên subs array
+        let mainDept = null;
+        for (const group of GROUPS) {
+          if (group.subs.includes(staffDept)) {
+            mainDept = group.label;
+            break;
+          }
+        }
+        
+        if (mainDept && stats[mainDept]) {
+          // Kiểm tra ngày hôm nay
+          const todayStatus = scheduleData[staff.id]?.[todayDay];
+          if (todayStatus === 'OFF') {
+            stats[mainDept].today++;
+            stats[mainDept].details.today.push({
+              name: staff.name,
+              ca: staff.ca,
+              caTime: staff.caTime,
+              day: todayDay,
+              originalDept: staffDept // Lưu bộ phận gốc để hiển thị
+            });
+          }
+
+          // Kiểm tra ngày mai
+          const tomorrowStatus = scheduleData[staff.id]?.[tomorrowDay];
+          if (tomorrowStatus === 'OFF') {
+            stats[mainDept].tomorrow++;
+            stats[mainDept].details.tomorrow.push({
+              name: staff.name,
+              ca: staff.ca,
+              caTime: staff.caTime,
+              day: tomorrowDay,
+              originalDept: staffDept // Lưu bộ phận gốc để hiển thị
+            });
+          }
+        }
+      });
+    }
+
+    return stats;
+  }, [scheduleData, staffsByCa, month, year]);
+
+  const handleShowDetails = (dept, dateType) => {
+    setSelectedDepartment(dept);
+    setSelectedDate(dateType);
+    setShowDetailModal(true);
+  };
+
+  const getDateLabel = (dateType) => {
+    return dateType === 'today' ? 'Hôm nay' : 'Ngày mai';
+  };
+
+  const getDateNumber = (dateType) => {
+    const today = new Date();
+    if (dateType === 'today') return today.getDate();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.getDate();
+  };
+
+  return (
+    <>
+      <div style={{ 
+        marginBottom: '20px', 
+        padding: '16px', 
+        background: '#f8f9fa', 
+        borderRadius: '8px',
+        border: '1px solid #e9ecef'
+      }}>
+        <h3 style={{ 
+          margin: '0 0 16px 0', 
+          color: '#495057', 
+          fontSize: '18px',
+          fontWeight: '600'
+        }}>
+          📊 Thống kê nhân viên OFF trong ngày - Bấm vào số để hiển thị chi tiết người OFF - Tháng {month}/{year}
+        </h3>
+        
+                 <div style={{ 
+           display: 'grid', 
+           gridTemplateColumns: 'repeat(4, 1fr)', 
+           gap: '16px'
+         }}>
+           {Object.entries(getOffStatistics).map(([dept, data]) => (
+             <div key={dept} style={{ 
+               background: 'white', 
+               padding: '16px', 
+               borderRadius: '8px',
+               border: `2px solid ${data.color}`,
+               textAlign: 'center',
+               boxShadow: `0 2px 8px ${data.color}20`
+             }}>
+               <div style={{ 
+                 fontSize: '16px', 
+                 fontWeight: '600', 
+                 color: data.color,
+                 marginBottom: '12px'
+               }}>
+                 {dept}
+               </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                gap: '8px'
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ 
+                    fontSize: '24px', 
+                    fontWeight: 'bold', 
+                    color: '#dc3545',
+                    cursor: 'pointer',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  onClick={() => handleShowDetails(dept, 'today')}
+                  title={`Click để xem chi tiết nhân viên OFF ngày ${getDateNumber('today')}`}
+                  >
+                    {data.today}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                    Ngày {getDateNumber('today')}
+                  </div>
+                </div>
+                
+                <div style={{ flex: 1 }}>
+                  <div style={{ 
+                    fontSize: '24px', 
+                    fontWeight: 'bold', 
+                    color: '#fd7e14',
+                    cursor: 'pointer',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  onClick={() => handleShowDetails(dept, 'tomorrow')}
+                  title={`Click để xem chi tiết nhân viên OFF ngày ${getDateNumber('tomorrow')}`}
+                  >
+                    {data.tomorrow}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                    Ngày {getDateNumber('tomorrow')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+             {/* Modal hiển thị chi tiết */}
+       <Modal
+         title={
+           <div style={{ 
+             textAlign: 'center', 
+             color: '#1890ff',
+             fontSize: '16px',
+             fontWeight: '570'
+           }}>
+             📊 Chi tiết OFF bộ phận
+           </div>
+         }
+         open={showDetailModal}
+         onCancel={() => setShowDetailModal(false)}
+         footer={[
+           <Button key="close" onClick={() => setShowDetailModal(false)}>
+             Đóng
+           </Button>
+         ]}
+         width={700}
+         style={{
+           borderRadius: '12px',
+           overflow: 'hidden'
+         }}
+         bodyStyle={{
+           padding: '24px',
+           background: 'linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%)'
+         }}
+         className="off-stats-modal"
+       >
+         {selectedDepartment && selectedDate && (
+           <div>
+                                          <div style={{ marginBottom: '16px' }}>
+                 <strong className="dept-label">Bộ phận:</strong> 
+                 <span style={{ 
+                   fontSize: '25px', 
+                   color: getOffStatistics[selectedDepartment]?.color || '#dc3545', 
+                   fontWeight: '570',
+                   marginLeft: '8px'
+                 }}>
+                   {selectedDepartment}
+                 </span>
+               </div>
+             <div style={{ marginBottom: '16px' }}>
+               <span className="date-label">
+                 {getDateLabel(selectedDate)} ({getDateNumber(selectedDate)}/{month}/{year})
+               </span>
+             </div>
+            
+                         <Table
+               dataSource={getOffStatistics[selectedDepartment]?.details[selectedDate] || []}
+               columns={[
+                 {
+                   title: 'STT',
+                   key: 'index',
+                   render: (_, __, index) => index + 1,
+                   width: 60
+                 },
+                 {
+                   title: 'Tên nhân viên',
+                   dataIndex: 'name',
+                   key: 'name'
+                 },
+                 {
+                   title: 'Bộ phận gốc',
+                   dataIndex: 'originalDept',
+                   key: 'originalDept',
+                   render: (dept) => (
+                     <span style={{ 
+                       padding: '4px 8px', 
+                       borderRadius: '4px', 
+                       background: '#f0f0f0',
+                       fontSize: '12px',
+                       fontWeight: '500'
+                     }}>
+                       {dept}
+                     </span>
+                   )
+                 },
+                 {
+                   title: 'Ca làm việc',
+                   dataIndex: 'ca',
+                   key: 'ca',
+                   render: (ca, record) => (
+                     <span>
+                       {ca}
+                       {record.caTime && (
+                         <span style={{ fontSize: '12px', color: '#666', marginLeft: '8px' }}>
+                           ({record.caTime})
+                         </span>
+                       )}
+                     </span>
+                   )
+                 }
+               ]}
+               pagination={false}
+               size="small"
+             />
+            
+            {/* Thông báo khi không có dữ liệu */}
+            {getOffStatistics[selectedDepartment]?.details[selectedDate]?.length === 0 && (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '32px 20px',
+                background: 'linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)',
+                borderRadius: '12px',
+                border: '2px dashed #b7eb8f',
+                marginTop: '16px'
+              }}>
+                <div style={{
+                  fontSize: '48px',
+                  marginBottom: '16px',
+                  opacity: 0.6
+                }}>
+                  😴
+                </div>
+                <div style={{ 
+                  fontSize: '16px',
+                  color: '#52c41a',
+                  fontWeight: '500',
+                  fontStyle: 'italic'
+                }}>
+                  Không có nhân viên nào OFF trong ngày này
+                </div>
+                <div style={{
+                  fontSize: '14px',
+                  color: '#8c8c8c',
+                  marginTop: '8px'
+                }}>
+                  Tất cả nhân viên đều đang làm việc đầy đủ.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+    </>
+  );
+};

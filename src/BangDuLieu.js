@@ -198,25 +198,24 @@ export default function BangDuLieu() {
         // Lấy thông tin user trước khi xóa để biết userId
         const userToDelete = data.find(u => u.key === deleteRow);
         if (userToDelete) {
-          // Xóa dữ liệu lịch của user này từ tất cả các nhóm
-          const groups = ['CQ', 'PCQ', 'TT', 'XNK', 'FK', 'FK-X', 'CSKH', 'CSOL', 'CSDL', 'Truyền thông'];
+          // Chỉ xóa user khỏi nhóm mà họ thực sự thuộc
+          const userGroup = userToDelete.group;
+          console.log(`🗑️ Xóa user ${userToDelete.tenTaiKhoan} khỏi nhóm ${userGroup}`);
           
-          for (const group of groups) {
-            try {
-              // Xóa user khỏi shifts của nhóm
-              await apiService.removeUserFromGroupShifts(group, deleteRow);
-              console.log(`✅ Đã xóa user ${deleteRow} khỏi nhóm ${group}`);
-            } catch (shiftErr) {
-              console.log(`⚠️ Không thể xóa user khỏi shifts nhóm ${group}:`, shiftErr.message);
-            }
-            
-            try {
-              // Xóa user khỏi waiting list của nhóm
-              await apiService.removeUserFromGroupWaiting(group, deleteRow);
-              console.log(`✅ Đã xóa user ${deleteRow} khỏi waiting list nhóm ${group}`);
-            } catch (waitingErr) {
-              console.log(`⚠️ Không thể xóa user khỏi waiting list nhóm ${group}:`, waitingErr.message);
-            }
+          try {
+            // Xóa user khỏi shifts của nhóm
+            await apiService.removeUserFromGroupShifts(userGroup, deleteRow);
+            console.log(`✅ Đã xóa user khỏi shifts nhóm ${userGroup}`);
+          } catch (shiftErr) {
+            console.log(`⚠️ Không thể xóa user khỏi shifts nhóm ${userGroup}:`, shiftErr.message);
+          }
+          
+          try {
+            // Xóa user khỏi waiting list của nhóm
+            await apiService.removeUserFromGroupWaiting(userGroup, deleteRow);
+            console.log(`✅ Đã xóa user khỏi waiting list nhóm ${userGroup}`);
+          } catch (waitingErr) {
+            console.log(`⚠️ Không thể xóa user khỏi waiting list nhóm ${userGroup}:`, waitingErr.message);
           }
         }
       } catch (scheduleErr) {
@@ -226,8 +225,13 @@ export default function BangDuLieu() {
 
       // Cleanup orphaned users để đảm bảo dữ liệu sạch
       try {
-        await apiService.cleanupOrphanedUsers();
-        console.log("✅ Đã cleanup orphaned users");
+        // Truyền tháng/năm hiện tại để cleanup
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1; // getMonth() trả về 0-11
+        const currentYear = now.getFullYear();
+        
+        await apiService.cleanupOrphanedUsers(currentMonth, currentYear);
+        console.log(`✅ Đã cleanup orphaned users cho tháng ${currentMonth}/${currentYear}`);
       } catch (cleanupErr) {
         console.error("❌ Lỗi khi cleanup orphaned users:", cleanupErr);
       }

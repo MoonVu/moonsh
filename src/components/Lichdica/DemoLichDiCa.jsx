@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
-import "../BangDuLieu.css";
-import apiService from "../services/api";
-import { useSchedule } from "../contexts/ScheduleContext";
+import "../../BangDuLieu.css";
+import apiService from "../../services/api";
+import { useSchedule } from "../../contexts/ScheduleContext";
 
-import { useAuth } from "../hooks/useAuth";
-import { ShowForPermission as AccessControl } from "./auth/AccessControl";
+import { useAuth } from "../../hooks/useAuth";
+import { ShowForPermission as AccessControl } from "../auth/AccessControl";
 
 // CSS để bỏ vạch ▼ và làm ô trống trơn
 const cleanSelectStyles = `

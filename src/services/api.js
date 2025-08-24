@@ -549,15 +549,17 @@ class ApiService {
 
   // Xóa user khỏi shifts của một nhóm
   async removeUserFromGroupShifts(group, userId) {
-    return await this.request(`/schedules/${group}/shifts/${userId}`, {
-      method: 'DELETE'
+    return await this.request(`/schedules/${group}/shifts/remove-user`, {
+      method: 'DELETE',
+      body: JSON.stringify({ userId })
     });
   }
 
   // Xóa user khỏi waiting list của một nhóm
   async removeUserFromGroupWaiting(group, userId) {
-    return await this.request(`/schedules/${group}/waiting/${userId}`, {
-      method: 'DELETE'
+    return await this.request(`/schedules/${group}/waiting/remove-user`, {
+      method: 'DELETE',
+      body: JSON.stringify({ userId })
     });
   }
 

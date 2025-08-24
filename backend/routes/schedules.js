@@ -261,8 +261,18 @@ router.delete('/:group/shifts/remove-user', async (req, res) => {
     }
     
     // Tìm tất cả schedules của nhóm này và xóa user khỏi shifts
-    const schedules = await Schedule.find({ group });
+    // Lưu ý: Schedule model yêu cầu year và month, nhưng chúng ta muốn xóa user khỏi TẤT CẢ tháng
+    const schedules = await Schedule.find({ group }).select('+year +month');
     let updatedCount = 0;
+    
+    // Nếu không có schedule nào, trả về thành công (không có gì để xóa)
+    if (!schedules || schedules.length === 0) {
+      return res.json({
+        success: true,
+        message: `Không có schedule nào cho nhóm ${group}, không cần xóa user`,
+        updatedSchedules: 0
+      });
+    }
     
     for (const schedule of schedules) {
       let hasChanges = false;
@@ -315,8 +325,18 @@ router.delete('/:group/waiting/remove-user', async (req, res) => {
     }
     
     // Tìm tất cả schedules của nhóm này và xóa user khỏi waiting list
-    const schedules = await Schedule.find({ group });
+    // Lưu ý: Schedule model yêu cầu year và month, nhưng chúng ta muốn xóa user khỏi TẤT CẢ tháng
+    const schedules = await Schedule.find({ group }).select('+year +month');
     let updatedCount = 0;
+    
+    // Nếu không có schedule nào, trả về thành công (không có gì để xóa)
+    if (!schedules || schedules.length === 0) {
+      return res.json({
+        success: true,
+        message: `Không có schedule nào cho nhóm ${group}, không cần xóa user`,
+        updatedSchedules: 0
+      });
+    }
     
     for (const schedule of schedules) {
       if (schedule.waiting && Array.isArray(schedule.waiting)) {
@@ -363,6 +383,15 @@ router.post('/cleanup-orphaned-users', async (req, res) => {
     
     const schedules = await Schedule.find(query);
     let cleanedCount = 0;
+    
+    // Nếu không có schedule nào, trả về thành công
+    if (!schedules || schedules.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Không có schedule nào để cleanup',
+        cleanedCount: 0
+      });
+    }
     
     for (const schedule of schedules) {
       let hasChanges = false;

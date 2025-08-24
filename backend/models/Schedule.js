@@ -8,13 +8,13 @@ const scheduleSchema = new mongoose.Schema({
   },
   month: {
     type: Number,
-    required: true,
+    required: false, // Tạm thời bỏ required để xử lý xóa user
     min: 1,
     max: 12
   },
   year: {
     type: Number,
-    required: true,
+    required: false, // Tạm thời bỏ required để xử lý xóa user
     min: 2020,
     max: 2030
   },
@@ -32,8 +32,8 @@ const scheduleSchema = new mongoose.Schema({
   waiting: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 }, {
   timestamps: true,
-  // Đảm bảo mỗi group + tháng + năm chỉ có 1 document
-  indexes: [{ group: 1, month: 1, year: 1 }, { unique: true }]
+  // Đảm bảo mỗi group + tháng + năm chỉ có 1 document (nếu có month và year)
+  indexes: [{ group: 1, month: 1, year: 1 }, { unique: true, sparse: true }]
 });
 
 module.exports = mongoose.model('Schedule', scheduleSchema); 
