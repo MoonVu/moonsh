@@ -4,19 +4,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { debugToken, debugUser, compareTokenAndUser } from '../utils/debugAuth';
 
 function TokenExpiredNotice() {
   const [showNotice, setShowNotice] = useState(false);
   const { logout, user, isAuthenticated } = useAuth();
   
-  // DEBUG: Log state changes
+  // Log state changes
   useEffect(() => {
-    console.log('TokenExpiredNotice state:', { isAuthenticated, hasUser: !!user, showNotice });
-    if (user) {
-      debugUser(user);
-    }
-    debugToken();
+    
   }, [isAuthenticated, user, showNotice]);
 
   useEffect(() => {

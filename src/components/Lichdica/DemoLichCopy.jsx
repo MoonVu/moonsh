@@ -918,12 +918,7 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
   // Tạo danh sách nhân viên theo ca từ dữ liệu đã được join
   const getStaffsByCa = () => {
     const staffsByCa = [];
-    
-    console.log("🔄 getStaffsByCa called with:", {
-      phanCaKeys: Object.keys(phanCa),
-      phanCaSample: Object.keys(phanCa).slice(0, 2).map(key => ({ key, value: phanCa[key] })),
-      usersCount: users.length
-    });
+
 
     // Kiểm tra nếu chưa có dữ liệu
     if (Object.keys(phanCa).length === 0) {
@@ -940,8 +935,6 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
         const shiftLabel = (shift.label || "Ca làm việc").replace(/\|/g, '');
         const shiftTime = shift.time || "";
         const usersInShift = shift.users || [];
-
-        console.log(`🔍 Processing shift: label="${shiftLabel}", time="${shiftTime}"`);
 
         usersInShift.forEach(user => {
           // Kiểm tra user có hợp lệ không trước khi xử lý
@@ -1084,44 +1077,37 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
     return true;
   };
 
-     // Sử dụng useMemo để tránh gọi getStaffsByCa() mỗi lần render không cần thiết
-   const staffsByCa = useMemo(() => {
-     // Defensive programming: ensure users is array
-     const usersArray = Array.isArray(users) ? users : [];
-     
-     console.log("🔄 Recalculating staffsByCa with:", { 
-       phanCa: Object.keys(phanCa).length, 
-       users: usersArray.length,
-       usersType: typeof users,
-       phanCaKeys: Object.keys(phanCa),
-       usersSample: usersArray.slice(0, 3).map(u => ({ id: u._id, name: u.username, dept: u.group_name }))
-     });
-     if (Object.keys(phanCa).length > 0) {
-       return getStaffsByCa();
-     }
-     return [];
-   }, [phanCa, users]); // Thêm users vào dependency để đảm bảo cập nhật khi users thay đổi
+      // Sử dụng useMemo để tránh gọi getStaffsByCa() mỗi lần render không cần thiết
+    const staffsByCa = useMemo(() => {
+      // Defensive programming: ensure users is array
+      const usersArray = Array.isArray(users) ? users : [];
+      
+      if (Object.keys(phanCa).length > 0) {
+        return getStaffsByCa();
+      }
+      return [];
+    }, [phanCa, users]); // Thêm users vào dependency để đảm bảo cập nhật khi users thay đổi
    
-   // Dữ liệu đã được lọc theo bộ lọc
-   const filteredStaffsByCa = useMemo(() => {
-     if (filterCa.length === 0 && filterDepartment.length === 0) {
-       return staffsByCa;
-     }
-     
-     return staffsByCa.filter(staff => {
-       const matchCa = filterCa.length === 0 || filterCa.some(ca => ca === staff.ca);
-       const matchDept = filterDepartment.length === 0 || filterDepartment.some(dept => dept === staff.department);
-       return matchCa && matchDept;
-     });
-   }, [staffsByCa, filterCa, filterDepartment]);
+    // Dữ liệu đã được lọc theo bộ lọc
+    const filteredStaffsByCa = useMemo(() => {
+      if (filterCa.length === 0 && filterDepartment.length === 0) {
+        return staffsByCa;
+      }
+      
+      return staffsByCa.filter(staff => {
+        const matchCa = filterCa.length === 0 || filterCa.some(ca => ca === staff.ca);
+        const matchDept = filterDepartment.length === 0 || filterDepartment.some(dept => dept === staff.department);
+        return matchCa && matchDept;
+      });
+    }, [staffsByCa, filterCa, filterDepartment]);
 
-     // Tính toán rowspans
-   const rowspans = useMemo(() => {
-     if (filteredStaffsByCa.length > 0) {
-       return calculateRowspans();
-     }
-     return { ca: [], department: [] };
-   }, [filteredStaffsByCa]);
+      // Tính toán rowspans
+    const rowspans = useMemo(() => {
+      if (filteredStaffsByCa.length > 0) {
+        return calculateRowspans();
+      }
+      return { ca: [], department: [] };
+    }, [filteredStaffsByCa]);
 
   if (loading) {
     return (
@@ -2156,9 +2142,11 @@ const OffStatisticsTable = ({ scheduleData, staffsByCa, notesData, daysInMonth, 
            borderRadius: '12px',
            overflow: 'hidden'
          }}
-         bodyStyle={{
-           padding: '24px',
-           background: 'linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%)'
+         styles={{
+           body: {
+             padding: '24px',
+             background: 'linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%)'
+           }
          }}
          className="off-stats-modal"
        >

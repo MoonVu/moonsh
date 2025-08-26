@@ -182,18 +182,16 @@ export default function DemoLichDiCa({ tabId }) {
       
       // Ensure users is always an array
       const safeUsersArr = Array.isArray(usersArr) ? usersArr : [];
-      console.log("users count:", safeUsersArr.length);
-      console.log("🔍 Users API response type:", typeof usersRes, "Final array:", Array.isArray(safeUsersArr));
-
+      
       // Xử lý users data
       setUsers(safeUsersArr);
       if (safeUsersArr.length === 0) {
         console.log("❌ Users API returned empty or invalid:", usersRes);
       } else {
-        console.log("✅ Loaded users data:", usersArr.length, "users");
+        
       }
 
-      console.log("Raw monthly schedules response:", monthlySchedulesRes);
+      
 
       if (monthlySchedulesRes && monthlySchedulesRes.success && monthlySchedulesRes.data) {
         const scheduleData = {};
@@ -259,7 +257,7 @@ export default function DemoLichDiCa({ tabId }) {
       try {
         const dailyStatusRes = await apiService.getDailyStatus(month, year);
         if (dailyStatusRes && dailyStatusRes.success && dailyStatusRes.data) {
-          console.log("✅ Load dữ liệu từ API demo-lichdica:", dailyStatusRes.data);
+          
           
           // Merge dữ liệu từ API demo-lichdica vào data hiện tại
           Object.keys(dailyStatusRes.data).forEach(userId => {
@@ -273,11 +271,6 @@ export default function DemoLichDiCa({ tabId }) {
           
           const loadedStaffCount = Object.keys(dailyStatusRes.data).length;
           const loadedDataSize = JSON.stringify(dailyStatusRes.data).length;
-          
-          console.log("📥 Dữ liệu đã load:", {
-            staffCount: loadedStaffCount,
-            dataSize: `${(loadedDataSize / 1024).toFixed(1)} KB`
-          });
         }
       } catch (err) {
         console.log("ℹ️ Chưa có dữ liệu đã lưu cho tháng này");
@@ -321,12 +314,7 @@ export default function DemoLichDiCa({ tabId }) {
   // Tạo danh sách nhân viên theo ca từ dữ liệu đã được join
   const getStaffsByCa = () => {
     const staffsByCa = [];
-    
-    console.log("🔄 getStaffsByCa called with:", {
-      phanCaKeys: Object.keys(phanCa),
-      phanCaSample: Object.keys(phanCa).slice(0, 2).map(key => ({ key, value: phanCa[key] })),
-      usersCount: users.length
-    });
+
 
     // Kiểm tra nếu chưa có dữ liệu
     if (Object.keys(phanCa).length === 0) {
@@ -415,8 +403,6 @@ export default function DemoLichDiCa({ tabId }) {
       // Nếu cùng bộ phận, sắp xếp theo tên
       return a.name.localeCompare(b.name);
     });
-
-    console.log("✅ getStaffsByCa result:", staffsByCa.length, "staff members");
     return staffsByCa;
   };
 
@@ -475,14 +461,6 @@ export default function DemoLichDiCa({ tabId }) {
   const staffsByCa = useMemo(() => {
     // Defensive programming: ensure users is array
     const usersArray = Array.isArray(users) ? users : [];
-    
-    console.log("🔄 Recalculating staffsByCa with:", { 
-      phanCa: Object.keys(phanCa).length, 
-      users: usersArray.length,
-      usersType: typeof users,
-      phanCaKeys: Object.keys(phanCa),
-      usersSample: usersArray.slice(0, 3).map(u => ({ id: u._id, name: u.username, dept: u.group_name }))
-    });
     if (Object.keys(phanCa).length > 0) {
       return getStaffsByCa();
     }

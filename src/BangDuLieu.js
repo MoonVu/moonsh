@@ -80,12 +80,7 @@ export default function BangDuLieu() {
       .then(users => {
         // Handle both array and object response formats
         const usersArray = Array.isArray(users) ? users : (users?.data || []);
-        console.log("🔍 BangDuLieu getUsers response:", { 
-          type: typeof users, 
-          isArray: Array.isArray(users), 
-          finalArray: Array.isArray(usersArray),
-          count: usersArray.length 
-        });
+
         
         // Map dữ liệu về đúng format cũ (fix timezone issue)
         setData(usersArray.map(u => {
@@ -97,10 +92,24 @@ export default function BangDuLieu() {
             }
           }
           
+
+          
+          // Tìm groupCode tương ứng với group_name
+          let groupCode = u.group_name;
+          if (u.groupCode) {
+            groupCode = u.groupCode; // Ưu tiên groupCode nếu có
+          } else {
+            // Fallback: tìm value tương ứng với label
+            const foundGroup = GROUPS.find(g => g.label === u.group_name);
+            if (foundGroup) {
+              groupCode = foundGroup.value;
+            }
+          }
+          
           return {
             key: u.id || u._id,
             tenTaiKhoan: u.username,
-            group: u.group_name,
+            group: groupCode, // Sử dụng groupCode thay vì group_name
             status: STATUS_LABELS[u.status] || u.status,
             ngayBatDau: start
           };
@@ -149,25 +158,51 @@ export default function BangDuLieu() {
   const handleEditSave = async () => {
     setLoading(true);
     try {
+
+
+      // Kiểm tra quyền trước khi gọi API
+      if (!hasPermission('users', 'edit')) {
+        throw new Error('Bạn không có quyền chỉnh sửa users. Vui lòng liên hệ admin để được cấp quyền.');
+      }
+
+      // Fix: Đảm bảo ID được xử lý đúng cách
+      let userId = editRow;
+      if (typeof userId === 'string' && userId.includes('...')) {
+        // Nếu ID bị cắt ngắn, tìm user gốc từ data
+        const originalUser = data.find(u => u.key === editRow);
+        if (originalUser) {
+          // User found, continue with update
+        }
+      }
+      
+      // Đảm bảo ID là string hợp lệ
+      if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+        throw new Error('ID user không hợp lệ');
+      }
+
+
+
       // Chuẩn bị dữ liệu update
       const updateData = {
         username: editForm.tenTaiKhoan,
         group_name: editForm.group,
+        groupCode: editForm.group, // editForm.group chứa value (VD: "TT"), không phải label
         status: editForm.status,
         // Nếu có password mới thì truyền vào, không thì bỏ qua
         ...(editForm.password ? { password: editForm.password } : {})
       };
+
+
 
       // Chỉ thêm start_date nếu có giá trị và không phải "Chưa nhập"
       if (editForm.ngayBatDau && editForm.ngayBatDau !== "Chưa chọn ngày" && editForm.ngayBatDau.trim() !== "") {
         updateData.start_date = editForm.ngayBatDau;
       }
 
-      console.log('📤 Frontend sending updateData:', updateData);
-      console.log('📅 editForm.ngayBatDau:', editForm.ngayBatDau);
+
 
       // Thực hiện logic xử lý trước
-      await apiService.updateUser(editRow, updateData);
+      await apiService.updateUser(userId, updateData);
       
       // Sau khi logic hoàn thành thành công, mới tắt popup
       setShowEdit(false);
@@ -273,32 +308,14 @@ export default function BangDuLieu() {
   // Xử lý thay đổi form thêm mới
   const handleAddChange = (e) => {
     const { name, value } = e.target;
-    console.log(`🔄 Form thay đổi - ${name}:`, value);
-    setAddForm((prev) => {
-      const newForm = { ...prev, [name]: value };
-      console.log('📝 Form mới:', newForm);
-      return newForm;
-    });
+    setAddForm((prev) => ({ ...prev, [name]: value }));
   };
 
   // Lưu tài khoản mới
   const handleAddSave = async () => {
     setLoading(true);
     try {
-      // Debug: Kiểm tra user hiện tại
-      console.log('🔍 Current user info:', {
-        username: currentUser?.username,
-        role: currentUser?.role,
-        roleName: currentUser?.role?.name,
-        hasRole: !!currentUser?.role
-      });
 
-      // Debug: Kiểm tra permissions
-      console.log('🔍 Permission check:', {
-        canEditUsers: hasPermission('users', 'edit'),
-        canViewUsers: hasPermission('users', 'view'),
-        isAdmin: currentUser?.role?.name === 'ADMIN'
-      });
 
       // Xử lý ngày bắt đầu làm việc
       let startDate = null;
@@ -307,12 +324,7 @@ export default function BangDuLieu() {
         const date = new Date(addForm.ngayBatDau);
         if (!isNaN(date.getTime())) {
           startDate = addForm.ngayBatDau;
-          console.log('📅 Ngày bắt đầu làm việc được chọn:', startDate);
-        } else {
-          console.log('⚠️ Ngày không hợp lệ:', addForm.ngayBatDau);
         }
-      } else {
-        console.log('📅 Không có ngày bắt đầu làm việc (để trống)');
       }
 
       // Thực hiện logic tạo user trước

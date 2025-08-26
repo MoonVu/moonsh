@@ -14,8 +14,7 @@ export function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  console.log('🛡️ ProtectedRoute check:', { isAuthenticated, isLoading, pathname: location.pathname });
-
+  
   if (isLoading) {
     console.log('⏳ Đang loading auth state...');
     return (

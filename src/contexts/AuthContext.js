@@ -134,8 +134,7 @@ export function AuthProvider({ children }) {
       // Verify token với backend
       const response = await authAPI.verify(token);
       if (response.success) {
-        console.log('✅ Token hợp lệ, user:', response.data.user);
-        // Token hợp lệ, set user và token
+
         dispatch({
           type: AUTH_ACTIONS.REFRESH_SUCCESS,
           payload: {

@@ -17,31 +17,12 @@ class AuthService {
    */
   async login(username, password) {
     try {
-      console.log('🔍 AuthService.login called with:', { 
-        username: `"${username}"`, 
-        usernameLength: username?.length,
-        usernameTrimmed: `"${username?.trim()}"`,
-        password: password ? `${password.length} chars` : 'undefined'
-      });
-
       // Tìm user với trim và case insensitive
       const trimmedUsername = username?.trim();
-      console.log('🔍 Searching for user with query:', { username: trimmedUsername });
       
       const user = await User.findOne({ 
         username: { $regex: new RegExp(`^${trimmedUsername}$`, 'i') }
       }).select('+password').populate('role');
-      
-      console.log('🔍 User found:', user ? {
-        id: user._id,
-        username: user.username,
-        status: user.status,
-        role: user.role,
-        roleId: user.role?._id,
-        roleName: user.role?.name,
-        groupCode: user.groupCode,
-        hasRoleObject: !!user.role
-      } : 'null');
       
       if (!user) {
         return {
@@ -180,8 +161,29 @@ class AuthService {
 
       const { userId } = tokenResult.data;
       
+      // Debug: Kiểm tra userId từ token
+      console.log('🔍 getUserFromToken - userId from token:', {
+        userId,
+        userIdType: typeof userId,
+        userIdLength: userId?.length,
+        isObjectId: /^[0-9a-fA-F]{24}$/.test(userId)
+      });
+      
       // Lấy user từ database với role populated
       const user = await User.findById(userId).populate('role');
+      
+      // Debug: Kiểm tra kết quả tìm user
+      console.log('🔍 getUserFromToken - User.findById result:', {
+        found: !!user,
+        userId: userId,
+        userObject: user ? {
+          id: user._id,
+          username: user.username,
+          status: user.status,
+          hasRole: !!user.role
+        } : null
+      });
+      
       if (!user) {
         return {
           success: false,

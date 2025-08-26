@@ -42,12 +42,40 @@ userSchema.virtual('permissions').get(function() {
 
 // Method để kiểm tra permission
 userSchema.methods.hasPermission = function(resource, action) {
-  if (this.role && this.role.hasPermission) {
-    return this.role.hasPermission(resource, action);
+  // Debug: Log thông tin user và quyền đang kiểm tra
+  console.log('🔒 User.hasPermission check:', {
+    userId: this._id,
+    username: this.username,
+    roleName: this.role?.name,
+    roleString: this.roleString,
+    resource,
+    action
+  });
+
+  if (!this.role) {
+    console.log(`❌ User ${this.username} has no role assigned.`);
+    return false;
   }
+
+  // Debug: Log role object và method hasPermission của role
+  console.log('🔒 Role object in User.hasPermission:', {
+    roleId: this.role._id,
+    roleName: this.role.name,
+    roleHasPermissionMethod: typeof this.role.hasPermission
+  });
+
+  if (this.role && this.role.hasPermission) {
+    const result = this.role.hasPermission(resource, action);
+    console.log(`🔒 User ${this.username} hasPermission(${resource}, ${action}) result: ${result}`);
+    return result;
+  }
+  
   // Fallback to config file
+  console.log(`🔒 Fallback to config file for user ${this.username}`);
   const { hasPermission } = require('../src/config/permissions');
-  return hasPermission(this.roleString, resource, action);
+  const result = hasPermission(this.roleString, resource, action);
+  console.log(`🔒 Config fallback result: ${result}`);
+  return result;
 };
 
 module.exports = mongoose.model('User', userSchema);

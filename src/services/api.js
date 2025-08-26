@@ -39,11 +39,7 @@ class ApiService {
       'Content-Type': 'application/json',
       ...(this.token && { 'Authorization': `Bearer ${this.token}` })
     };
-    
-    console.log('📤 Request headers:', { 
-      hasAuth: !!headers.Authorization,
-      tokenPreview: this.token ? this.token.substring(0, 20) + '...' : 'NO TOKEN'
-    });
+
     
     return headers;
   }
@@ -173,57 +169,27 @@ class ApiService {
 
   // Users (Tài khoản)
   async getUsers() {
-    console.log("🔍 api.getUsers() token check:", { 
-      hasToken: !!this.token,
-      tokenLength: this.token?.length,
-      tokenStart: this.token?.substring(0, 20)
-    });
-    
     const data = await this.request('/users-all');
-    console.log("🔍 api.getUsers() raw response:", { 
-      type: typeof data, 
-      hasData: !!data?.data,
-      isArray: Array.isArray(data),
-      dataIsArray: Array.isArray(data?.data),
-      keys: Object.keys(data || {}),
-      success: data?.success,
-      error: data?.error,
-      dataContent: data
-    });
     
-    console.log("🔍 Detailed response structure:");
-    console.log("- data:", data);
-    console.log("- data.data:", data?.data);
-    console.log("- data.success:", data?.success);
     // Ensure we always return an array
     let result;
     if (data?.success && data?.data) {
       // Handle paginated response: {success: true, data: {users: [], pagination: {}}}
       if (Array.isArray(data.data.users)) {
         result = data.data.users;
-        console.log("✅ Found paginated users:", result.length);
       }
       // Handle direct array response: {success: true, data: []}
       else if (Array.isArray(data.data)) {
         result = data.data;
-        console.log("✅ Found direct array users:", result.length);
       } else {
-        console.warn("⚠️ data.data is not array or users object:", data.data);
         result = [];
       }
     } else if (Array.isArray(data)) {
       result = data;
-      console.log("✅ Found raw array users:", result.length);
     } else {
-      console.warn("⚠️ Unexpected getUsers response format:", data);
       result = [];
     }
     
-    console.log("🔍 api.getUsers() final result:", { 
-      type: typeof result, 
-      isArray: Array.isArray(result),
-      length: result?.length || 'no length'
-    });
     return result;
   }
 
@@ -526,16 +492,14 @@ class ApiService {
       // Handle direct array response: {success: true, data: []}
       else if (Array.isArray(data.data)) {
         result = data.data;
-        console.log("✅ getAllUsers found direct array users:", result.length);
       } else {
-        console.warn("⚠️ getAllUsers data.data is not array or users object:", data.data);
         result = [];
       }
     } else if (Array.isArray(data)) {
       result = data;
-      console.log("✅ getAllUsers found raw array users:", result.length);
+
     } else {
-      console.warn("⚠️ Unexpected getAllUsers response format:", data);
+
       result = [];
     }
     

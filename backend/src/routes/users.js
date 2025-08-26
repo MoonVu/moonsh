@@ -10,9 +10,16 @@ const User = require('../../models/User');
 const Role = require('../../models/Role');
 const { ROLES } = require('../config/permissions');
 const { getRoleFromGroupCode } = require('../config/role-map');
+const mongoose = require('mongoose'); // Added for debug route
 
 // Middleware: Tất cả routes cần authentication
 router.use(attachUser);
+
+/**
+ * GET /api/users/debug
+ * Debug route để kiểm tra database và users
+ */
+
 
 /**
  * GET /api/users
@@ -229,9 +236,41 @@ router.put('/:id',
       const { username, password, group_name, groupCode, status, start_date } = req.body;
       
       console.log('🔧 PUT /api/users/:id - Request body:', { username, password: password ? '[HIDDEN]' : undefined, group_name, groupCode, status, start_date });
+      console.log('🔧 PUT /api/users/:id - Request params:', { id, idType: typeof id, idLength: id?.length });
+      console.log('🔧 PUT /api/users/:id - req.user info:', {
+        userId: req.user?.id,
+        username: req.user?.username,
+        roleName: req.user?.role?.name,
+        hasRole: !!req.user?.role
+      });
 
       // Tìm user
       const user = await User.findById(id);
+      
+      // Debug: Kiểm tra kết quả tìm user
+      console.log('🔧 PUT /api/users/:id - User.findById result:', {
+        found: !!user,
+        searchId: id,
+        searchIdType: typeof id,
+        searchIdLength: id?.length,
+        searchIdIsObjectId: /^[0-9a-fA-F]{24}$/.test(id),
+        foundUser: user ? {
+          id: user._id,
+          username: user.username,
+          status: user.status,
+          group_name: user.group_name,
+          groupCode: user.groupCode,
+          role_key: user.role_key,
+          roleString: user.roleString,
+          role: user.role
+        } : null
+      });
+      
+      // Debug: Thử tìm user bằng các cách khác
+      if (!user) {
+
+      }
+      
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -278,9 +317,26 @@ router.put('/:id',
       if (group_name !== undefined) updateData.group_name = group_name;
       if (groupCode !== undefined) {
         updateData.groupCode = groupCode;
-        // Cập nhật role theo groupCode nếu không phải admin
-        if (req.user.role.name !== ROLES.ADMIN) {
-          updateData.role = getRoleFromGroupCode(groupCode) || user.role;
+        
+
+        
+        // Cập nhật roleString theo groupCode mới (role_key không cần thiết)
+        const newRoleString = getRoleFromGroupCode(groupCode);
+        
+
+        
+        // Chỉ cập nhật roleString, không cập nhật role_key
+        updateData.roleString = newRoleString;
+        
+        // Cập nhật role ObjectId từ database
+        if (newRoleString) {
+          const newRole = await Role.findOne({ name: newRoleString });
+          if (newRole) {
+            updateData.role = newRole._id;
+
+          } else {
+            console.warn('⚠️ Role not found for:', newRoleString);
+          }
         }
       }
       
@@ -292,10 +348,10 @@ router.put('/:id',
       // Xử lý start_date
       if (start_date !== undefined) {
         updateData.start_date = start_date;
-        console.log('📅 Setting start_date:', start_date);
+
       }
 
-      console.log('💾 Final updateData:', updateData);
+
 
       // Cập nhật user
       const updatedUser = await User.findByIdAndUpdate(

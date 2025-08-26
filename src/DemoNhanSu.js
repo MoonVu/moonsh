@@ -121,12 +121,7 @@ export default function DemoNhanSu({ currentUser, tabId }) {
       
       // Handle both array and object response formats
       const usersArray = Array.isArray(res) ? res : (res?.data || []);
-      console.log("🔍 DemoNhanSu getUsers response:", { 
-        type: typeof res, 
-        isArray: Array.isArray(res), 
-        finalArray: Array.isArray(usersArray),
-        count: usersArray.length 
-      });
+      
       
       setUsers(usersArray);
       
