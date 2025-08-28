@@ -130,20 +130,9 @@ export default function UserDashboard() {
         // Phân loại requests theo type
         const allRequests = response.data || [];
         
-        // Tách biệt OFF và tăng ca
-        const allMonthlyOffRequests = allRequests.filter(req => req.request_type === 'monthly_off');
-        
-        // Tăng ca: những request có is_overtime = true hoặc có hours hoặc reason chứa "Tăng ca"
-        const overtimeRequests = allMonthlyOffRequests.filter(req => 
-          req.metadata?.is_overtime === true ||
-          (req.metadata?.hours && req.metadata.hours > 0) ||
-          (req.metadata?.reason && req.metadata.reason.includes('Tăng ca'))
-        );
-        
-        // OFF: những request monthly_off không phải tăng ca
-        const offRequests = allMonthlyOffRequests.filter(req => 
-          !overtimeRequests.includes(req)
-        );
+        // Phân loại requests theo type
+        const offRequests = allRequests.filter(req => req.request_type === 'monthly_off');
+        const overtimeRequests = allRequests.filter(req => req.request_type === 'overtime_day');
         
         const halfDayRequests = allRequests.filter(req => req.request_type === 'half_day_off');
         
@@ -804,19 +793,15 @@ export default function UserDashboard() {
             reason: values.reason || 'Ngày bình thường'
           }
         };
-      } else if (editingRequest.request_type === 'monthly_off' && 
-                 (editingRequest.metadata?.is_overtime || 
-                  editingRequest.metadata?.reason?.includes('Tăng ca') ||
-                  editingRequest.content?.includes('tăng ca'))) {
-        // Tăng ca - đảm bảo giữ nguyên trạng thái tăng ca
+      } else if (editingRequest.request_type === 'overtime_day') {
+        // Tăng ca - cập nhật thông tin tăng ca
         updateData = {
           description: values.reason || 'Tăng ca',
           metadata: {
             ...editingRequest.metadata,
             from_date: values.date.format('YYYY-MM-DD'),
             to_date: values.date.format('YYYY-MM-DD'),
-            reason: values.reason || 'Tăng ca',
-            is_overtime: true // Đảm bảo vẫn là tăng ca
+            reason: values.reason || 'Tăng ca'
           }
         };
       }
@@ -1689,7 +1674,7 @@ export default function UserDashboard() {
       
       {/* Header */}
       <div className="user-header">
-        <h1>Chào mừng bạn trở lại!</h1>
+        <h1>Chào mừng đến với hệ thống SHBET do Moon đang phát triển!</h1>
         <p>Quản lý lịch làm việc cá nhân của bạn</p>
       </div>
 

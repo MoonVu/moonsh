@@ -710,14 +710,13 @@ class ApiService {
       const response = await this.request('/requests', {
         method: 'POST',
         body: JSON.stringify({
-          request_type: 'monthly_off', // Sử dụng monthly_off vì backend không có overtime
+          request_type: 'overtime_day', // Sử dụng overtime_day riêng biệt
           content: `Đăng ký tăng ca ngày ${requestData.date}`,
           description: requestData.reason,
           metadata: {
             from_date: requestData.date,
             to_date: requestData.date, // Cùng ngày
-            reason: requestData.reason,
-            is_overtime: true // Đánh dấu đây là request tăng ca
+            reason: requestData.reason
           }
         })
       });

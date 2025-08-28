@@ -163,17 +163,11 @@ const AdminDashboard = () => {
         let displayColor = '#666';
         
         if (type === 'monthly_off') {
-          // Kiểm tra xem có phải là tăng ca không
-          if (record.metadata?.is_overtime === true || 
-              record.metadata?.reason?.includes('Tăng ca') ||
-              record.content?.includes('tăng ca') ||
-              record.description?.includes('Tăng ca')) {
-            displayType = 'Tăng ca';
-            displayColor = '#52c41a'; // Xanh lá
-          } else {
-            displayType = 'OFF';
-            displayColor = '#1890ff'; // Xanh dương
-          }
+          displayType = 'OFF';
+          displayColor = '#1890ff'; // Xanh dương
+        } else if (type === 'overtime_day') {
+          displayType = 'Tăng ca';
+          displayColor = '#52c41a'; // Xanh lá
         } else if (type === 'half_day_off') {
           displayType = 'OFF nửa ca';
           displayColor = '#fa8c16'; // Cam
