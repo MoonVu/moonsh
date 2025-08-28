@@ -13,8 +13,6 @@ const { attachPermissions } = require('../middleware/attachPermissions');
  */
 router.get('/', authJWT, attachPermissions, (req, res) => {
   try {
-    console.log('📋 /me endpoint for user:', req.user.username);
-    
     const userInfo = {
       id: req.user.id,
       username: req.user.username,

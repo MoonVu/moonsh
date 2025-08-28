@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Card, Modal, Tabs, Button, DatePicker, Select, Input, message, Table, Tag, Form, Space, Typography } from 'antd';
+import { Card, Modal, Button, DatePicker, Select, Input, message, Table, Tag, Form, Space, Typography } from 'antd';
 import './UserDashboard.css';
 import { 
   CalendarOutlined, 
@@ -21,10 +21,10 @@ import apiService from '../../services/api';
 import AuthContext from '../../contexts/AuthContext';
 import RequestList from '../RequestList';
 import RequestForm from '../RequestForm';
+import CustomTabs from '../CustomTabs';
 
 
 
-const { TabPane } = Tabs;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -1759,131 +1759,113 @@ export default function UserDashboard() {
         style={{ top: 20 }}
       >
         <div style={{ padding: '20px 0' }}>
-          <Tabs defaultActiveKey="off" onChange={setActiveTab}>
-            {/* Tab Đăng ký OFF */}
-            <TabPane 
-              tab={
-                <span>
-                  <MinusOutlined />
-                  Đăng ký OFF
-                </span>
-              } 
-              key="off"
-            >
-              <div style={{ marginBottom: '20px' }}>
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={() => setShowOffForm(true)}
-                  style={{ marginBottom: '16px' }}
-                >
-                  Thêm yêu cầu OFF mới
-                </Button>
-                
-                <Table 
-                  dataSource={offRequests} 
-                  columns={offColumns} 
-                  rowKey="_id"
-                  loading={loading}
-                  pagination={{ pageSize: 5 }}
-                  size="small"
-                />
-              </div>
-            </TabPane>
-
-            {/* Tab Đăng ký OFF nửa ca */}
-            <TabPane 
-              tab={
-                <span>
-                  <ClockCircleOutlined />
-                  OFF nửa ca
-                </span>
-              } 
-              key="halfday"
-            >
-              <div style={{ marginBottom: '20px' }}>
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={() => setShowHalfDayForm(true)}
-                  style={{ marginBottom: '16px' }}
-                >
-                  Thêm yêu cầu OFF nửa ca mới
-                </Button>
-                
-                <Table 
-                  dataSource={halfDayRequests} 
-                  columns={halfDayColumns} 
-                  rowKey="_id"
-                  loading={loading}
-                  pagination={{ pageSize: 5 }}
-                  size="small"
-                />
-              </div>
-            </TabPane>
-
-            {/* Tab Đăng ký tăng ca */}
-            <TabPane 
-              tab={
-                <span>
-                  <PlusOutlined />
-                  Tăng ca
-                </span>
-              } 
-              key="overtime"
-            >
-              <div style={{ marginBottom: '20px' }}>
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={() => setShowOvertimeForm(true)}
-                  style={{ marginBottom: '16px' }}
-                >
-                  Thêm yêu cầu tăng ca mới
-                </Button>
-                
-                <Table 
-                  dataSource={overtimeRequests} 
-                  columns={overtimeColumns} 
-                  rowKey="_id"
-                  loading={loading}
-                  pagination={{ pageSize: 5 }}
-                  size="small"
-                />
-              </div>
-            </TabPane>
-
-            {/* Tab Đăng ký nghỉ phép năm */}
-            <TabPane 
-              tab={
-                <span>
-                  <CalendarOutlined />
-                  Nghỉ phép năm
-                </span>
-              } 
-              key="annualleave"
-            >
-              <div style={{ marginBottom: '20px' }}>
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={() => setShowAnnualLeaveForm(true)}
-                  style={{ marginBottom: '16px' }}
-                >
-                  Thêm yêu cầu nghỉ phép năm mới
-                </Button>
-                
-                <Table 
-                  dataSource={annualLeaveRequests} 
-                  columns={annualLeaveColumns} 
-                  rowKey="_id"
-                  loading={loading}
-                  pagination={{ pageSize: 5 }}
-                  size="small"
-                />
-              </div>
-            </TabPane>
-          </Tabs>
+          <CustomTabs
+            tabs={[
+              {
+                id: 'off',
+                name: 'Đăng ký OFF',
+                content: (
+                  <div style={{ marginBottom: '20px' }}>
+                    <Button 
+                      type="primary" 
+                      icon={<MinusOutlined />}
+                      onClick={() => setShowOffForm(true)}
+                      style={{ marginBottom: '16px' }}
+                    >
+                      Thêm yêu cầu OFF mới
+                    </Button>
+                    
+                    <Table 
+                      dataSource={offRequests} 
+                      columns={offColumns} 
+                      rowKey="_id"
+                      loading={loading}
+                      pagination={{ pageSize: 5 }}
+                      size="small"
+                    />
+                  </div>
+                )
+              },
+              {
+                id: 'halfday',
+                name: 'OFF nửa ca',
+                content: (
+                  <div style={{ marginBottom: '20px' }}>
+                    <Button 
+                      type="primary" 
+                      icon={<ClockCircleOutlined />}
+                      onClick={() => setShowHalfDayForm(true)}
+                      style={{ marginBottom: '16px' }}
+                    >
+                      Thêm yêu cầu OFF nửa ca mới
+                    </Button>
+                    
+                    <Table 
+                      dataSource={halfDayRequests} 
+                      columns={halfDayColumns} 
+                      rowKey="_id"
+                      loading={loading}
+                      pagination={{ pageSize: 5 }}
+                      size="small"
+                    />
+                  </div>
+                )
+              },
+              {
+                id: 'overtime',
+                name: 'Tăng ca',
+                content: (
+                  <div style={{ marginBottom: '20px' }}>
+                    <Button 
+                      type="primary" 
+                      icon={<PlusOutlined />}
+                      onClick={() => setShowOvertimeForm(true)}
+                      style={{ marginBottom: '16px' }}
+                    >
+                      Thêm yêu cầu tăng ca mới
+                    </Button>
+                    
+                    <Table 
+                      dataSource={overtimeRequests} 
+                      columns={overtimeColumns} 
+                      rowKey="_id"
+                      loading={loading}
+                      pagination={{ pageSize: 5 }}
+                      size="small"
+                    />
+                  </div>
+                )
+              },
+              {
+                id: 'annualleave',
+                name: 'Nghỉ phép năm',
+                content: (
+                  <div style={{ marginBottom: '20px' }}>
+                    <Button 
+                      type="primary" 
+                      icon={<CalendarOutlined />}
+                      onClick={() => setShowAnnualLeaveForm(true)}
+                      style={{ marginBottom: '16px' }}
+                    >
+                      Thêm yêu cầu nghỉ phép năm mới
+                    </Button>
+                    
+                    <Table 
+                      dataSource={annualLeaveRequests} 
+                      columns={annualLeaveColumns} 
+                      rowKey="_id"
+                      loading={loading}
+                      pagination={{ pageSize: 5 }}
+                      size="small"
+                    />
+                  </div>
+                )
+              }
+            ]}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            showEditIcon={false}
+          />
         </div>
       </Modal>
 

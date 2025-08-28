@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Tabs, Spin, message, Input, Button, Popconfirm } from "antd";
+import { Spin, message, Button, Popconfirm } from "antd";
 import apiService from "./services/api";
 import DemoNhanSu from "./DemoNhanSu";
-import EditOutlined from '@ant-design/icons/EditOutlined';
 import { DemoLichDiCa } from "./components";
 import DemoLichCopy from "./components/Lichdica/DemoLichCopy";
 import { DeleteOutlined } from '@ant-design/icons';
 import { useAuth } from "./hooks/useAuth";
+import CustomTabs from "./components/CustomTabs";
 
 export default function LichDiCaTabs({ currentUser }) {
   const { isAdmin } = useAuth();
@@ -14,8 +14,6 @@ export default function LichDiCaTabs({ currentUser }) {
   const [loading, setLoading] = useState(true);
   const [activeKey, setActiveKey] = useState();
   const [creatingDemo, setCreatingDemo] = useState(false);
-  const [editingTabId, setEditingTabId] = useState(null);
-  const [editingTabName, setEditingTabName] = useState("");
 
   useEffect(() => {
     fetchTabs();
@@ -72,8 +70,6 @@ export default function LichDiCaTabs({ currentUser }) {
   const handleSaveTabName = async (tabId, value) => {
     if (!value || value.trim() === "") return; // Không cho tên trống
     if (value === tabs.find(t => t._id === tabId)?.name) {
-      setEditingTabId(null);
-      setEditingTabName("");
       return;
     }
     try {
@@ -93,8 +89,6 @@ export default function LichDiCaTabs({ currentUser }) {
       }
       // 3) Cập nhật UI state
       setTabs(prev => prev.map(t => t._id === tabId ? { ...t, name: value, data: { ...t.data, name: value } } : t));
-      setEditingTabId(null);
-      setEditingTabName("");
       message.success("Đã cập nhật tên tab!");
     } catch (err) {
       message.error("Không cập nhật được tên tab!");
@@ -147,89 +141,58 @@ export default function LichDiCaTabs({ currentUser }) {
     tab.data?.copyId // Chỉ hiển thị tab copy cho nhân viên
   );
 
-  const renderTabBar = (props, DefaultTabBar) => (
-    <DefaultTabBar {...props}>
-      {(node) => {
-        const tabId = node.key;
-        const tab = tabs.find(t => t._id === tabId);
-        if (!tab) return node;
-        return {
-          ...node,
-          props: {
-            ...node.props,
-            children:
-              editingTabId === tabId ? (
-                <Input
-                  value={editingTabName}
-                  size="small"
-                  style={{ width: 140 }}
-                  onChange={(e) => setEditingTabName(e.target.value)}
-                  onBlur={() => handleSaveTabName(tabId, editingTabName)}
-                  onPressEnter={() => handleSaveTabName(tabId, editingTabName)}
-                />
-              ) : (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ flex: 1 }}>{tab.name}</span>
-                  <EditOutlined
-                    style={{ fontSize: 15, color: '#888', cursor: 'pointer' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingTabId(tabId);
-                      setEditingTabName(tab.name);
-                    }}
-                  />
-                </span>
-              )
-          }
-        };
-      }}
-    </DefaultTabBar>
-  );
+  // Chuyển đổi dữ liệu tabs để phù hợp với CustomTabs
+  const customTabsData = visibleTabs.map(tab => ({
+    id: tab._id,
+    name: tab.name,
+    content: (
+      <div>
+        {tab.type === "demo_nhansu" ? (
+          <DemoNhanSu tabId={tab._id} />
+        ) : tab.data?.copyId ? (
+          <DemoLichCopy 
+            tabId={tab._id} 
+            copyData={tab.data}
+          />
+        ) : (
+          <DemoLichDiCa tabId={tab._id} />
+        )}
+        
+        {/* Hiển thị nút xóa bản sao ở dưới content nếu cần */}
+        {tab.data?.copyId && isAdmin() && (
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <Popconfirm
+              title="Xóa bản sao"
+              description="Bạn có chắc chắn muốn xóa bản sao này không? Hành động này không thể hoàn tác."
+              onConfirm={() => handleDeleteCopy(tab._id, tab.data.copyId)}
+              okText="Xóa"
+              cancelText="Hủy"
+              okType="danger"
+            >
+              <Button
+                type="primary"
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+                title="Xóa bản sao (chỉ ADMIN)"
+              >
+                Xóa bản sao
+              </Button>
+            </Popconfirm>
+          </div>
+        )}
+      </div>
+    )
+  }));
 
   return (
-    <div className="lich-di-ca-tabs">
-      <Tabs
-        activeKey={activeKey}
-        onChange={setActiveKey}
-        items={visibleTabs.map(tab => ({
-          key: tab._id,
-          label: (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <span>{tab.name}</span>
-              {tab.data?.copyId && isAdmin() && (
-                <Popconfirm
-                  title="Xóa bản sao"
-                  description="Bạn có chắc chắn muốn xóa bản sao này không? Hành động này không thể hoàn tác."
-                  onConfirm={() => handleDeleteCopy(tab._id, tab.data.copyId)}
-                  okText="Xóa"
-                  cancelText="Hủy"
-                  okType="danger"
-                >
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    size="small"
-                    style={{ marginLeft: 8 }}
-                    title="Xóa bản sao (chỉ ADMIN)"
-                  />
-                </Popconfirm>
-              )}
-            </div>
-          ),
-          children: tab.type === "demo_nhansu" ? (
-            <DemoNhanSu tabId={tab._id} />
-          ) : tab.data?.copyId ? (
-            <DemoLichCopy 
-              tabId={tab._id} 
-              copyData={tab.data}
-            />
-          ) : (
-            <DemoLichDiCa tabId={tab._id} />
-          )
-        }))}
-        renderTabBar={renderTabBar}
-        style={{ marginTop: 20 }}
+    <div className="lich-di-ca-tabs" style={{ marginTop: 20 }}>
+      <CustomTabs
+        tabs={customTabsData}
+        activeTab={activeKey}
+        onTabChange={setActiveKey}
+        onEditTab={handleSaveTabName}
+        showEditIcon={true}
       />
     </div>
   );

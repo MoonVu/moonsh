@@ -1,0 +1,203 @@
+/* CustomTabs Component Styles */
+.custom-tabs {
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Tabs Container */
+.tabs-container {
+  display: flex;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 8px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 16px;
+}
+
+/* Individual Tab Item */
+.tab-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 20px;
+  background: white;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 140px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Tab hover effect */
+.tab-item:hover {
+  background: #f1f3f4;
+  border-color: #dadce0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Active tab state - màu xanh nhẹ nổi lên */
+.tab-item.active {
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  border-color: #2196f3;
+  color: #1976d2;
+  font-weight: 600;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.3);
+}
+
+/* Tab name text */
+.tab-name {
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  flex: 1;
+  user-select: none;
+}
+
+/* Edit icon */
+.edit-icon {
+  font-size: 14px;
+  color: #666;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tab-item:hover .edit-icon {
+  opacity: 1;
+  color: #1976d2;
+  background: rgba(25, 118, 210, 0.1);
+  transform: scale(1.1);
+}
+
+.tab-item.active .edit-icon {
+  color: #1976d2;
+  opacity: 0.9;
+}
+
+/* Edit input field */
+.tab-edit-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 2px solid #2196f3;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  background: white;
+  color: #1976d2;
+  outline: none;
+  text-align: center;
+}
+
+.tab-edit-input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+/* Tab content area */
+.tab-content {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  min-height: 200px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .tabs-container {
+    padding: 6px;
+    gap: 2px;
+  }
+  
+  .tab-item {
+    padding: 10px 16px;
+    min-width: 120px;
+    gap: 6px;
+  }
+  
+  .tab-name {
+    font-size: 13px;
+  }
+  
+  .edit-icon {
+    font-size: 12px;
+    padding: 3px;
+  }
+  
+  .tab-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tabs-container {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .tab-item {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+/* Animation for tab switching */
+.tab-content {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus states for accessibility */
+.tab-item:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: 2px;
+}
+
+.edit-icon:focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
+
+/* Loading state */
+.tab-item.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.tab-item.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid #e3f2fd;
+  border-top: 2px solid #2196f3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

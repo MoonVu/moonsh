@@ -233,7 +233,7 @@
 }
 
 .ant-modal-header .ant-modal-title {
-  color: white;
+  color: rgb(3, 69, 252) !important;
   font-weight: 600;
   font-size: 18px;
 }
