@@ -1452,37 +1452,6 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
             </Button>
           </div>
         </div>
-        
-        {/* Hiển thị thông tin bộ lọc đang áp dụng */}
-        {(filterCa.length > 0 || filterDepartment.length > 0) && (
-          <div style={{ 
-            marginTop: '16px', 
-            padding: '12px', 
-            background: '#e6f7ff', 
-            borderRadius: '6px',
-            border: '1px solid #91d5ff',
-            fontSize: '14px',
-            color: '#1890ff'
-          }}>
-            <strong>Bộ lọc đang áp dụng:</strong>
-            {filterCa.length > 0 && (
-              <span style={{ marginLeft: '8px' }}>
-                <strong>Ca:</strong> {filterCa.join(', ')}
-              </span>
-            )}
-            {filterDepartment.length > 0 && (
-              <span style={{ marginLeft: '8px' }}>
-                <strong>Bộ phận:</strong> {filterDepartment.join(', ')}
-              </span>
-            )}
-            <span style={{ marginLeft: '8px', color: '#52c41a' }}>
-              (Hiển thị {filteredStaffsByCa.length}/{staffsByCa.length} nhân viên)
-            </span>
-            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
-              💡 Bạn có thể chọn nhiều ca và bộ phận cùng lúc để lọc dữ liệu chính xác hơn
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Popup chèn ghi chú */}

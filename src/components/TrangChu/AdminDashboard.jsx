@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Tag, Modal, Form, Input, Select, message, Space, Typography, Badge } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, EyeOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Tag, Modal, Form, Input, Select, message, Space, Typography, Badge, Collapse, Row, Col, Divider, DatePicker } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, EyeOutlined, LoadingOutlined, SearchOutlined, FilterOutlined } from '@ant-design/icons';
 import apiService from '../../services/api';
+import CustomTabs from '../CustomTabs';
 import './AdminDashboard.css';
 
 const { TextArea } = Input;
@@ -16,6 +17,9 @@ const AdminDashboard = () => {
   const [actionType, setActionType] = useState(''); // 'approve' hoặc 'reject'
   const [actionForm] = Form.useForm();
   const [processing, setProcessing] = useState(false);
+  const [searchEmployee, setSearchEmployee] = useState('');
+  const [searchDate, setSearchDate] = useState(null);
+  const [activeTab, setActiveTab] = useState('all');
 
   const systemStats = {
     totalUsers: 3,
@@ -183,9 +187,11 @@ const AdminDashboard = () => {
         }
         
         return (
-          <Tag color={displayColor}>
-            {displayType}
-          </Tag>
+          <div style={{ textAlign: 'center' }}>
+            <Tag color={displayColor}>
+              {displayType}
+            </Tag>
+          </div>
         );
       }
     },
@@ -197,13 +203,13 @@ const AdminDashboard = () => {
       render: (user, record) => {
         if (user) {
           return (
-            <div>
+            <div style={{ textAlign: 'center' }}>
               <div style={{ fontWeight: 'bold' }}>{user.username}</div>
               <div style={{ fontSize: '12px', color: '#666' }}>{user.group_name}</div>
             </div>
           );
         }
-        return <Text type="secondary">Không có thông tin</Text>;
+        return <div style={{ textAlign: 'center' }}><Text type="secondary">Không có thông tin</Text></div>;
       }
     },
     {
@@ -211,27 +217,44 @@ const AdminDashboard = () => {
       dataIndex: 'content',
       key: 'content',
       width: 200,
-      ellipsis: true,
       render: (content) => (
-        <Text style={{ fontSize: '12px' }}>{content}</Text>
+        <div style={{ 
+          fontSize: '12px',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          lineHeight: '1.4',
+          maxHeight: '80px',
+          overflow: 'auto'
+        }}>
+          {content}
+        </div>
       )
     },
     {
-      title: 'Ghi chú',
+      title: 'Ghi chú n.viên',
       dataIndex: 'description',
       key: 'description',
       width: 150,
-      ellipsis: true,
       render: (description) => (
-        <Text style={{ fontSize: '12px' }}>{description || 'Không có'}</Text>
+        <div style={{ 
+          fontSize: '12px',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          lineHeight: '1.4',
+          maxHeight: '60px',
+          overflow: 'auto'
+        }}>
+          {description || 'Không có'}
+        </div>
       )
     },
+
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
-      render: (status) => {
+      width: 120,
+      render: (status, record) => {
         const statusConfig = {
           'pending': { color: 'processing', text: 'Chờ duyệt', icon: <LoadingOutlined /> },
           'approved': { color: 'success', text: 'Đã duyệt', icon: <CheckCircleOutlined /> },
@@ -243,9 +266,16 @@ const AdminDashboard = () => {
         const config = statusConfig[status] || { color: 'default', text: status, icon: null };
         
         return (
-          <Tag color={config.color} icon={config.icon}>
-            {config.text}
-          </Tag>
+          <div style={{ textAlign: 'center' }}>
+            {record.processed_by && (status === 'approved' || status === 'rejected') && (
+              <Tag color="blue" style={{ marginBottom: '4px', fontSize: '11px' }}>
+                {record.processed_by.username || 'Admin'}
+              </Tag>
+            )}
+            <Tag color={config.color} icon={config.icon}>
+              {config.text}
+            </Tag>
+          </div>
         );
       }
     },
@@ -285,19 +315,69 @@ const AdminDashboard = () => {
         }
         
         return (
-          <Space>
-            <Button 
-              size="small" 
-              icon={<EyeOutlined />}
-              onClick={() => openDetailModal(record)}
-            >
-              Chi tiết
-            </Button>
-          </Space>
+          <div style={{ textAlign: 'center' }}>
+            {record.admin_note ? (
+              <div style={{ 
+                fontSize: '13px',
+                padding: '8px 12px',
+                backgroundColor: '#f6ffed',
+                borderRadius: '6px',
+                border: '1px solid #b7eb8f',
+                color: '#52c41a',
+                maxWidth: '150px',
+                wordBreak: 'break-word',
+                lineHeight: '1.4'
+              }}>
+                {record.admin_note}
+              </div>
+            ) : (
+              <Button 
+                size="small" 
+                icon={<EyeOutlined />}
+                onClick={() => openDetailModal(record)}
+              >
+                Chi tiết
+              </Button>
+            )}
+          </div>
         );
       }
     }
   ];
+
+  // Filter và sắp xếp requests
+  const getFilteredAndSortedRequests = () => {
+    let filtered = [...requests];
+    
+    // Filter theo nhân viên
+    if (searchEmployee) {
+      filtered = filtered.filter(req => 
+        req.user?.username?.toLowerCase().includes(searchEmployee.toLowerCase())
+      );
+    }
+    
+    // Filter theo ngày
+    if (searchDate) {
+      const searchDateStr = searchDate.format('YYYY-MM-DD');
+      filtered = filtered.filter(req => {
+        const reqDate = req.metadata?.from_date;
+        if (reqDate) {
+          const reqDateStr = new Date(reqDate).toISOString().split('T')[0];
+          return reqDateStr === searchDateStr;
+        }
+        return false;
+      });
+    }
+    
+    // Sắp xếp theo thứ tự mới nhất trước
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at || a.createdAt || 0);
+      const dateB = new Date(b.created_at || b.createdAt || 0);
+      return dateB - dateA;
+    });
+    
+    return filtered;
+  };
 
   // Load data khi component mount
   useEffect(() => {
@@ -352,28 +432,156 @@ const AdminDashboard = () => {
         </div>
 
         {/* Phần chính: Quản lý yêu cầu */}
-        <div className="main-approval-section">
-          <div className="section-header">
-            <h2>📋 Quản lý yêu cầu từ nhân viên</h2>
-            <p>Phê duyệt các yêu cầu OFF, OFF nửa ca, tăng ca từ nhân viên</p>
-          </div>
-          
-          <Card>
-            <Table 
-              dataSource={requests} 
-              columns={columns} 
-              rowKey="_id"
-              loading={loading}
-              pagination={{ 
-                pageSize: 10,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
-              }}
-              size="middle"
-            />
-          </Card>
-        </div>
+        <Collapse 
+          defaultActiveKey={[]} 
+          style={{ marginBottom: '16px' }}
+          expandIconPosition="end"
+        >
+          <Collapse.Panel 
+            header={
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <span>📋 Quản lý yêu cầu từ nhân viên ({requests.filter(req => req.status === 'pending').length} đơn chờ duyệt)</span>
+                <Tag color="processing">Quản lý yêu cầu</Tag>
+              </div>
+            } 
+            key="requests"
+          >
+            <div className="main-approval-section">
+              <div className="section-header">
+                <h2>📋 Quản lý yêu cầu từ nhân viên ({requests.filter(req => req.status === 'pending').length} đơn chờ duyệt)</h2>
+                <p>Phê duyệt các yêu cầu OFF, OFF nửa ca, tăng ca từ nhân viên</p>
+              </div>
+              
+              {/* Filter và Search */}
+              <Card style={{ marginBottom: '16px' }}>
+                <Row gutter={16} align="middle">
+                  <Col span={6}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Tìm nhân viên:</strong>
+                    </div>
+                    <Input
+                      placeholder="Nhập tên nhân viên..."
+                      value={searchEmployee}
+                      onChange={(e) => setSearchEmployee(e.target.value)}
+                      prefix={<SearchOutlined />}
+                    />
+                  </Col>
+                  <Col span={6}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Ngày yêu cầu:</strong>
+                    </div>
+                    <DatePicker
+                      placeholder="Chọn ngày..."
+                      value={searchDate}
+                      onChange={setSearchDate}
+                      style={{ width: '100%' }}
+                      format="DD/MM/YYYY"
+                    />
+                  </Col>
+                  <Col span={6}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Kết quả:</strong>
+                    </div>
+                    <div style={{ 
+                      padding: '8px', 
+                      backgroundColor: '#f0f0f0', 
+                      borderRadius: '4px',
+                      textAlign: 'center',
+                      fontWeight: 'bold'
+                    }}>
+                      {getFilteredAndSortedRequests().length} yêu cầu
+                    </div>
+                  </Col>
+                </Row>
+              </Card>
+              
+              {/* Tabs cho từng trạng thái */}
+              <CustomTabs
+                tabs={[
+                  {
+                    id: 'all',
+                    name: `Tất cả (${getFilteredAndSortedRequests().length})`,
+                    content: (
+                      <Table 
+                        dataSource={getFilteredAndSortedRequests()} 
+                        columns={columns} 
+                        rowKey="_id"
+                        loading={loading}
+                        pagination={{ 
+                          pageSize: 10,
+                          showSizeChanger: true,
+                          showQuickJumper: true,
+                          showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
+                        }}
+                        size="small"
+                      />
+                    )
+                  },
+                  {
+                    id: 'pending',
+                    name: `Chờ duyệt (${getFilteredAndSortedRequests().filter(req => req.status === 'pending').length})`,
+                    content: (
+                      <Table 
+                        dataSource={getFilteredAndSortedRequests().filter(req => req.status === 'pending')} 
+                        columns={columns} 
+                        rowKey="_id"
+                        loading={loading}
+                        pagination={{ 
+                          pageSize: 10,
+                          showSizeChanger: true,
+                          showQuickJumper: true,
+                          showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
+                        }}
+                        size="small"
+                      />
+                    )
+                  },
+                  {
+                    id: 'approved',
+                    name: `Đã duyệt (${getFilteredAndSortedRequests().filter(req => req.status === 'approved').length})`,
+                    content: (
+                      <Table 
+                        dataSource={getFilteredAndSortedRequests().filter(req => req.status === 'approved')} 
+                        columns={columns} 
+                        rowKey="_id"
+                        loading={loading}
+                        pagination={{ 
+                          pageSize: 10,
+                          showSizeChanger: true,
+                          showQuickJumper: true,
+                          showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
+                        }}
+                        size="small"
+                      />
+                    )
+                  },
+                  {
+                    id: 'rejected',
+                    name: `Từ chối (${getFilteredAndSortedRequests().filter(req => req.status === 'rejected').length})`,
+                    content: (
+                      <Table 
+                        dataSource={getFilteredAndSortedRequests().filter(req => req.status === 'rejected')} 
+                        columns={columns} 
+                        rowKey="_id"
+                        loading={loading}
+                        pagination={{ 
+                          pageSize: 10,
+                          showSizeChanger: true,
+                          showQuickJumper: true,
+                          showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
+                        }}
+                        size="small"
+                      />
+                    )
+                  }
+                ]}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                showEditIcon={false}
+              />
+            </div>
+          </Collapse.Panel>
+        </Collapse>
 
         {/* Quick Actions */}
         <div className="quick-actions">
@@ -455,6 +663,7 @@ const AdminDashboard = () => {
                 type={actionType === 'approve' ? 'primary' : 'danger'} 
                 htmlType="submit" 
                 loading={processing}
+                danger={actionType === 'reject'}
               >
                 {actionType === 'approve' ? 'Phê duyệt' : 'Từ chối'}
               </Button>

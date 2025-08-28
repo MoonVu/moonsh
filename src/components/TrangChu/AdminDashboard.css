@@ -170,6 +170,81 @@
   background: linear-gradient(135deg, #ff8a46 0%, #ff5b5b 100%);
 }
 
+/* Accordion Styles */
+.ant-collapse {
+  border: none;
+  background: transparent;
+}
+
+.ant-collapse .ant-collapse-item {
+  border: none;
+  margin-bottom: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.ant-collapse .ant-collapse-header {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 16px 20px !important;
+  font-weight: 600;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.ant-collapse .ant-collapse-content {
+  border: none;
+  background: white;
+}
+
+.ant-collapse .ant-collapse-content-box {
+  padding: 0;
+}
+
+/* Filter Section */
+.filter-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+}
+
+.filter-section .ant-card-body {
+  padding: 20px;
+}
+
+/* Table Improvements */
+.ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #f8f9fa;
+}
+
+/* Status Tags */
+.status-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-approver {
+  font-size: 10px;
+  color: #666;
+  font-style: italic;
+  margin-top: 2px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .stats-grid {
@@ -195,5 +270,19 @@
   
   .section-header h2 {
     font-size: 1.5rem;
+  }
+  
+  /* Responsive Accordion */
+  .ant-collapse .ant-collapse-header {
+    padding: 12px 16px !important;
+    font-size: 1rem;
+  }
+  
+  .filter-section .ant-card-body {
+    padding: 16px;
+  }
+  
+  .ant-row .ant-col {
+    margin-bottom: 16px;
   }
 }

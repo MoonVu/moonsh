@@ -191,8 +191,8 @@ export default function LichDiCaTabs({ currentUser }) {
         tabs={customTabsData}
         activeTab={activeKey}
         onTabChange={setActiveKey}
-        onEditTab={handleSaveTabName}
-        showEditIcon={true}
+        onEditTab={isAdmin() ? handleSaveTabName : undefined}
+        showEditIcon={isAdmin()}
       />
     </div>
   );
