@@ -3,7 +3,7 @@
  */
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { authAPI } from '../services/authAPI';
+import { authAPI } from '../services/authAPI-rbac';
 import { apiService } from '../services/api';
 import { permissionsAPI } from '../services/permissionsAPI';
 

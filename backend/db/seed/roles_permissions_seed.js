@@ -130,7 +130,8 @@ function getResourceLabel(resource) {
     'seats': 'Chỗ ngồi',
     'notifications': 'Thông báo',
     'reports': 'Báo cáo',
-    'system': 'Hệ thống'
+    'system': 'Hệ thống',
+    'requests': 'Yêu cầu'
   };
   return labels[resource] || resource;
 }
@@ -168,7 +169,8 @@ function getResourceCategory(resource) {
     'seats': 'operations',
     'notifications': 'system',
     'reports': 'reports',
-    'system': 'system'
+    'system': 'system',
+    'requests': 'operations'
   };
   return categories[resource] || 'general';
 }

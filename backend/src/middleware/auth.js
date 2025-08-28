@@ -84,8 +84,17 @@ const attachUser = async (req, res, next) => {
       permissionsCount: user.role?.permissions?.length || 0
     });
     
-    // Đính kèm user vào request
-    req.user = user;
+    // Đính kèm user vào request với roleId để attachPermissions sử dụng
+    req.user = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      groupCode: user.groupCode,
+      group_name: user.group_name,
+      roleString: user.roleString,
+      roleId: user.role._id, // Cần thiết cho attachPermissions
+      role: user.role
+    };
     next();
 
   } catch (error) {

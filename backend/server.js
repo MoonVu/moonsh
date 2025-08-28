@@ -74,6 +74,7 @@ const usersRoutes = require('./src/routes/users');
 const healthRoutes = require('./src/routes/health');
 const rolesRoutes = require('./src/routes/roles');
 const permissionsRoutes = require('./src/routes/permissions');
+const requestsRoutes = require('./src/routes/requests');
 
 // Import new auth middleware
 const { attachUser } = require('./src/middleware/auth');
@@ -147,10 +148,11 @@ const authenticateToken = async (req, res, next) => {
 // ==================== NEW AUTH SYSTEM ROUTES ====================
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/users', usersRoutes);  
+app.use('/api/users', usersRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/permissions', permissionsRoutes);
+app.use('/api/requests', requestsRoutes);
 
 // ==================== NEW RBAC ROUTES ====================
 app.use('/api/me', require('./src/routes/me'));

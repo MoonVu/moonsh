@@ -11,7 +11,10 @@
 const authorize = (resource, action) => {
   return (req, res, next) => {
     try {
-      console.log(`🔐 authorize(${resource}, ${action}) for user:`, req.user?.username);
+      console.log(`🔐 authorize(${resource}, ${action}) START for user:`, req.user?.username);
+      console.log(`🔐 req.user object:`, req.user);
+      console.log(`🔐 req.user.permissions:`, req.user?.permissions);
+      console.log(`🔐 req.user.hasPermission function:`, typeof req.user?.hasPermission);
       
       // Kiểm tra user đã được authenticated
       if (!req.user || !req.user.id) {
@@ -23,6 +26,7 @@ const authorize = (resource, action) => {
 
       // Kiểm tra permissions đã được load
       if (!req.user.permissions) {
+        console.log('❌ authorize FAILED: Permissions not loaded');
         return res.status(500).json({
           success: false,
           error: 'Permissions chưa được load'

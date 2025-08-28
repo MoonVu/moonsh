@@ -4,7 +4,7 @@
 
 import { useContext, useCallback, useState, useEffect } from 'react';
 import AuthContext from '../contexts/AuthContext';
-import { authAPI, rolesAPI, adminAPI } from '../services/authAPI';
+import { authAPI, rolesAPI, adminAPI } from '../services/authAPI-rbac';
 
 /**
  * Hook chính để sử dụng auth context

@@ -596,6 +596,209 @@ class ApiService {
       throw error;
     }
   }
+
+  // ==================== REQUEST API METHODS ====================
+
+  // Lấy danh sách request của user
+  async getUserRequests(month, year) {
+    try {
+      const queryParams = new URLSearchParams();
+      if (month) queryParams.append('month', month);
+      if (year) queryParams.append('year', year);
+      
+      const endpoint = `/requests/my-requests${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      const response = await this.request(endpoint, {
+        method: 'GET'
+      });
+      return response;
+    } catch (error) {
+      console.error('Lỗi API getUserRequests:', error);
+      throw error;
+    }
+  }
+
+  // Lấy tất cả requests (admin only)
+  async getAllRequests(filters = {}) {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      // Thêm các filter nếu có
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
+      });
+      
+      const endpoint = `/requests${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      const response = await this.request(endpoint, {
+        method: 'GET'
+      });
+      return response;
+    } catch (error) {
+      console.error('Lỗi API getAllRequests:', error);
+      throw error;
+    }
+  }
+
+  // Gửi đăng ký OFF
+  async submitOffRequest(requestData) {
+    try {
+      // Tạo 2 request riêng biệt cho 2 ngày
+      const promises = requestData.dates.map((date, index) => {
+        const reason = requestData.reasons[index] || '';
+        return this.request('/requests', {
+          method: 'POST',
+          body: JSON.stringify({
+            request_type: 'monthly_off',
+            content: `Đăng ký OFF ngày ${date}`,
+            description: reason || 'Không có lý do',
+            metadata: {
+              from_date: date,
+              to_date: date,
+              reason: reason,
+              date_index: index + 1, // Đánh dấu ngày thứ mấy
+              total_days: requestData.dates.length
+            }
+          })
+        });
+      });
+
+      const responses = await Promise.all(promises);
+      
+      // Kiểm tra xem tất cả có thành công không
+      const allSuccess = responses.every(res => res.success);
+      if (allSuccess) {
+        return {
+          success: true,
+          message: `Đã gửi ${requestData.dates.length} yêu cầu OFF thành công!`,
+          data: responses.map(res => res.data)
+        };
+      } else {
+        throw new Error('Có lỗi xảy ra khi gửi một số yêu cầu');
+      }
+    } catch (error) {
+      console.error('Lỗi API submitOffRequest:', error);
+      throw error;
+    }
+  }
+
+  // Gửi đăng ký OFF nửa ca
+  async submitHalfDayRequest(requestData) {
+    try {
+      const response = await this.request('/requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          request_type: 'half_day_off',
+          content: `Đăng ký OFF nửa ca ngày ${requestData.date}`,
+          description: requestData.reason,
+          metadata: {
+            from_date: requestData.date,
+            half_day_type: requestData.halfDayType,
+            half_day_shift: requestData.halfDayShift,
+            reason: requestData.reason
+          }
+        })
+      });
+      return response;
+    } catch (error) {
+      console.error('Lỗi API submitHalfDayRequest:', error);
+      throw error;
+    }
+  }
+
+  // Gửi đăng ký tăng ca
+  async submitOvertimeRequest(requestData) {
+    try {
+      const response = await this.request('/requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          request_type: 'monthly_off', // Sử dụng monthly_off vì backend không có overtime
+          content: `Đăng ký tăng ca ngày ${requestData.date}`,
+          description: requestData.reason,
+          metadata: {
+            from_date: requestData.date,
+            to_date: requestData.date, // Cùng ngày
+            reason: requestData.reason,
+            is_overtime: true // Đánh dấu đây là request tăng ca
+          }
+        })
+      });
+      return response;
+    } catch (error) {
+      console.error('Lỗi API submitOvertimeRequest:', error);
+      throw error;
+    }
+  }
+
+  // Gửi đăng ký nghỉ phép năm
+  async submitAnnualLeaveRequest(requestData) {
+    try {
+      const response = await this.request('/requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          request_type: 'annual_leave',
+          content: `Đăng ký nghỉ phép năm từ ${requestData.startDate} đến ${requestData.endDate}`,
+          description: requestData.reason,
+          metadata: {
+            from_date: requestData.startDate,
+            to_date: requestData.endDate,
+            reason: requestData.reason,
+            leave_type: 'annual_leave',
+            leave_days: 17
+          }
+        })
+      });
+      return response;
+    } catch (error) {
+      console.error('Lỗi API submitAnnualLeaveRequest:', error);
+      throw error;
+    }
+  }
+
+  // Cập nhật request
+  async updateRequest(requestId, updateData) {
+    try {
+      const response = await this.request(`/requests/${requestId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      return response;
+    } catch (error) {
+      console.error('Lỗi API updateRequest:', error);
+      throw error;
+    }
+  }
+
+  // Cập nhật trạng thái request (phê duyệt/từ chối)
+  async updateRequestStatus(requestId, newStatus, adminNote = '') {
+    try {
+      const response = await this.request(`/requests/${requestId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          status: newStatus,
+          admin_note: adminNote,
+          processed_at: new Date().toISOString()
+        })
+      });
+      return response;
+    } catch (error) {
+      console.error('Lỗi API updateRequestStatus:', error);
+      throw error;
+    }
+  }
+
+  // Xóa request
+  async deleteRequest(requestId) {
+    try {
+      const response = await this.request(`/requests/${requestId}`, {
+        method: 'DELETE'
+      });
+      return response;
+    } catch (error) {
+      console.error('Lỗi API deleteRequest:', error);
+      throw error;
+    }
+  }
+
+  // ==================== OTHER API METHODS ====================
 }
 
 // Export singleton instance

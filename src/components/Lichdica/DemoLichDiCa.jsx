@@ -500,7 +500,7 @@ export default function DemoLichDiCa({ tabId }) {
         fontSize: '14px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '16px' }}>🔑</span>
+          <span style={{ fontSize: '16px' }}>🌺</span>
           <span>
           Hãy làm việc 1 cách khách quan. Không quan liêu, thiên vị bất cứ ai.
           </span>

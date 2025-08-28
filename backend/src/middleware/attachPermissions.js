@@ -15,9 +15,12 @@ const CACHE_TTL = 60 * 1000; // 60s
  */
 const attachPermissions = async (req, res, next) => {
   try {
-    console.log('🔍 attachPermissions for user:', req.user?.id);
+    console.log('🔍 attachPermissions START for user:', req.user?.id);
+    console.log('🔍 req.user object:', req.user);
+    console.log('🔍 req.user.roleId:', req.user?.roleId);
     
     if (!req.user || !req.user.roleId) {
+      console.log('❌ attachPermissions FAILED: Missing user or roleId');
       return res.status(401).json({
         success: false,
         error: 'User hoặc roleId không tồn tại'
@@ -33,6 +36,7 @@ const attachPermissions = async (req, res, next) => {
       console.log('✅ Role loaded from cache:', cached.role.name);
       req.user.role = cached.role;
       req.user.permissions = cached.permissions;
+      req.user.hasPermission = cached.hasPermission;
       return next();
     }
 
@@ -57,6 +61,7 @@ const attachPermissions = async (req, res, next) => {
         permissions: role.permissions
       },
       permissions,
+      hasPermission: (resource, action) => permissions.includes(`${resource}.${action}`),
       timestamp: Date.now()
     });
 
@@ -68,11 +73,18 @@ const attachPermissions = async (req, res, next) => {
       permissions: role.permissions
     };
     req.user.permissions = permissions;
+    
+    // Attach hasPermission method
+    req.user.hasPermission = function(resource, action) {
+      return this.permissions.includes(`${resource}.${action}`);
+    };
 
     console.log('✅ Permissions attached:', { 
       role: role.name, 
       permissionsCount: permissions.length 
     });
+    console.log('✅ req.user.hasPermission function:', typeof req.user.hasPermission);
+    console.log('✅ attachPermissions COMPLETED successfully');
     
     next();
 
@@ -109,6 +121,7 @@ module.exports = {
   clearPermissionsCache, 
   getCacheStats 
 };
+
 
 
 
