@@ -186,13 +186,27 @@ const AdminDashboard = () => {
           displayColor = '#52c41a'; // Xanh lá
         }
         
-        return (
-          <div style={{ textAlign: 'center' }}>
-            <Tag color={displayColor}>
-              {displayType}
-            </Tag>
-          </div>
-        );
+                 return (
+           <div style={{ textAlign: 'center' }}>
+             <Tag color={displayColor}>
+               {displayType}
+             </Tag>
+             {/* Hiển thị thông tin nửa ca nếu có */}
+             {type === 'half_day_off' && record.metadata?.half_day_shift && (
+               <div style={{ 
+                 marginTop: '4px',
+                 fontSize: '11px',
+                 padding: '2px 6px',
+                 borderRadius: '8px',
+                 backgroundColor: record.metadata.half_day_shift === 'morning' ? '#fff3e0' : '#e3f2fd',
+                 color: record.metadata.half_day_shift === 'morning' ? '#ff9500' : '#4a90e2',
+                 border: `1px solid ${record.metadata.half_day_shift === 'morning' ? '#ffcc80' : '#90caf9'}`
+               }}>
+                 {record.metadata.half_day_shift === 'morning' ? '☀️ Nửa ca đầu' : '🌙 Nửa ca sau'}
+               </div>
+             )}
+           </div>
+         );
       }
     },
     {
@@ -320,10 +334,10 @@ const AdminDashboard = () => {
               <div style={{ 
                 fontSize: '13px',
                 padding: '8px 12px',
-                backgroundColor: '#f6ffed',
+                backgroundColor: record.status === 'rejected' ? '#fff2f0' : '#f6ffed',
                 borderRadius: '6px',
-                border: '1px solid #b7eb8f',
-                color: '#52c41a',
+                border: `1px solid ${record.status === 'rejected' ? '#ffccc7' : '#b7eb8f'}`,
+                color: record.status === 'rejected' ? '#ff4d4f' : '#52c41a',
                 maxWidth: '150px',
                 wordBreak: 'break-word',
                 lineHeight: '1.4'
@@ -609,7 +623,27 @@ const AdminDashboard = () => {
       >
         {selectedRequest && (
           <div>
-            <p><strong>Loại yêu cầu:</strong> {selectedRequest.request_type}</p>
+                         <p><strong>Loại yêu cầu:</strong> 
+               {selectedRequest.request_type === 'half_day_off' ? (
+                 <span>
+                   OFF nửa ca
+                   {selectedRequest.metadata?.half_day_shift && (
+                     <span style={{ 
+                       marginLeft: '8px',
+                       padding: '4px 8px',
+                       borderRadius: '12px',
+                       backgroundColor: selectedRequest.metadata.half_day_shift === 'morning' ? '#fff3e0' : '#e3f2fd',
+                       color: selectedRequest.metadata.half_day_shift === 'morning' ? '#ff9500' : '#4a90e2',
+                       border: `1px solid ${selectedRequest.metadata.half_day_shift === 'morning' ? '#ffcc80' : '#90caf9'}`
+                     }}>
+                       {selectedRequest.metadata.half_day_shift === 'morning' ? '☀️ Nửa ca đầu' : '🌙 Nửa ca sau'}
+                     </span>
+                   )}
+                 </span>
+               ) : (
+                 selectedRequest.request_type
+               )}
+             </p>
             <p><strong>Nội dung:</strong> {selectedRequest.content}</p>
             <p><strong>Ghi chú:</strong> {selectedRequest.description || 'Không có'}</p>
             <p><strong>Trạng thái:</strong> {selectedRequest.status}</p>
@@ -617,11 +651,26 @@ const AdminDashboard = () => {
             {selectedRequest.metadata && (
               <div>
                 <p><strong>Ngày yêu cầu:</strong> {selectedRequest.metadata.from_date}</p>
-                {selectedRequest.metadata.reason && (
-                  <p><strong>Lý do:</strong> {selectedRequest.metadata.reason}</p>
-                )}
-              </div>
-            )}
+                                 {selectedRequest.metadata.reason && (
+                   <p><strong>Lý do:</strong> {selectedRequest.metadata.reason}</p>
+                 )}
+                 {/* Hiển thị thông tin nửa ca nếu có */}
+                 {selectedRequest.metadata.half_day_shift && (
+                   <p><strong>Thời gian:</strong> 
+                     <span style={{ 
+                       marginLeft: '8px',
+                       padding: '4px 8px',
+                       borderRadius: '12px',
+                       backgroundColor: selectedRequest.metadata.half_day_shift === 'morning' ? '#fff3e0' : '#e3f2fd',
+                       color: selectedRequest.metadata.half_day_shift === 'morning' ? '#ff9500' : '#4a90e2',
+                       border: `1px solid ${selectedRequest.metadata.half_day_shift === 'morning' ? '#ffcc80' : '#90caf9'}`
+                     }}>
+                       {selectedRequest.metadata.half_day_shift === 'morning' ? '☀️ Nửa ca đầu' : '🌙 Nửa ca sau'}
+                     </span>
+                   </p>
+                 )}
+               </div>
+             )}
           </div>
         )}
       </Modal>
