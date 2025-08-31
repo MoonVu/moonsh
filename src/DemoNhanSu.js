@@ -121,8 +121,6 @@ export default function DemoNhanSu({ currentUser, tabId }) {
       
       // Handle both array and object response formats
       const usersArray = Array.isArray(res) ? res : (res?.data || []);
-      
-      
       setUsers(usersArray);
       
       // Chỉ khởi tạo waiting/phanCa nếu chưa có dữ liệu schedule
