@@ -19,9 +19,8 @@ const scheduleCopySchema = new mongoose.Schema({
     max: 2100
   },
   scheduleData: {
-    type: Map,
-    of: Map,
-    default: new Map()
+    type: Object,
+    default: {}
   },
   phanCa: {
     type: Object,

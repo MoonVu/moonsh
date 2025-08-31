@@ -810,8 +810,11 @@ th, thead, table {
 }
 
 .col-dept {
-  width: 70px;
-  min-width: 70px;
+  width: 120px;
+  min-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .col-name {
@@ -864,6 +867,11 @@ th, thead, table {
     min-width: 140px;
   }
   
+  .col-dept {
+    width: 110px;
+    min-width: 110px;
+  }
+  
   .col-day {
     width: 32px;
     min-width: 32px;
@@ -882,6 +890,11 @@ th, thead, table {
   .col-time {
     width: 120px;
     min-width: 120px;
+  }
+  
+  .col-dept {
+    width: 100px;
+    min-width: 100px;
   }
   
   .col-day {
@@ -929,6 +942,11 @@ th, thead, table {
   .col-time {
     width: 100px;
     min-width: 100px;
+  }
+  
+  .col-dept {
+    width: 90px;
+    min-width: 90px;
   }
   
   .col-day {

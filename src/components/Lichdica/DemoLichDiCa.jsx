@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import "../../BangDuLieu.css";
 import apiService from "../../services/api";
 import { useSchedule } from "../../contexts/ScheduleContext";
+import { Select, Button } from 'antd';
 
 import { useAuth } from "../../hooks/useAuth";
 import { ShowForPermission as AccessControl } from "../auth/AccessControl";
@@ -30,8 +31,6 @@ const cleanSelectStyles = `
     outline: none !important;
     box-shadow: none !important;
   }
-  
-
 `;
 
 const STATUS_COLORS = {
@@ -62,12 +61,15 @@ export default function DemoLichDiCa({ tabId }) {
   const [loading, setLoading] = useState(false);
   const [creatingCopy, setCreatingCopy] = useState(false);
 
-
   // Dữ liệu users để map thông tin
   const [users, setUsers] = useState([]);
 
   // scheduleData[staffId][day] = trạng thái
   const [scheduleData, setScheduleData] = useState({});
+
+  // State cho bộ lọc
+  const [filterCa, setFilterCa] = useState([]);
+  const [filterDepartment, setFilterDepartment] = useState([]);
 
   // Load dữ liệu khi component mount
   useEffect(() => {
@@ -100,9 +102,6 @@ export default function DemoLichDiCa({ tabId }) {
     };
   }, []);
 
-
-
-
   // Function tạo bản sao
   const handleCreateCopy = async () => {
     try {
@@ -123,19 +122,17 @@ export default function DemoLichDiCa({ tabId }) {
       if (response && response.success) {
         console.log("✅ Bản sao đã được tạo:", response.data);
         
-        // Tạo tab mới cho bản sao
+        // Tạo tab mới cho bản sao (chỉ chứa thông tin tham chiếu)
         try {
           const tabResponse = await apiService.createScheduleTab({
             name: copyName,
-            type: "month",
+            type: "copy", // Thay đổi type thành "copy"
             visible: true,
             data: {
-              copyId: response.data.id,
+              copyId: response.data.id, // Chỉ lưu ID tham chiếu
               month: month,
-              year: year,
-              scheduleData: scheduleData,
-              phanCa: phanCa,
-              notesData: {} // Thêm notesData rỗng
+              year: year
+              // KHÔNG lưu scheduleData, phanCa, notesData ở đây nữa
             }
           });
           
@@ -144,10 +141,6 @@ export default function DemoLichDiCa({ tabId }) {
             // Trigger refresh để hiển thị tab mới
             if (window.refreshTabs) {
               window.refreshTabs();
-            }
-            // Hoặc có thể gọi callback nếu cần
-            if (window.onTabCreated) {
-              window.onTabCreated();
             }
           } else {
             alert(`✅ Đã tạo bản sao thành công: ${copyName}\n⚠️ Nhưng không thể tạo tab mới`);
@@ -190,8 +183,6 @@ export default function DemoLichDiCa({ tabId }) {
       } else {
         
       }
-
-      
 
       if (monthlySchedulesRes && monthlySchedulesRes.success && monthlySchedulesRes.data) {
         const scheduleData = {};
@@ -258,7 +249,6 @@ export default function DemoLichDiCa({ tabId }) {
         const dailyStatusRes = await apiService.getDailyStatus(month, year);
         if (dailyStatusRes && dailyStatusRes.success && dailyStatusRes.data) {
           
-          
           // Merge dữ liệu từ API demo-lichdica vào data hiện tại
           Object.keys(dailyStatusRes.data).forEach(userId => {
             if (data[userId]) {
@@ -314,7 +304,6 @@ export default function DemoLichDiCa({ tabId }) {
   // Tạo danh sách nhân viên theo ca từ dữ liệu đã được join
   const getStaffsByCa = () => {
     const staffsByCa = [];
-
 
     // Kiểm tra nếu chưa có dữ liệu
     if (Object.keys(phanCa).length === 0) {
@@ -413,11 +402,11 @@ export default function DemoLichDiCa({ tabId }) {
       department: []
     };
 
-    staffsByCa.forEach((staff, index) => {
+    filteredStaffsByCa.forEach((staff, index) => {
       // Tính rowspan cho cột ca - merge theo tên ca (Ca sáng, Ca chiều, Ca đêm)
       let caRowspan = 1;
-      for (let i = index + 1; i < staffsByCa.length; i++) {
-        if (staffsByCa[i].ca === staff.ca) {
+      for (let i = index + 1; i < filteredStaffsByCa.length; i++) {
+        if (filteredStaffsByCa[i].ca === staff.ca) {
           caRowspan++;
         } else {
           break;
@@ -427,9 +416,9 @@ export default function DemoLichDiCa({ tabId }) {
 
       // Tính rowspan cho cột department - merge khi cùng bộ phận + cùng tên ca
       let deptRowspan = 1;
-      for (let i = index + 1; i < staffsByCa.length; i++) {
-        if (staffsByCa[i].department === staff.department &&
-          staffsByCa[i].ca === staff.ca) {
+      for (let i = index + 1; i < filteredStaffsByCa.length; i++) {
+        if (filteredStaffsByCa[i].department === staff.department &&
+          filteredStaffsByCa[i].ca === staff.ca) {
           deptRowspan++;
         } else {
           break;
@@ -446,12 +435,12 @@ export default function DemoLichDiCa({ tabId }) {
     if (index === 0) return true;
 
     if (type === 'ca') {
-      return staffsByCa[index].ca !== staffsByCa[index - 1].ca;
+      return filteredStaffsByCa[index].ca !== filteredStaffsByCa[index - 1].ca;
     }
 
     if (type === 'department') {
-      return staffsByCa[index].department !== staffsByCa[index - 1].department ||
-        staffsByCa[index].ca !== staffsByCa[index - 1].ca;
+      return filteredStaffsByCa[index].department !== filteredStaffsByCa[index - 1].department ||
+        filteredStaffsByCa[index].ca !== filteredStaffsByCa[index - 1].ca;
     }
 
     return true;
@@ -467,13 +456,32 @@ export default function DemoLichDiCa({ tabId }) {
     return [];
   }, [phanCa, users]); // Thêm users vào dependency để đảm bảo cập nhật khi users thay đổi
 
+  // Dữ liệu đã được lọc theo bộ lọc
+  const filteredStaffsByCa = useMemo(() => {
+    if (filterCa.length === 0 && filterDepartment.length === 0) {
+      return staffsByCa;
+    }
+    
+    return staffsByCa.filter(staff => {
+      const matchCa = filterCa.length === 0 || filterCa.some(ca => ca === staff.ca);
+      const matchDept = filterDepartment.length === 0 || filterDepartment.some(dept => dept === staff.department);
+      return matchCa && matchDept;
+    });
+  }, [staffsByCa, filterCa, filterDepartment]);
+
+  // Function xóa bộ lọc
+  const clearFilters = () => {
+    setFilterCa([]);
+    setFilterDepartment([]);
+  };
+
   // Tính toán rowspans
   const rowspans = useMemo(() => {
-    if (staffsByCa.length > 0) {
+    if (filteredStaffsByCa.length > 0) {
       return calculateRowspans();
     }
     return { ca: [], department: [] };
-  }, [staffsByCa]);
+  }, [filteredStaffsByCa]);
 
   if (loading) {
     return (
@@ -548,10 +556,137 @@ export default function DemoLichDiCa({ tabId }) {
             >
               {creatingCopy ? "Đang tạo bản sao..." : "Tạo bản sao"}
             </button>
-            
-
-
           </AccessControl>
+        </div>
+      </div>
+
+      {/* BỘ LỌC — đặt SAU controls tháng/năm */}
+      <div
+        className="filter-card"
+        style={{
+          marginBottom: '20px',
+          padding: '16px',
+          background: 'linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%)',
+          borderRadius: '8px',
+          border: '1px solid #e9ecef',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}
+      >
+        <h3 style={{ 
+          margin: '0 0 16px 0', 
+          color: '#1890ff', 
+          fontSize: '18px',
+          fontWeight: '600',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          🔍 Bộ lọc dữ liệu
+        </h3>
+        
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '16px',
+          alignItems: 'end'
+        }}>
+          {/* Lọc theo ca */}
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057' 
+            }}>
+              Thời gian làm việc:
+              {filterCa.length > 0 && (
+                <span style={{ marginLeft: '8px', fontSize: '12px', color: '#52c41a' }}>
+                  ({filterCa.length} ca đã chọn)
+                </span>
+              )}
+            </label>
+            <Select
+              mode="multiple"
+              placeholder="Chọn ca để lọc (có thể chọn nhiều)"
+              style={{ width: '100%' }}
+              allowClear
+              showSearch
+              maxTagCount={3}
+              maxTagTextLength={15}
+              value={filterCa}
+              onChange={setFilterCa}
+              options={(() => {
+                const caOptions = new Set();
+                staffsByCa.forEach(staff => {
+                  if (staff.ca) {
+                    caOptions.add(staff.ca);
+                  }
+                });
+                return Array.from(caOptions).map(ca => ({
+                  label: ca,
+                  value: ca
+                }));
+              })()}
+            />
+          </div>
+          
+          {/* Lọc theo bộ phận */}
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057' 
+            }}>
+              Bộ phận:
+              {filterDepartment.length > 0 && (
+                <span style={{ marginLeft: '8px', fontSize: '12px', color: '#52c41a' }}>
+                  ({filterDepartment.length} bộ phận đã chọn)
+                </span>
+              )}
+            </label>
+            <Select
+              mode="multiple"
+              placeholder="Chọn bộ phận để lọc (có thể chọn nhiều)"
+              style={{ width: '100%' }}
+              allowClear
+              showSearch
+              maxTagCount={3}
+              maxTagTextLength={15}
+              value={filterDepartment}
+              onChange={setFilterDepartment}
+              options={(() => {
+                const deptOptions = new Set();
+                staffsByCa.forEach(staff => {
+                  if (staff.department) {
+                    deptOptions.add(staff.department);
+                  }
+                });
+                return Array.from(deptOptions).map(dept => ({
+                  label: dept,
+                  value: dept
+                }));
+              })()}
+            />
+          </div>
+          
+          {/* Nút xóa bộ lọc */}
+          <div>
+            <Button
+              onClick={clearFilters}
+              title="Xóa tất cả bộ lọc đang áp dụng"
+              style={{ 
+                width: '100%',
+                height: '32px',
+                background: '#ff4d4f',
+                borderColor: '#ff4d4f',
+                color: 'white'
+              }}
+              icon={<span>🗑️</span>}
+            >
+              Xóa bộ lọc
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -569,8 +704,8 @@ export default function DemoLichDiCa({ tabId }) {
             </tr>
           </thead>
           <tbody>
-            {staffsByCa.length > 0 ? (
-              staffsByCa.map((staff, idx) => (
+            {filteredStaffsByCa.length > 0 ? (
+              filteredStaffsByCa.map((staff, idx) => (
                 <tr key={staff.id}>
                   <td className="col-stt">{idx + 1}</td>
                   {shouldShowCell('ca', idx) && (

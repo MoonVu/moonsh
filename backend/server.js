@@ -75,6 +75,7 @@ const healthRoutes = require('./src/routes/health');
 const rolesRoutes = require('./src/routes/roles');
 const permissionsRoutes = require('./src/routes/permissions');
 const requestsRoutes = require('./src/routes/requests');
+const leaveScheduleRoutes = require('./src/routes/leave-schedule');
 
 // Import new auth middleware
 const { attachUser } = require('./src/middleware/auth');
@@ -153,6 +154,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/permissions', permissionsRoutes);
 app.use('/api/requests', requestsRoutes);
+app.use('/api/leave-schedule', leaveScheduleRoutes);
 
 // ==================== NEW RBAC ROUTES ====================
 app.use('/api/me', require('./src/routes/me'));
@@ -1177,7 +1179,7 @@ app.post('/api/schedule-copy', authenticateToken, async (req, res) => {
       name,
       month: Number(month),
       year: Number(year),
-      scheduleData: new Map(Object.entries(scheduleData || {})),
+      scheduleData: scheduleData || {},
       phanCa: phanCa || {},
       notesData: notesData || {}, // Thêm notesData
       createdBy: req.user._id,
@@ -1284,7 +1286,7 @@ app.put('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
     if (month !== undefined) copy.month = Number(month);
     if (year !== undefined) copy.year = Number(year);
     if (name !== undefined) copy.name = name;
-    if (scheduleData !== undefined) copy.scheduleData = new Map(Object.entries(scheduleData));
+    if (scheduleData !== undefined) copy.scheduleData = scheduleData;
     if (phanCa !== undefined) copy.phanCa = phanCa;
     if (notesData !== undefined) copy.notesData = notesData;
     if (description !== undefined) copy.description = description;

@@ -282,9 +282,43 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
       targetShift.users = Array.isArray(targetShift.users) ? targetShift.users : [];
       targetShift.users.push({ userId: staffId });
 
+      // Cập nhật UI ngay lập tức
       setPhanCa(nextPhanCa);
       setShowEditShiftModal(false);
-      message.success('Đã cập nhật ca cho nhân viên');
+      
+      // Tự động gửi API về backend
+      if (copyData?.copyId) {
+        try {
+          console.log('🔄 Tự động lưu thay đổi ca nhân viên:', {
+            staffId,
+            finalShiftLabel,
+            finalShiftTime,
+            copyId: copyData.copyId
+          });
+          
+          const response = await apiService.updateScheduleCopy(copyData.copyId, {
+            month,
+            year,
+            name: `Bản sao tháng ${month}/${year}`,
+            scheduleData,
+            phanCa: nextPhanCa,
+            notesData
+          });
+          
+          if (response && response.success) {
+            console.log('✅ Đã tự động lưu thay đổi ca nhân viên thành công');
+            message.success('Đã cập nhật ca cho nhân viên và lưu thành công');
+          } else {
+            console.error('❌ Lỗi khi tự động lưu thay đổi ca nhân viên:', response?.error);
+            message.success('Đã cập nhật ca cho nhân viên (nhưng không thể lưu về backend)');
+          }
+        } catch (error) {
+          console.error('❌ Lỗi khi tự động lưu thay đổi ca nhân viên:', error);
+          message.success('Đã cập nhật ca cho nhân viên (nhưng không thể lưu về backend)');
+        }
+      } else {
+        message.success('Đã cập nhật ca cho nhân viên');
+      }
     } catch (e) {
       console.error('Lỗi khi cập nhật ca:', e);
       message.error('Có lỗi xảy ra khi cập nhật ca');
@@ -402,21 +436,32 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                 setPhanCa(phanCaObj);
                 console.log("✅ Set phanCa:", Object.keys(phanCaObj).length, "departments");
               }
-              if (copyData.notesData && typeof copyData.notesData === 'object') {
-                console.log("🔍 Debug notesData từ backend:", {
-                  notesData: copyData.notesData,
-                  notesDataKeys: Object.keys(copyData.notesData),
-                  hasNotes: Object.keys(copyData.notesData).length > 0,
-                  notesDataString: JSON.stringify(copyData.notesData)
-                });
-                
-                console.log("🔄 Trước khi setNotesData, state hiện tại:", notesData);
-                setNotesData(copyData.notesData);
-                console.log("✅ Đã gọi setNotesData với:", copyData.notesData);
-                console.log("✅ Set notesData từ backend:", Object.keys(copyData.notesData).length, "staff members");
-              } else {
-                console.log("⚠️ Không có notesData từ backend hoặc format không đúng:", copyData.notesData);
-              }
+                             if (copyData.notesData && typeof copyData.notesData === 'object') {
+                 console.log("🔍 Debug notesData từ backend:", {
+                   notesData: copyData.notesData,
+                   notesDataKeys: Object.keys(copyData.notesData),
+                   hasNotes: Object.keys(copyData.notesData).length > 0,
+                   notesDataString: JSON.stringify(copyData.notesData)
+                 });
+                 
+                 console.log("🔄 Trước khi setNotesData, state hiện tại:", notesData);
+                 
+                 // Đảm bảo notesData được load đúng cách
+                 const cleanNotesData = {};
+                 Object.keys(copyData.notesData).forEach(staffId => {
+                   if (copyData.notesData[staffId] && typeof copyData.notesData[staffId] === 'object') {
+                     cleanNotesData[staffId] = { ...copyData.notesData[staffId] };
+                   }
+                 });
+                 
+                 setNotesData(cleanNotesData);
+                 console.log("✅ Đã gọi setNotesData với:", cleanNotesData);
+                 console.log("✅ Set notesData từ backend:", Object.keys(cleanNotesData).length, "staff members");
+               } else {
+                 console.log("⚠️ Không có notesData từ backend hoặc format không đúng:", copyData.notesData);
+                 // Khởi tạo notesData rỗng nếu không có từ backend
+                 setNotesData({});
+               }
             } else {
               console.warn("⚠️ Không thể load dữ liệu copy từ backend, sử dụng fallback:", copyResponse);
               await handleLoadFallbackData();
@@ -499,37 +544,143 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
   };
 
   // Function cập nhật ghi chú
-  const handleUpdateNote = () => {
-    editNoteForm.validateFields().then(values => {
+  const handleUpdateNote = async () => {
+    try {
+      const values = await editNoteForm.validateFields();
       const { note } = values;
-      setNotesData(prev => ({
-        ...prev,
-        [editingNote.staffId]: { ...(prev[editingNote.staffId] || {}), [editingNote.day]: note }
-      }));
+      
+      // Tạo notesData mới với ghi chú đã cập nhật
+      const newNotesData = {
+        ...notesData,
+        [editingNote.staffId]: { ...(notesData[editingNote.staffId] || {}), [editingNote.day]: note }
+      };
+      
+      console.log('🔍 Debug notesData update:', {
+        oldNotesData: notesData,
+        newNotesData,
+        staffId: editingNote.staffId,
+        day: editingNote.day,
+        note
+      });
+      
+      // Cập nhật UI ngay lập tức
+      setNotesData(newNotesData);
+      
+      // Tự động gửi API về backend
+      if (copyData?.copyId) {
+        try {
+          console.log('🔄 Tự động lưu thay đổi ghi chú:', {
+            staffId: editingNote.staffId,
+            day: editingNote.day,
+            note,
+            copyId: copyData.copyId,
+            newNotesData
+          });
+          
+          console.log('🔍 Debug API call:', {
+            copyId: copyData.copyId,
+            month,
+            year,
+            scheduleDataKeys: Object.keys(scheduleData),
+            phanCaKeys: Object.keys(phanCa),
+            notesDataKeys: Object.keys(newNotesData),
+            newNotesData
+          });
+          
+          const response = await apiService.updateScheduleCopy(copyData.copyId, {
+            month,
+            year,
+            name: `Bản sao tháng ${month}/${year}`,
+            scheduleData,
+            phanCa,
+            notesData: newNotesData
+          });
+          
+          if (response && response.success) {
+            console.log('✅ Đã tự động lưu thay đổi ghi chú thành công');
+            console.log('🔍 Response data:', response.data);
+            message.success('✅ Đã lưu ghi chú thành công');
+          } else {
+            console.error('❌ Lỗi khi tự động lưu thay đổi ghi chú:', response?.error);
+            message.error('❌ Không thể lưu ghi chú: ' + (response?.error || 'Lỗi không xác định'));
+          }
+        } catch (error) {
+          console.error('❌ Lỗi khi gọi API lưu ghi chú:', error);
+          message.error('❌ Lỗi khi lưu ghi chú: ' + error.message);
+        }
+      } else {
+        console.warn('⚠️ Không có copyId, không thể lưu ghi chú');
+        message.warning('⚠️ Không thể lưu ghi chú (thiếu thông tin bản sao)');
+      }
+      
       setEditNoteModalVisible(false);
       editNoteForm.resetFields();
-      // Bỏ thông báo thành công
-    })
-    .catch(() => {});
+      
+    } catch (error) {
+      console.error('❌ Lỗi khi cập nhật ghi chú:', error);
+    }
   };
 
      // Function xóa ghi chú
-   const handleDeleteNote = () => {
-     if (window.confirm(`Bạn có muốn xóa ghi chú ngày ${editingNote.day} của ${editingNote.staffName}?\n\nNội dung: ${editingNote.note}`)) {
-       setNotesData(prev => {
-         const newNotes = { ...prev };
-         if (newNotes[editingNote.staffId]) {
-           delete newNotes[editingNote.staffId][editingNote.day];
-           // Nếu không còn ghi chú nào cho nhân viên này, xóa luôn key
-           if (Object.keys(newNotes[editingNote.staffId]).length === 0) {
-             delete newNotes[editingNote.staffId];
-           }
-         }
-         return newNotes;
-       });
-       setEditNoteModalVisible(false);
-       editNoteForm.resetFields();
-     }
+   const handleDeleteNote = async () => {
+           if (window.confirm(`Bạn có muốn xóa ghi chú ngày ${editingNote.day} của ${editingNote.staffName}?\n\nNội dung: ${editingNote.note}`)) {
+        try {
+          // Cập nhật UI ngay lập tức
+          const newNotesData = { ...notesData };
+          if (newNotesData[editingNote.staffId]) {
+            delete newNotesData[editingNote.staffId][editingNote.day];
+            // Nếu không còn ghi chú nào cho nhân viên này, xóa luôn key
+            if (Object.keys(newNotesData[editingNote.staffId]).length === 0) {
+              delete newNotesData[editingNote.staffId];
+            }
+          }
+          
+          // Cập nhật state
+          setNotesData(newNotesData);
+          
+          // Tự động gửi API về backend
+          if (copyData?.copyId) {
+            try {
+              console.log('🔄 Tự động lưu xóa ghi chú:', {
+                staffId: editingNote.staffId,
+                day: editingNote.day,
+                copyId: copyData.copyId,
+                newNotesData
+              });
+              
+              const response = await apiService.updateScheduleCopy(copyData.copyId, {
+                month,
+                year,
+                name: `Bản sao tháng ${month}/${year}`,
+                scheduleData,
+                phanCa,
+                notesData: newNotesData
+              });
+              
+              if (response && response.success) {
+                console.log('✅ Đã tự động lưu xóa ghi chú thành công');
+                message.success('✅ Đã xóa ghi chú thành công');
+              } else {
+                console.error('❌ Lỗi khi tự động lưu xóa ghi chú:', response?.error);
+                message.error('❌ Không thể xóa ghi chú: ' + (response?.error || 'Lỗi không xác định'));
+              }
+            } catch (error) {
+              console.error('❌ Lỗi khi gọi API xóa ghi chú:', error);
+              message.error('❌ Lỗi khi xóa ghi chú: ' + error.message);
+            }
+          } else {
+            console.warn('⚠️ Không có copyId, không thể lưu xóa ghi chú');
+            message.warning('⚠️ Không thể xóa ghi chú (thiếu thông tin bản sao)');
+          }
+          
+          setEditNoteModalVisible(false);
+          editNoteForm.resetFields();
+          
+        } catch (error) {
+          console.error('❌ Lỗi khi xóa ghi chú:', error);
+          message.error('❌ Lỗi khi xóa ghi chú: ' + error.message);
+        }
+      }
    };
    
    // Function xóa bộ lọc
@@ -1230,57 +1381,59 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
         {/* Hàng dưới: các nút thao tác dành cho ADMIN */}
         <div className="action-controls" style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <AccessControl resource="schedules" action="edit" fallback={null}>
-            <button onClick={handleSaveCopy} disabled={savingCopy} className="save-copy-button">
-              {savingCopy ? "Đang lưu bản sao..." : "Lưu bản sao"}
-            </button>
             <button
               onClick={handleOpenEditShift}
               className="edit-shift-button"
               style={{ backgroundColor: '#faad14', color: '#222', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}
               title="Chỉnh sửa ca nhân viên"
             >
-            Chỉnh sửa ca
+              Chỉnh sửa ca
             </button>
-            <button
-              onClick={() => setNoteModalVisible(true)}
-              className="note-button"
-              style={{ 
-                backgroundColor: '#722ed1', 
-                color: 'white', 
-                border: 'none', 
-                padding: '8px 16px', 
-                borderRadius: '4px', 
-                cursor: 'pointer',
-                position: 'relative'
-              }}
-              title="Chèn ghi chú vào ô"
-            >
-              📝 Chèn ghi chú
-              {(() => {
-                const totalNotes = Object.values(notesData).reduce((total, staffNotes) => {
-                  return total + Object.values(staffNotes || {}).filter(note => note).length;
-                }, 0);
-                return totalNotes > 0 ? (
-                  <span style={{
-                    position: 'absolute',
-                    top: '-8px',
-                    right: '-8px',
-                    background: '#ff4d4f',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    fontSize: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold'
-                  }}>
-                    {totalNotes}
-                  </span>
-                ) : null;
-              })()}
-            </button>
+                        {/* Hiển thị số lượng ghi chú cho tất cả users */}
+            {(() => {
+              const totalNotes = Object.values(notesData).reduce((total, staffNotes) => {
+                return total + Object.values(staffNotes || {}).filter(note => note).length;
+              }, 0);
+              return totalNotes > 0 ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  backgroundColor: '#f0f0f0',
+                  borderRadius: '4px',
+                  border: '1px solid #d9d9d9',
+                  fontSize: '14px',
+                  color: '#666'
+                }}>
+                  <span>{isAdmin ? '📝' : '👁️'} Tổng số ghi chú: {totalNotes}</span>
+                  {!isAdmin && (
+                    <span style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
+                      (Chỉ xem, không thể chỉnh sửa)
+                    </span>
+                  )}
+                </div>
+              ) : null;
+            })()}
+            
+            <AccessControl resource="schedules" action="edit" fallback={null}>
+              <button
+                onClick={() => setNoteModalVisible(true)}
+                className="note-button"
+                style={{ 
+                  backgroundColor: '#722ed1', 
+                  color: 'white', 
+                  border: 'none', 
+                  padding: '8px 16px', 
+                  borderRadius: '4px', 
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+                title="Chèn ghi chú vào ô (chỉ ADMIN)"
+              >
+                📝 Chèn ghi chú
+              </button>
+            </AccessControl>
             <button
               onClick={() => window.refreshCopyTab && window.refreshCopyTab()}
               className="refresh-button"
@@ -1455,64 +1608,116 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
       </div>
 
       {/* Popup chèn ghi chú */}
-      <Modal
-        title="Chèn ghi chú vào ô"
-        open={noteModalVisible}
-        onCancel={() => setNoteModalVisible(false)}
-        onOk={() => {
-          noteForm
-            .validateFields()
-            .then(values => {
+      {/* Popup chèn ghi chú - chỉ admin mới có thể sử dụng */}
+      <AccessControl resource="schedules" action="edit" fallback={null}>
+        <Modal
+          title="Chèn ghi chú vào ô"
+          open={noteModalVisible}
+          onCancel={() => setNoteModalVisible(false)}
+          onOk={async () => {
+            try {
+              const values = await noteForm.validateFields();
               const { staffId, day, note } = values;
               const staffName = staffsByCa.find(s => s.id === staffId)?.name || 'Nhân viên';
-              setNotesData(prev => ({
-                ...prev,
-                [staffId]: { ...(prev[staffId] || {}), [day]: note }
-              }));
+              
+              // Tạo notesData mới
+              const newNotesData = {
+                ...notesData,
+                [staffId]: { ...(notesData[staffId] || {}), [day]: note }
+              };
+              
+              // Cập nhật UI ngay lập tức
+              setNotesData(newNotesData);
+              
+              // Tự động lưu vào backend
+              if (copyData?.copyId) {
+                try {
+                  console.log('🔄 Tự động lưu ghi chú mới:', {
+                    staffId,
+                    day,
+                    note,
+                    copyId: copyData.copyId,
+                    newNotesData
+                  });
+                  
+                  const response = await apiService.updateScheduleCopy(copyData.copyId, {
+                    month,
+                    year,
+                    name: `Bản sao tháng ${month}/${year}`,
+                    scheduleData,
+                    phanCa,
+                    notesData: newNotesData
+                  });
+                  
+                  if (response && response.success) {
+                    console.log('✅ Đã tự động lưu ghi chú mới thành công');
+                    message.success('✅ Đã thêm ghi chú thành công');
+                  } else {
+                    console.error('❌ Lỗi khi tự động lưu ghi chú mới:', response?.error);
+                    message.error('❌ Không thể lưu ghi chú: ' + (response?.error || 'Lỗi không xác định'));
+                  }
+                } catch (error) {
+                  console.error('❌ Lỗi khi gọi API lưu ghi chú mới:', error);
+                  message.error('❌ Lỗi khi lưu ghi chú: ' + error.message);
+                }
+              } else {
+                console.warn('⚠️ Không có copyId, không thể lưu ghi chú mới');
+                message.warning('⚠️ Không thể lưu ghi chú (thiếu thông tin bản sao)');
+              }
+              
               setNoteModalVisible(false);
               noteForm.resetFields();
-              // Bỏ thông báo thành công
-            })
-            .catch(() => {});
-        }}
-      >
-        <Form form={noteForm} layout="vertical">
-                     <Form.Item label="Tên nhân viên" name="staffId" rules={[{ required: true, message: 'Chọn nhân viên' }]}>
-             <Select
-               showSearch
-               options={filteredStaffsByCa.map(s => ({ value: s.id, label: `${s.name} (${s.department})` }))}
-               filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-             />
-           </Form.Item>
-          <Form.Item label="Ngày" name="day" rules={[{ required: true, message: 'Chọn ngày' }]}>
-            <Select options={Array.from({ length: daysInMonth }, (_, i) => ({ value: i + 1, label: String(i + 1).padStart(2, '0') }))} />
+            } catch (error) {
+              console.error('❌ Lỗi khi thêm ghi chú:', error);
+            }
+          }}
+        >
+          <Form form={noteForm} layout="vertical">
+            <Form.Item label="Tên nhân viên" name="staffId" rules={[{ required: true, message: 'Chọn nhân viên' }]}>
+              <Select
+                showSearch
+                options={filteredStaffsByCa.map(s => ({ value: s.id, label: `${s.name} (${s.department})` }))}
+                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+              />
+            </Form.Item>
+            <Form.Item label="Ngày" name="day" rules={[{ required: true, message: 'Chọn ngày' }]}>
+              <Select options={Array.from({ length: daysInMonth }, (_, i) => ({ value: i + 1, label: String(i + 1).padStart(2, '0') }))} />
           </Form.Item>
           <Form.Item label="Ghi chú" name="note" rules={[{ required: true, message: 'Nhập ghi chú' }]}>
             <Input.TextArea rows={3} placeholder="Nội dung ghi chú" />
           </Form.Item>
         </Form>
       </Modal>
+    </AccessControl>
 
       {/* Popup cập nhật ghi chú */}
       <Modal
-        title={`Chỉnh sửa ghi chú - ${editingNote.staffName} ngày ${editingNote.day}`}
+        title={`${isAdmin ? 'Chỉnh sửa' : 'Xem'} ghi chú - ${editingNote.staffName} ngày ${editingNote.day}`}
         open={editNoteModalVisible}
         onCancel={() => setEditNoteModalVisible(false)}
         footer={[
-          <Button key="delete" danger onClick={handleDeleteNote}>
-            Xóa
-          </Button>,
+          isAdmin && (
+            <Button key="delete" danger onClick={handleDeleteNote}>
+              Xóa
+            </Button>
+          ),
           <Button key="cancel" onClick={() => setEditNoteModalVisible(false)}>
-            Hủy
+            {isAdmin ? 'Hủy' : 'Đóng'}
           </Button>,
-          <Button key="update" type="primary" onClick={handleUpdateNote}>
-            Cập nhật
-          </Button>
-        ]}
+          isAdmin && (
+            <Button key="update" type="primary" onClick={handleUpdateNote}>
+              Cập nhật
+            </Button>
+          )
+        ].filter(Boolean)}
       >
         <Form form={editNoteForm} layout="vertical">
-          <Form.Item label="Ghi chú" name="note" rules={[{ required: true, message: 'Nhập ghi chú' }]}>
-            <Input.TextArea rows={4} placeholder="Nội dung ghi chú" />
+          <Form.Item label="Ghi chú" name="note" rules={isAdmin ? [{ required: true, message: 'Nhập ghi chú' }] : []}>
+            <Input.TextArea 
+              rows={4} 
+              placeholder={isAdmin ? "Nội dung ghi chú" : "Chỉ admin mới có thể chỉnh sửa"}
+              disabled={!isAdmin}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -1735,13 +1940,21 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                           color,
                           position: 'relative',
                           minHeight: '40px',
-                          padding: '8px 4px'
+                          padding: '8px 4px',
+                          cursor: hasNote && !isAdmin ? 'help' : 'default',
+                          transition: 'background-color 0.2s ease'
                         }}
-                        title={hasNote ? `Ghi chú: ${notesData[staff.id][i + 1]}` : undefined}
+                        onMouseEnter={hasNote && !isAdmin ? (e) => {
+                          e.target.style.backgroundColor = '#f0f8ff';
+                        } : undefined}
+                        onMouseLeave={hasNote && !isAdmin ? (e) => {
+                          e.target.style.backgroundColor = bg;
+                        } : undefined}
+                        title={hasNote ? `${isAdmin ? 'Click để chỉnh sửa' : 'Xem'} ghi chú: ${notesData[staff.id][i + 1]}` : undefined}
                       >
                         {hasNote && (
                           <>
-                            {/* Icon ghi chú nổi bật ở góc phải */}
+                            {/* Icon ghi chú nổi bật ở góc phải - chỉ admin mới có thể click */}
                             <div
                               style={{
                                 position: 'absolute',
@@ -1749,25 +1962,26 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                                 top: '2px',
                                 width: '12px',
                                 height: '12px',
-                                background: '#ff6b35',
+                                background: isAdmin ? '#ff6b35' : '#999',
                                 borderRadius: '50%',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                fontSize: '8px',
+                                fontSize: '10px',
                                 color: 'white',
                                 fontWeight: 'bold',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
                                 zIndex: 2,
-                                cursor: 'pointer'
+                                cursor: isAdmin ? 'pointer' : 'default',
+                                border: '2px solid white'
                               }}
-                              title={`Click để chỉnh sửa ghi chú`}
-                              onClick={(e) => {
+                              title={isAdmin ? `Click để chỉnh sửa ghi chú: ${notesData[staff.id][i + 1]}` : `Ghi chú: ${notesData[staff.id][i + 1]}`}
+                              onClick={isAdmin ? (e) => {
                                 e.stopPropagation();
                                 handleOpenEditNote(staff.id, i + 1, notesData[staff.id][i + 1], staff.name);
-                              }}
+                              } : undefined}
                             >
-                              ⭐️
+                              {isAdmin ? '⭐️' : '📝'}
                             </div>
                             {/* Hiển thị ghi chú khi hover - bên phải ô */}
                             <div
@@ -1793,6 +2007,12 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                                 marginLeft: '8px'
                               }}
                               className="note-tooltip"
+                              onMouseEnter={(e) => {
+                                e.target.style.opacity = '1';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.opacity = '0';
+                              }}
                             >
                               {notesData[staff.id][i + 1]}
                             </div>
@@ -1808,7 +2028,8 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                               textAlign: 'center', 
                               fontWeight: 600,
                               padding: '4px',
-                              fontSize: hasNote ? '14px' : '13px'
+                              fontSize: hasNote ? '14px' : '13px',
+                              color: hasNote ? '#d63384' : 'inherit'
                             }}>
                               {value}
                             </span>
@@ -1816,8 +2037,10 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                         >
                           <select
                             value={value}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const newValue = e.target.value;
+                              
+                              // Cập nhật UI ngay lập tức
                               setScheduleData(prev => ({
                                 ...prev,
                                 [staff.id]: {
@@ -1825,6 +2048,42 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                                   [i + 1]: newValue
                                 }
                               }));
+                              
+                              // Tự động gửi API về backend
+                              try {
+                                console.log('🔄 Tự động lưu thay đổi trạng thái:', {
+                                  staffId: staff.id,
+                                  day: i + 1,
+                                  newValue,
+                                  copyId: copyData?.copyId
+                                });
+                                
+                                if (copyData?.copyId) {
+                                  const response = await apiService.updateScheduleCopy(copyData.copyId, {
+                                    month,
+                                    year,
+                                    name: `Bản sao tháng ${month}/${year}`,
+                                    scheduleData: {
+                                      ...scheduleData,
+                                      [staff.id]: {
+                                        ...scheduleData[staff.id],
+                                        [i + 1]: newValue
+                                      }
+                                    },
+                                    phanCa,
+                                    notesData
+                                  });
+                                  
+                                  if (response && response.success) {
+                                    console.log('✅ Đã tự động lưu thay đổi trạng thái thành công');
+                                  } else {
+                                    console.error('❌ Lỗi khi tự động lưu thay đổi trạng thái:', response?.error);
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('❌ Lỗi khi tự động lưu thay đổi trạng thái:', error);
+                                // Không hiển thị error message để tránh làm phiền user
+                              }
                             }}
                             style={{
                               width: '100%',

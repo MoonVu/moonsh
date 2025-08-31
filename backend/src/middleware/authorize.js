@@ -11,11 +11,6 @@
 const authorize = (resource, action) => {
   return (req, res, next) => {
     try {
-      console.log(`🔐 authorize(${resource}, ${action}) START for user:`, req.user?.username);
-      console.log(`🔐 req.user object:`, req.user);
-      console.log(`🔐 req.user.permissions:`, req.user?.permissions);
-      console.log(`🔐 req.user.hasPermission function:`, typeof req.user?.hasPermission);
-      
       // Kiểm tra user đã được authenticated
       if (!req.user || !req.user.id) {
         return res.status(401).json({
@@ -26,7 +21,6 @@ const authorize = (resource, action) => {
 
       // Kiểm tra permissions đã được load
       if (!req.user.permissions) {
-        console.log('❌ authorize FAILED: Permissions not loaded');
         return res.status(500).json({
           success: false,
           error: 'Permissions chưa được load'
@@ -36,9 +30,7 @@ const authorize = (resource, action) => {
       // Check permission
       const requiredPermission = `${resource}.${action}`;
       const hasPermission = req.user.permissions.includes(requiredPermission);
-      
-      console.log(`🔐 Permission check: ${requiredPermission} = ${hasPermission ? '✅' : '❌'}`);
-      
+
       if (!hasPermission) {
         return res.status(403).json({
           success: false,

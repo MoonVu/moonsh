@@ -169,15 +169,7 @@ export default function LichDiCaTabs({ currentUser }) {
               cancelText="Hủy"
               okType="danger"
             >
-              <Button
-                type="primary"
-                danger
-                icon={<DeleteOutlined />}
-                size="small"
-                title="Xóa bản sao (chỉ ADMIN)"
-              >
-                Xóa bản sao
-              </Button>
+              
             </Popconfirm>
           </div>
         )}

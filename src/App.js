@@ -9,6 +9,7 @@ import Login from "./Login";
 import ViTriChoNgoi from "./ViTriChoNgoi";
 
 import LichDiCaTabs from "./LichDiCaTabs";
+import LichVe from "./components/Lichdica/lichve";
 import Breadcrumb from "./components/Breadcrumb";
 import apiService from "./services/api";
 import { ScheduleProvider } from "./contexts/ScheduleContext";
@@ -82,6 +83,7 @@ const MainLayout = () => {
               <Route path="/task" element={<TaskYeuCau />} />
               <Route path="/vitri" element={<ViTriChoNgoi />} />
               <Route path="/lichdica" element={<LichDiCaTabs />} />
+              <Route path="/lichve" element={<LichVe />} />
               <Route 
                 path="/admin" 
                 element={
