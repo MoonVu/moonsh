@@ -1,5 +1,7 @@
 import React from "react";
-import { Modal, Form, Input, Select, message } from 'antd';
+import { Modal, Form, Input, Select, Button, message } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
+import { ShowForPermission as AccessControl } from "../../auth/AccessControl";
 import apiService from "../../../services/api";
 
 export default function EditShiftModal({
@@ -127,6 +129,17 @@ export default function EditShiftModal({
             shift.users.splice(idx, 1);
           }
         });
+        
+        // Xóa các ca rỗng sau khi gỡ nhân viên
+        nextPhanCa[gKey] = nextPhanCa[gKey].filter(shift => 
+          Array.isArray(shift.users) && shift.users.length > 0
+        );
+        
+        // Nếu group không còn ca nào, xóa luôn group
+        if (nextPhanCa[gKey].length === 0) {
+          delete nextPhanCa[gKey];
+          console.log(`🗑️ Đã xóa group "${gKey}" vì không còn ca nào`);
+        }
       });
 
       // 2) Thêm vào ca mới trong cùng group
@@ -211,6 +224,137 @@ export default function EditShiftModal({
         });
         console.log('✅ Nhân viên chưa có trong lịch:', userInfo.username);
       }
+    }
+  };
+
+  // Xử lý xóa nhân viên khỏi ca
+  const handleRemoveEmployee = async () => {
+    try {
+      const formData = editShiftForm.getFieldsValue();
+      const { staffId } = formData;
+      
+      if (!staffId) {
+        message.error('Vui lòng chọn nhân viên cần xóa');
+        return;
+      }
+
+      // Tìm thông tin nhân viên
+      let staffInfo = (Array.isArray(staffsByCa) ? staffsByCa : []).find(s => String(s.id) === String(staffId));
+      
+      // Nếu không tìm thấy trong staffsByCa, tìm trong users
+      if (!staffInfo) {
+        const userInfo = (Array.isArray(users) ? users : []).find(u => String(u._id) === String(staffId));
+        if (userInfo) {
+          staffInfo = {
+            id: String(userInfo._id),
+            name: userInfo.username,
+            department: userInfo.group_name,
+            ca: "Chưa sắp xếp ca"
+          };
+        }
+      }
+
+      if (!staffInfo) {
+        message.error('Không tìm thấy thông tin nhân viên');
+        return;
+      }
+
+      // Xác nhận xóa
+      const confirmed = window.confirm(
+        `Bạn có chắc chắn muốn xóa nhân viên "${staffInfo.name}" khỏi ca hiện tại không?\n\n` +
+        `Nhân viên sẽ được chuyển về trạng thái "Chưa sắp xếp ca".`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      // Tạo bản sao phanCa để cập nhật
+      const nextPhanCa = { ...phanCa };
+
+      // Tìm và xóa nhân viên khỏi tất cả các ca
+      Object.keys(nextPhanCa).forEach(groupKey => {
+        if (Array.isArray(nextPhanCa[groupKey])) {
+          nextPhanCa[groupKey] = nextPhanCa[groupKey].map(shift => {
+            if (Array.isArray(shift.users)) {
+              return {
+                ...shift,
+                users: shift.users.filter(user => {
+                  if (!user || !user.userId) return true; // Giữ lại nếu user không hợp lệ
+                  
+                  // Xử lý cả trường hợp userId là object và string
+                  let userIdToCompare;
+                  if (typeof user.userId === 'object' && user.userId?._id) {
+                    userIdToCompare = String(user.userId._id);
+                  } else {
+                    userIdToCompare = String(user.userId);
+                  }
+                  
+                  return userIdToCompare !== String(staffId);
+                })
+              };
+            }
+            return shift;
+          });
+          
+          // Xóa các ca rỗng (không có nhân viên nào)
+          nextPhanCa[groupKey] = nextPhanCa[groupKey].filter(shift => 
+            Array.isArray(shift.users) && shift.users.length > 0
+          );
+          
+          // Nếu group không còn ca nào, xóa luôn group
+          if (nextPhanCa[groupKey].length === 0) {
+            delete nextPhanCa[groupKey];
+            console.log(`🗑️ Đã xóa group "${groupKey}" vì không còn ca nào`);
+          }
+        }
+      });
+
+      console.log('🔍 Debug sau khi xóa nhân viên:', {
+        staffId,
+        staffName: staffInfo.name,
+        nextPhanCaAfter: nextPhanCa
+      });
+
+      // Cập nhật UI ngay lập tức
+      setPhanCa(nextPhanCa);
+      setShowEditShiftModal(false);
+      
+      // Tự động gửi API về backend
+      if (copyData?.copyId) {
+        try {
+          console.log('🔄 Tự động lưu thay đổi xóa nhân viên:', {
+            staffId,
+            staffName: staffInfo.name,
+            copyId: copyData.copyId
+          });
+          
+          const response = await apiService.updateScheduleCopy(copyData.copyId, {
+            month,
+            year,
+            name: `Bản sao tháng ${month}/${year}`,
+            scheduleData,
+            phanCa: nextPhanCa,
+            notesData
+          });
+          
+          if (response && response.success) {
+            console.log('✅ Đã tự động lưu thay đổi xóa nhân viên thành công');
+            message.success(`Đã xóa nhân viên "${staffInfo.name}" khỏi ca và lưu thành công`);
+          } else {
+            console.error('❌ Lỗi khi tự động lưu thay đổi xóa nhân viên:', response?.error);
+            message.success(`Đã xóa nhân viên "${staffInfo.name}" khỏi ca (nhưng không thể lưu về backend)`);
+          }
+        } catch (error) {
+          console.error('❌ Lỗi khi tự động lưu thay đổi xóa nhân viên:', error);
+          message.success(`Đã xóa nhân viên "${staffInfo.name}" khỏi ca (nhưng không thể lưu về backend)`);
+        }
+      } else {
+        message.success(`Đã xóa nhân viên "${staffInfo.name}" khỏi ca`);
+      }
+    } catch (e) {
+      console.error('Lỗi khi xóa nhân viên:', e);
+      message.error('Có lỗi xảy ra khi xóa nhân viên');
     }
   };
 
@@ -370,6 +514,31 @@ export default function EditShiftModal({
             </Form.Item>
           </div>
         )}     
+        
+        {/* Nút Xóa nhân viên */}
+        <div style={{ 
+          borderTop: '1px solid #d9d9d9', 
+          paddingTop: '16px', 
+          marginTop: '16px',
+          textAlign: 'center'
+        }}>
+          <AccessControl permission="schedule:edit">
+            <Button 
+              type="default" 
+              danger 
+              icon={<DeleteOutlined />}
+              onClick={handleRemoveEmployee}
+              style={{ 
+                width: '100%',
+                height: '40px',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              🗑️ Xóa nhân viên khỏi ca
+            </Button>
+          </AccessControl>
+        </div>
       </Form>
     </Modal>
   );

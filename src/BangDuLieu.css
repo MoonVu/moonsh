@@ -467,7 +467,7 @@ th, thead, table {
   background: #fff;
   border-radius: 10px;
   min-height: 400px;
-  max-width: calc(100vw - 300px); /* Để lại không gian cho sidebar và user menu */
+  max-width: calc(100vw - 350px); /* Để lại không gian cho sidebar và user menu */
   width: 100%;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   overflow: visible;
