@@ -294,26 +294,10 @@ class RequestService {
   // Cập nhật trạng thái request (phê duyệt/từ chối) - FUNCTION CHÍNH
   async updateRequestStatus(requestId, newStatus, adminId, adminNote = '') {
     try {
-      console.log('🔄 updateRequestStatus được gọi với:', {
-        requestId,
-        newStatus,
-        adminId,
-        adminNote
-      });
-
       const request = await RequestReport.findById(requestId);
       if (!request) {
         throw new Error('Không tìm thấy request');
       }
-      
-      console.log('📋 Request tìm thấy:', {
-        id: request._id,
-        userId: request.user_id,
-        requestType: request.request_type,
-        status: request.status,
-        fromDate: request.metadata?.from_date,
-        toDate: request.metadata?.to_date
-      });
       
       // Cập nhật trạng thái
       request.status = newStatus;
@@ -329,16 +313,12 @@ class RequestService {
       request.updated_at = new Date();
       
       const updatedRequest = await request.save();
-      console.log('✅ Request đã được cập nhật trạng thái:', updatedRequest.status);
       
       // Nếu request được duyệt, cập nhật lịch đi ca
       if (newStatus === 'approved') {
-        console.log('🎯 Request được duyệt, bắt đầu cập nhật DemoLichDiCa...');
         try {
           await this.updateDemoLichDiCaFromRequest(request);
-          console.log('✅ DemoLichDiCa đã được cập nhật thành công');
         } catch (demoError) {
-          console.error('❌ Lỗi khi cập nhật DemoLichDiCa:', demoError);
           // Không throw error để không ảnh hưởng đến việc phê duyệt request
         }
       }
@@ -349,131 +329,129 @@ class RequestService {
       
       return updatedRequest;
     } catch (error) {
-      console.error('❌ Lỗi trong updateRequestStatus:', error);
       throw new Error(`Lỗi cập nhật trạng thái request: ${error.message}`);
     }
   }
 
-  // Function mới: Cập nhật ScheduleCopy khi request được duyệt
+  // Function mới: Cập nhật DemoLichDiCa/ScheduleCopy khi request được duyệt
   async updateDemoLichDiCaFromRequest(request) {
     try {
-      console.log('🔄 Đang cập nhật ScheduleCopy từ request đã duyệt:', {
-        requestId: request._id,
-        userId: request.user_id,
-        requestType: request.request_type,
-        fromDate: request.metadata.from_date,
-        toDate: request.metadata.to_date
-      });
-
-      // Lấy thông tin ngày từ request
       const fromDate = request.metadata?.from_date;
       const toDate = request.metadata?.to_date;
-      
+
       if (!fromDate) {
-        console.log('⚠️ Request không có from_date, bỏ qua cập nhật ScheduleCopy');
         return;
       }
 
-      // Xác định tháng và năm
       const startDate = new Date(fromDate);
-      const month = startDate.getMonth() + 1; // getMonth() trả về 0-11
+      const month = startDate.getMonth() + 1;
       const year = startDate.getFullYear();
+      const userId = request.user_id.toString();
 
-      // Xác định trạng thái dựa trên loại request
-      let status = '';
-      
-      switch (request.request_type) {
-        case 'monthly_off':
-          status = 'OFF';
-          break;
-        case 'half_day_off':
-          status = '1/2';
-          break;
-        default:
-          console.log('⚠️ Loại request chưa được hỗ trợ:', request.request_type);
-          console.log('📝 Chỉ hỗ trợ monthly_off và half_day_off hiện tại');
-          return; // Bỏ qua các loại request khác
+      // Phân chia theo loại request
+      if (request.request_type === 'monthly_off') {
+        // Cập nhật DemoLichDiCa cho monthly_off (OFF)
+        await this.updateDemoLichDiCa(userId, month, year, startDate, toDate, 'OFF');
+      } else if (request.request_type === 'half_day_off') {
+        // Cập nhật ScheduleCopy cho half_day_off (1/2)
+        await this.updateScheduleCopy(userId, month, year, startDate, toDate, '1/2');
       }
 
-      console.log('📅 Thông tin cập nhật:', {
-        month,
-        year,
-        status,
-        requestType: request.request_type
-      });
+    } catch (error) {
+      // Silent error để không ảnh hưởng đến việc phê duyệt request
+    }
+  }
 
-      // Tìm tất cả ScheduleCopy trong tháng/năm này
+  // Cập nhật DemoLichDiCa cho monthly_off
+  async updateDemoLichDiCa(userId, month, year, startDate, toDate, status) {
+    try {
+      // Tìm hoặc tạo mới bản ghi DemoLichDiCa
+      let demoLich = await DemoLichDiCa.findOne({ userId, month, year });
+
+      if (!demoLich) {
+        demoLich = new DemoLichDiCa({
+          userId,
+          month,
+          year,
+          dailyStatus: {}
+        });
+      }
+
+      // Giữ dữ liệu cũ - đảm bảo là Object
+      const oldData = demoLich.dailyStatus || {};
+
+      // Cập nhật từng ngày
+      if (toDate && toDate !== startDate) {
+        const endDate = new Date(toDate);
+        const currentDate = new Date(startDate);
+
+        while (currentDate <= endDate) {
+          const day = currentDate.getDate();
+          oldData[day.toString()] = status;
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } else {
+        const day = startDate.getDate();
+        oldData[day.toString()] = status;
+      }
+
+      demoLich.dailyStatus = oldData;
+      demoLich.updatedAt = new Date();
+
+      // BẮT BUỘC: mark field là modified
+      demoLich.markModified('dailyStatus');
+
+      await demoLich.save();
+      
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Cập nhật ScheduleCopy cho half_day_off
+  async updateScheduleCopy(userId, month, year, startDate, toDate, status) {
+    try {
       const ScheduleCopy = require('../models/ScheduleCopy');
       
+      // Tìm tất cả ScheduleCopy trong tháng/năm này
       const scheduleCopies = await ScheduleCopy.find({
         month: month,
         year: year
       });
 
-      console.log(`🔍 Tìm thấy ${scheduleCopies.length} bản sao cho tháng ${month}/${year}`);
-      
       if (scheduleCopies.length === 0) {
-        console.log('⚠️ Không có bản sao nào cho tháng/năm này, không thể cập nhật');
         return;
       }
 
       // Cập nhật tất cả bản sao
       for (const scheduleCopy of scheduleCopies) {
-        console.log(`🔄 Đang cập nhật bản sao: ${scheduleCopy.name}`);
-        
-        // Kiểm tra xem có scheduleData không
-        if (!scheduleCopy.scheduleData || typeof scheduleCopy.scheduleData !== 'object') {
-          console.log('⚠️ Bản sao không có scheduleData hợp lệ, bỏ qua');
-          continue;
-        }
+        // Giữ dữ liệu cũ
+        const oldData = scheduleCopy.scheduleData[userId] || {};
 
-        // Tìm user trong scheduleData
-        const userId = request.user_id.toString();
-        
-        if (!scheduleCopy.scheduleData[userId]) {
-          console.log(`⚠️ User ${userId} không có trong bản sao này, bỏ qua`);
-          continue;
-        }
-
-        // Tạo mới dailyStatus thay vì cập nhật cũ
-        let userDailyStatus = {};
-
-        // Xử lý theo loại request
-        if (toDate && toDate !== fromDate) {
-          // Request có khoảng thời gian (nhiều ngày) - cho monthly_off và half_day_off
+        // Cập nhật từng ngày
+        if (toDate && toDate !== startDate) {
           const endDate = new Date(toDate);
           const currentDate = new Date(startDate);
           
           while (currentDate <= endDate) {
             const day = currentDate.getDate();
-            userDailyStatus[day.toString()] = status;
-            
-            // Tăng lên 1 ngày
+            oldData[day.toString()] = status;
             currentDate.setDate(currentDate.getDate() + 1);
           }
         } else {
-          // Request chỉ 1 ngày
           const day = startDate.getDate();
-          userDailyStatus[day.toString()] = status;
+          oldData[day.toString()] = status;
         }
 
-        // Cập nhật scheduleData của user - Force MongoDB nhận ra thay đổi
-        scheduleCopy.set(`scheduleData.${userId}`, userDailyStatus);
-        scheduleCopy.markModified('scheduleData');
-        
-        console.log(`📅 Đã cập nhật user ${userId} với ${Object.keys(userDailyStatus).length} ngày`);
-        
-        // Lưu bản sao
-        await scheduleCopy.save();
-        console.log(`✅ Đã cập nhật bản sao ${scheduleCopy.name} thành công`);
+        // Update trực tiếp bằng $set
+        await ScheduleCopy.updateOne(
+          { _id: scheduleCopy._id },
+          { $set: { [`scheduleData.${userId}`]: oldData } }
+        );
       }
 
-      console.log('✅ Đã cập nhật tất cả ScheduleCopy thành công');
-
     } catch (error) {
-      console.error('❌ Lỗi khi cập nhật ScheduleCopy:', error);
-      // Không throw error để không ảnh hưởng đến việc phê duyệt request
-      // Chỉ log lỗi để debug
+      // Silent error
     }
   }
 }

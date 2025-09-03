@@ -680,15 +680,17 @@ app.get('/api/demo-lichdica', authenticateToken, async (req, res) => {
       const lich = await DemoLichDiCa.findOne({ userId, month: Number(month), year: Number(year) });
       res.json({ 
         success: true, 
-        data: lich ? lich.dailyStatus : new Map() 
+        data: lich ? lich.dailyStatus : {} 
       });
     } else {
       // Lấy trạng thái của tất cả nhân viên trong tháng/năm
       const lichList = await DemoLichDiCa.find({ month: Number(month), year: Number(year) });
+      
       const result = {};
       lichList.forEach(lich => {
-        result[lich.userId] = lich.dailyStatus;
+        result[lich.userId] = lich.dailyStatus || {};
       });
+      
       res.json({ success: true, data: result });
     }
   } catch (err) {
@@ -715,7 +717,7 @@ app.post('/api/demo-lichdica', authenticateToken, async (req, res) => {
         userId, 
         month: Number(month), 
         year: Number(year), 
-        dailyStatus: new Map(Object.entries(dailyStatus))
+        dailyStatus: dailyStatus // Sử dụng object thông thường thay vì Map
       },
       { new: true, upsert: true, runValidators: true }
     );

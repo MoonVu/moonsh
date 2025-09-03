@@ -5,9 +5,8 @@ const DemoLichDiCaSchema = new mongoose.Schema({
   month: { type: Number, required: true },
   year: { type: Number, required: true },
   dailyStatus: { 
-    type: Map, 
-    of: String, // OFF, 1/2, VP, QL, X, KL, hoặc rỗng
-    default: new Map()
+    type: Object, 
+    default: {} // Sử dụng Object thay vì Map để dễ dùng hơn
   }
 }, { 
   timestamps: true,
