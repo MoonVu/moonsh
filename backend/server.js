@@ -21,7 +21,14 @@ const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
       ? ["https://yourdomain.com"] 
-      : ["http://localhost:3000"],
+      : [
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+          "http://172.16.1.6:3000",
+          /^http:\/\/172\.16\.1\.\d+:3000$/, // Cho phép tất cả IP trong mạng 172.16.1.x
+          /^http:\/\/192\.168\.\d+\.\d+:3000$/, // Cho phép mạng 192.168.x.x
+          /^http:\/\/10\.\d+\.\d+\.\d+:3000$/ // Cho phép mạng 10.x.x.x
+        ],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -36,6 +43,7 @@ const corsOptions = {
     // Danh sách origins được phép
     const allowedOrigins = [
       'http://localhost:3000',
+      'http://127.0.0.1:3000',
       'http://172.16.1.6:3000',
       'http://172.16.1.6:5000'
     ];
@@ -47,7 +55,7 @@ const corsOptions = {
     
     // Kiểm tra IP range cho mạng LAN
     const clientIP = origin.replace(/^https?:\/\//, '').split(':')[0];
-    if (clientIP.startsWith('172.16.') || clientIP.startsWith('192.168.')) {
+    if (clientIP.startsWith('172.16.') || clientIP.startsWith('192.168.') || clientIP.startsWith('10.')) {
       return callback(null, true);
     }
     
@@ -116,14 +124,25 @@ if (!fs.existsSync(uploadsDir)) {
 // Function để tối ưu ảnh
 async function optimizeImage(inputPath, outputPath) {
   try {
-    await sharp(inputPath)
-      .resize(800, 600, { 
+    // Lấy thông tin ảnh gốc để quyết định có cần resize không
+    const metadata = await sharp(inputPath).metadata();
+    const { width, height } = metadata;
+    
+    let pipeline = sharp(inputPath);
+    
+    // Chỉ resize nếu ảnh quá lớn (>1600px)
+    if (width > 1600 || height > 1600) {
+      pipeline = pipeline.resize(1600, 1600, {
         fit: 'inside',
-        withoutEnlargement: true 
-      })
-      .jpeg({ 
-        quality: 80,
-        progressive: true 
+        withoutEnlargement: true
+      });
+    }
+    
+    await pipeline
+      .jpeg({
+        quality: 90,                 // Giảm từ 92 xuống 90 để nhanh hơn
+        progressive: true,
+        chromaSubsampling: '4:4:4'   // Giữ chất lượng chữ/viền
       })
       .toFile(outputPath);
     
@@ -1024,17 +1043,19 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
     console.log(`📁 File uploaded:`, uploadedFile.filename);
     console.log(`📁 File path:`, uploadedFile.path);
     
-    // Tối ưu ảnh trước khi gửi
+    // Đo thời gian tối ưu ảnh
+    const optimizeStart = Date.now();
     const optimizedPath = uploadedFile.path.replace('.jpg', '-optimized.jpg');
     const optimized = await optimizeImage(uploadedFile.path, optimizedPath);
+    const optimizeTime = Date.now() - optimizeStart;
     
     if (optimized) {
-      console.log(`✅ Đã tối ưu ảnh: ${uploadedFile.filename}`);
+      console.log(`✅ Đã tối ưu ảnh: ${uploadedFile.filename} (${optimizeTime}ms)`);
       // Cập nhật path để sử dụng ảnh đã tối ưu
       uploadedFile.path = optimizedPath;
       uploadedFile.filename = path.basename(optimizedPath);
     } else {
-      console.log(`⚠️ Không thể tối ưu ảnh, sử dụng ảnh gốc`);
+      console.log(`⚠️ Không thể tối ưu ảnh, sử dụng ảnh gốc (${optimizeTime}ms)`);
     }
     
     // Parse selectedGroups nếu có
@@ -1047,8 +1068,11 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
       }
     }
     
-    // Gửi file trực tiếp từ path thay vì URL
+    // Đo thời gian gửi Telegram
+    const telegramStart = Date.now();
     const result = await sendBillToGroup(billId, uploadedFile.path, caption, groupType, groupsToSend, employee);
+    const telegramTime = Date.now() - telegramStart;
+    console.log(`📤 Gửi Telegram hoàn thành: ${telegramTime}ms`);
     
     if (result.success) {
       // Không xóa file ngay vì cần hiển thị trên frontend
@@ -1329,8 +1353,8 @@ app.post('/api/telegram', async (req, res) => {
       // Emit đến tất cả clients đang xem bill này
       global.io.to(`bill-${billId}`).emit('telegram-response-updated', socketData);
       
-      // Emit đến tất cả ADMIN users
-      global.io.to('role-ADMIN').emit('telegram-response-updated', socketData);
+      // Emit cho TẤT CẢ người dùng (không chỉ ADMIN) để mọi role đều nhận realtime
+      global.io.emit('telegram-response-updated', socketData);
       
       console.log(`📡 Emitted socket event for bill ${billId}`);
     }

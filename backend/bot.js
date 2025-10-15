@@ -75,7 +75,6 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
     // Tạo caption chi tiết
     const billCaption = `*CHECK HÓA ĐƠN MẤY NÍ ƠI*
 
-🆔 *ID khách: ${customer}
 📄 *Mã đơn: ${billId}
 👤 *Người gửi: ${employee}
 📝 **Ghi chú: ${note}
@@ -111,33 +110,37 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
     };
 
     
-    // Gửi đến các subgroups được chọn
-    const results = [];
-    for (const subGroup of groupsToSend) {
+    // Gửi song song đến tất cả subgroups được chọn
+    console.log(`📤 Bắt đầu gửi song song đến ${groupsToSend.length} nhóm...`);
+    
+    const sendPromises = groupsToSend.map(async (subGroup) => {
       try {
         const message = await bot.sendPhoto(subGroup.telegramId, imagePath, {
           caption: billCaption,
           ...keyboard
         });
 
-        results.push({
+        console.log(`✅ Đã gửi đến ${subGroup.name}. Message ID: ${message.message_id}`);
+        
+        return {
           chatId: subGroup.telegramId,
           groupName: subGroup.name,
           messageId: message.message_id,
           success: true
-        });
-
-        console.log(`✅ Đã gửi đến ${subGroup.name}. Message ID: ${message.message_id}`);
+        };
       } catch (error) {
         console.error(`❌ Lỗi gửi đến ${subGroup.name} (${subGroup.telegramId}):`, error.message);
-        results.push({
+        return {
           chatId: subGroup.telegramId,
           groupName: subGroup.name,
           success: false,
           error: error.message
-        });
+        };
       }
-    }
+    });
+
+    // Chờ tất cả promises hoàn thành
+    const results = await Promise.all(sendPromises);
 
     const successCount = results.filter(r => r.success).length;
     console.log(`✅ Đã gửi bill ${billId} đến ${successCount}/${results.length} nhóm`);

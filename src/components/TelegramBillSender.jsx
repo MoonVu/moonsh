@@ -90,6 +90,9 @@ const TelegramBillSender = () => {
   const [pageSize, setPageSize] = useState(20);
   const [totalBills, setTotalBills] = useState(0);
   
+  // State để force re-render danh sách nhóm
+  const [selectedGroupType, setSelectedGroupType] = useState(null);
+  
 
   // Load groups và bills khi component mount
   useEffect(() => {
@@ -483,6 +486,7 @@ const TelegramBillSender = () => {
         billForm.resetFields();
         setSelectedFile(null);
         setPreviewUrl('');
+        setSelectedGroupType(null);
         setShowBillModal(false);
         // Reload danh sách bills
         await loadBillsWithFilter();
@@ -1119,6 +1123,7 @@ const TelegramBillSender = () => {
             billForm.resetFields();
             setSelectedFile(null);
             setPreviewUrl('');
+            setSelectedGroupType(null);
           }}
           footer={null}
           width={700}
@@ -1154,6 +1159,8 @@ const TelegramBillSender = () => {
                 onChange={(value) => {
                   // Reset selectedGroups khi thay đổi groupType
                   billForm.setFieldsValue({ selectedGroups: [] });
+                  // Cập nhật state để force re-render danh sách nhóm
+                  setSelectedGroupType(value);
                 }}
               >
                 <Option value="SHBET">Hóa đơn SHBET</Option>
@@ -1161,39 +1168,39 @@ const TelegramBillSender = () => {
               </Select>
             </Form.Item>
 
-            {billForm.getFieldValue('groupType') && (
-              <Form.Item
-                label="Chọn nhóm cụ thể - Để trống là gửi tất cả"
-                name="selectedGroups"
-                help="Để trống sẽ gửi cho tất cả nhóm thuộc loại đã chọn"
+            <Form.Item
+              label="Chọn nhóm cụ thể - Để trống là gửi tất cả"
+              name="selectedGroups"
+              help="Để trống sẽ gửi cho tất cả nhóm thuộc loại đã chọn"
+            >
+              <Select
+                mode="multiple"
+                placeholder="Chọn nhóm cụ thể (để trống = gửi tất cả)"
+                style={{ width: '100%' }}
+                optionLabelProp="label"
+                allowClear
+                disabled={!selectedGroupType}
+                key={selectedGroupType} // Force re-render khi thay đổi groupType
               >
-                <Select
-                  mode="multiple"
-                  placeholder="Chọn nhóm cụ thể (để trống = gửi tất cả)"
-                  style={{ width: '100%' }}
-                  optionLabelProp="label"
-                  allowClear
-                >
-                  {groups
-                    .find(g => g.type === billForm.getFieldValue('groupType'))
-                    ?.subGroups?.map(subGroup => (
-                      <Option 
-                        key={subGroup._id} 
-                        value={subGroup._id}
-                        label={subGroup.name}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 'bold' }}>{subGroup.name}</div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>
-                            ID: {subGroup.telegramId}
-                          </div>
+                {groups
+                  .find(g => g.type === selectedGroupType)
+                  ?.subGroups?.map(subGroup => (
+                    <Option 
+                      key={subGroup._id} 
+                      value={subGroup._id}
+                      label={subGroup.name}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 'bold' }}>{subGroup.name}</div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          ID: {subGroup.telegramId}
                         </div>
-                      </Option>
-                    ))
-                  }
-                </Select>
-              </Form.Item>
-            )}
+                      </div>
+                    </Option>
+                  ))
+                }
+              </Select>
+            </Form.Item>
 
             <Form.Item label="Ảnh hóa đơn">
               <div style={{ marginBottom: 8 }}>
