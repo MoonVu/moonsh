@@ -463,36 +463,18 @@
 }
 
 .center-popup .btn-edit,
-.center-popup .btn-delete {
-  padding: 10px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 100px;
-}
+/* Button styles moved to common-buttons.css */
 
-.center-popup .btn-edit {
-  background: #29547A;
-  color: white;
-}
+/* Edit button styles moved to common-buttons.css */
 
-.center-popup .btn-edit:hover {
-  background: #1e3a5a;
-  transform: translateY(-1px);
-}
+/* Delete button styles moved to common-buttons.css */
 
-.center-popup .btn-delete {
-  background: #ef4444;
-  color: white;
-}
+/* Styling cho nút trong modal thay thế vị trí */
+/* Modal button styles moved to common-buttons.css */
 
-.center-popup .btn-delete:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-}
+/* Modal edit button styles moved to common-buttons.css */
+
+/* Modal delete button styles moved to common-buttons.css */
 
 .center-popup .select-all-container {
   display: flex;

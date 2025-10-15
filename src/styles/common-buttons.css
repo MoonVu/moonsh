@@ -1,0 +1,275 @@
+/* ==================== COMMON BUTTON STYLES ==================== */
+/* Unified button styles to replace scattered .btn-edit and .btn-delete across multiple files */
+
+/* Base button styles */
+.btn-edit, .btn-delete, .btn-save, .btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-right: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  min-width: 110px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Edit button - Green gradient with glow effect */
+.btn-edit {
+  background: linear-gradient(135deg, #06c910 0%, #2af05b 100%);
+  color: rgb(48, 240, 74);
+  box-shadow: 0 4px 20px rgba(11, 104, 243, 0.4);
+}
+
+.btn-edit:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.6);
+}
+
+.btn-edit:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* Delete button - Purple gradient with glow effect */
+.btn-delete {
+  background: linear-gradient(135deg, #f8430c 0%, #ee5012 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(238, 241, 18, 0.4);
+}
+
+.btn-delete:hover {
+  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.6);
+}
+
+.btn-delete:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* Save button - Blue gradient with glow effect */
+.btn-save {
+  background: linear-gradient(135deg, #28d169 0%, #1ffa4f 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(15, 98, 231, 0.4);
+}
+
+.btn-save:hover {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.6);
+}
+
+.btn-save:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* Cancel button - Red gradient with glow effect */
+.btn-cancel {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+}
+
+.btn-cancel:hover {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(239, 68, 68, 0.6);
+}
+
+.btn-cancel:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* Advanced shine effect with multiple layers */
+.btn-edit::before,
+.btn-delete::before,
+.btn-save::before,
+.btn-cancel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.4), 
+    rgba(255, 255, 255, 0.6), 
+    rgba(255, 255, 255, 0.4), 
+    transparent
+  );
+  transition: left 0.6s ease;
+  z-index: 1;
+}
+
+.btn-edit:hover::before,
+.btn-delete:hover::before,
+.btn-save:hover::before,
+.btn-cancel:hover::before {
+  left: 100%;
+}
+
+/* Ripple effect on click */
+.btn-edit::after,
+.btn-delete::after,
+.btn-save::after,
+.btn-cancel::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.btn-edit:active::after,
+.btn-delete:active::after,
+.btn-save:active::after,
+.btn-cancel:active::after {
+  width: 200px;
+  height: 200px;
+}
+
+/* Disabled state */
+.btn-edit:disabled,
+.btn-delete:disabled,
+.btn-save:disabled,
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Button sizes */
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 12px;
+  min-width: 80px;
+  border-radius: 8px;
+}
+
+.btn-lg {
+  padding: 16px 32px;
+  font-size: 16px;
+  min-width: 140px;
+  border-radius: 16px;
+}
+
+/* Special contexts - inherit base styles */
+.modal .btn-edit,
+.modal .btn-delete,
+.modal .btn-save,
+.modal .btn-cancel,
+.center-popup .btn-edit,
+.center-popup .btn-delete,
+.center-popup .btn-save,
+.center-popup .btn-cancel {
+  /* All styles inherited from base */
+}
+
+/* TelegramBillSender specific overrides */
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-edit {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4) !important;
+}
+
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-edit:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.6) !important;
+}
+
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-delete {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4) !important;
+}
+
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-delete:hover {
+  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.6) !important;
+}
+
+/* TelegramBillSender Save button specific overrides */
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-save {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4) !important;
+}
+
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-save:hover {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.6) !important;
+}
+
+/* TelegramBillSender Cancel button specific overrides */
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-cancel {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4) !important;
+}
+
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-cancel:hover {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 8px 30px rgba(239, 68, 68, 0.6) !important;
+}
+
+/* LichVe specific - smaller buttons for table */
+.lichve-table .btn-edit {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  min-width: 60px !important;
+  border-radius: 8px !important;
+}
+
+.lichve-table .btn-edit:hover {
+  transform: translateY(-2px) scale(1.05) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .btn-edit, .btn-delete, .btn-save, .btn-cancel {
+    padding: 10px 20px;
+    font-size: 13px;
+    min-width: 100px;
+    letter-spacing: 0.5px;
+  }
+  
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 11px;
+    min-width: 70px;
+  }
+}

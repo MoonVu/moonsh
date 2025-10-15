@@ -230,15 +230,7 @@
   gap: 8px;
 }
 
-.btn-view,
-.btn-delete {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+/* Button styles moved to common-buttons.css */
 
 .btn-view {
   background: #667eea;
@@ -249,14 +241,7 @@
   background: #5a6fd8;
 }
 
-.btn-delete {
-  background: #e74c3c;
-  color: white;
-}
-
-.btn-delete:hover {
-  background: #c0392b;
-}
+/* Delete button styles moved to common-buttons.css */
 
 /* Request Detail Modal */
 .request-detail-overlay {
@@ -345,7 +330,7 @@
 }
 
 .status-badge {
-  color: white;
+  color: rgb(250, 31, 31);
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 0.8rem;

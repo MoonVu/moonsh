@@ -35,15 +35,103 @@
   color: #495057;
   font-weight: 600;
   padding: 12px 8px;
-  text-align: left;
+  text-align: center;
   border-bottom: 2px solid #dee2e6;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.3;
+  vertical-align: middle;
 }
 
 .lichve-table td {
   padding: 12px 8px;
   border-bottom: 1px solid #dee2e6;
   vertical-align: middle;
+  text-align: center;
+}
+
+/* Cột STT - nhỏ nhất */
+.lichve-table th:nth-child(1),
+.lichve-table td:nth-child(1) {
+  width: 60px;
+  min-width: 60px;
+}
+
+/* Cột Bộ phận - nhỏ */
+.lichve-table th:nth-child(2),
+.lichve-table td:nth-child(2) {
+  width: 80px;
+  min-width: 80px;
+}
+
+/* Cột Tên nhân viên - vừa */
+.lichve-table th:nth-child(3),
+.lichve-table td:nth-child(3) {
+  width: 120px;
+  min-width: 120px;
+}
+
+/* Cột Ngày đủ phép tiếp theo - vừa */
+.lichve-table th:nth-child(4),
+.lichve-table td:nth-child(4) {
+  width: 140px;
+  min-width: 140px;
+}
+
+/* Cột Ngày nghỉ phép - rộng */
+.lichve-table th:nth-child(5),
+.lichve-table td:nth-child(5) {
+  width: 160px;
+  min-width: 160px;
+}
+
+/* Cột Ngày quay lại làm việc - vừa */
+.lichve-table th:nth-child(6),
+.lichve-table td:nth-child(6) {
+  width: 140px;
+  min-width: 140px;
+}
+
+/* Cột Số ngày nghỉ phép - nhỏ */
+.lichve-table th:nth-child(7),
+.lichve-table td:nth-child(7) {
+  width: 100px;
+  min-width: 100px;
+}
+
+/* Cột Loại phép - vừa */
+.lichve-table th:nth-child(8),
+.lichve-table td:nth-child(8) {
+  width: 120px;
+  min-width: 120px;
+}
+
+/* Cột Trạng thái - rộng */
+.lichve-table th:nth-child(9),
+.lichve-table td:nth-child(9) {
+  width: 180px;
+  min-width: 180px;
+}
+
+/* Cột Loại hình sắp xếp - rộng */
+.lichve-table th:nth-child(10),
+.lichve-table td:nth-child(10) {
+  width: 150px;
+  min-width: 150px;
+}
+
+/* Cột Ghi chú - rộng nhất */
+.lichve-table th:nth-child(11),
+.lichve-table td:nth-child(11) {
+  width: 200px;
+  min-width: 200px;
+  text-align: left;
+}
+
+/* Cột Thao tác - nhỏ nhất */
+.lichve-table th:nth-child(12),
+.lichve-table td:nth-child(12) {
+  width: 50px;
+  min-width: 50px;
 }
 
 .lichve-table tbody tr:hover {
@@ -200,12 +288,160 @@
 }
 
 .btn-cancel {
-  background-color: #6c757d;
-  color: white;
+  background-color: #fd4747;
+  color: rgb(250, 40, 40);
 }
 
 .btn-cancel:hover {
   background-color: #5a6268;
+}
+
+/* Status badges - Specific CSS cho LichVe component */
+.lichve-table .status-badge {
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  display: inline-block !important;
+  text-align: center !important;
+  min-width: auto !important;
+  margin-bottom: 0 !important;
+  border: 1px solid !important;
+  text-transform: none !important;
+}
+
+/* Đợi ngày về phép - Còn xx ngày (màu vàng cam nhẹ) */
+.lichve-table .status-waiting {
+  background-color: #ffeaa7 !important;
+  color: #856404 !important;
+  border-color: #fdcb6e !important;
+}
+
+/* Trong kì nghỉ phép - Còn xx ngày (màu xanh dương) */
+.lichve-table .status-in-leave {
+  background-color: #74b9ff !important;
+  color: white !important;
+  border-color: #0984e3 !important;
+}
+
+/* Hoàn thành nghỉ phép (màu xanh lá cây) */
+.lichve-table .status-completed {
+  background-color: #00b894 !important;
+  color: white !important;
+  border-color: #00a085 !important;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.action-menu-trigger {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+  min-width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-menu-trigger:hover {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
+}
+
+.action-menu-trigger:active {
+  background-color: #004085;
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.action-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 140px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.action-dropdown-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  border-bottom: 1px solid #f5f5f5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.action-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.action-dropdown-item:hover {
+  background-color: #f8f9fa;
+  color: #007bff;
+  transform: translateX(2px);
+}
+
+.action-dropdown-item.edit {
+  color: #28a745;
+}
+
+.action-dropdown-item.edit:hover {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.action-dropdown-item.delete {
+  color: #dc3545;
+}
+
+.action-dropdown-item.delete:hover {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Edit button styles moved to common-buttons.css */
+
+/* Edit button hover styles moved to common-buttons.css */
+
+/* Table actions top */
+.table-actions-top {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 15px;
+}
+
+/* Readonly fields */
+.readonly-field {
+  background-color: #f8f9fa !important;
+  color: #6c757d !important;
+  cursor: not-allowed;
 }
 
 /* Responsive design */
@@ -231,5 +467,103 @@
   .add-form {
     padding: 20px;
     margin: 20px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  /* Responsive edit button styles moved to common-buttons.css */
+  
+  /* Responsive column widths */
+  .lichve-table th:nth-child(1),
+  .lichve-table td:nth-child(1) {
+    width: 40px;
+    min-width: 40px;
+  }
+  
+  .lichve-table th:nth-child(2),
+  .lichve-table td:nth-child(2) {
+    width: 60px;
+    min-width: 60px;
+  }
+  
+  .lichve-table th:nth-child(3),
+  .lichve-table td:nth-child(3) {
+    width: 80px;
+    min-width: 80px;
+  }
+  
+  .lichve-table th:nth-child(4),
+  .lichve-table td:nth-child(4) {
+    width: 100px;
+    min-width: 100px;
+  }
+  
+  .lichve-table th:nth-child(5),
+  .lichve-table td:nth-child(5) {
+    width: 120px;
+    min-width: 120px;
+  }
+  
+  .lichve-table th:nth-child(6),
+  .lichve-table td:nth-child(6) {
+    width: 100px;
+    min-width: 100px;
+  }
+  
+  .lichve-table th:nth-child(7),
+  .lichve-table td:nth-child(7) {
+    width: 70px;
+    min-width: 70px;
+  }
+  
+  .lichve-table th:nth-child(8),
+  .lichve-table td:nth-child(8) {
+    width: 80px;
+    min-width: 80px;
+  }
+  
+  .lichve-table th:nth-child(9),
+  .lichve-table td:nth-child(9) {
+    width: 120px;
+    min-width: 120px;
+  }
+  
+  .lichve-table th:nth-child(10),
+  .lichve-table td:nth-child(10) {
+    width: 100px;
+    min-width: 100px;
+  }
+  
+  .lichve-table th:nth-child(11),
+  .lichve-table td:nth-child(11) {
+    width: 120px;
+    min-width: 120px;
+  }
+  
+  .lichve-table th:nth-child(12),
+  .lichve-table td:nth-child(12) {
+    width: 35px;
+    min-width: 35px;
+  }
+  
+  .action-menu-trigger {
+    min-width: 24px;
+    height: 24px;
+    font-size: 12px;
+    padding: 2px 4px;
+  }
+  
+  .action-dropdown {
+    min-width: 120px;
+    margin-top: 2px;
+  }
+  
+  .action-dropdown-item {
+    padding: 10px 12px;
+    font-size: 12px;
+    gap: 6px;
   }
 }

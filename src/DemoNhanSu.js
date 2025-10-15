@@ -22,7 +22,6 @@ const DEFAULT_BLOCKS = [
 ];
 
 export default function DemoNhanSu({ currentUser, tabId }) {
-  console.log("🔄 DemoNhanSu component re-render");
   const { triggerRefresh } = useSchedule();
   const { hasPermission, hasRole, isAdmin } = useAuth();
   const [users, setUsers] = useState([]);
@@ -32,8 +31,8 @@ export default function DemoNhanSu({ currentUser, tabId }) {
   const [waiting, setWaiting] = useState({});
 
   // State cho tháng/năm hiện tại
-  const [currentMonth, setCurrentMonth] = useState(7);
-  const [currentYear, setCurrentYear] = useState(2025);
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   // Loading state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

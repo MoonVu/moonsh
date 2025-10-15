@@ -5,6 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:server": "node server.js",
+    "start:bot": "node bot.js",
     "dev": "nodemon server.js",
     "prod": "NODE_ENV=production node server.js",
     "pm2": "pm2 start server.js --name moonne-backend",
@@ -12,12 +14,18 @@
     "pm2:restart": "pm2 restart moonne-backend"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
+    "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
-    "dotenv": "^16.3.1"
+    "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.66.0",
+    "sharp": "^0.34.4",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
@@ -25,7 +33,11 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "keywords": ["moonne", "backend", "api"],
+  "keywords": [
+    "moonne",
+    "backend",
+    "api"
+  ],
   "author": "Moonne Team",
   "license": "MIT"
 }

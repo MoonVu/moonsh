@@ -1,5 +1,5 @@
 :root {
-  --main-blue: #29547A;
+  --main-blue: #ffd102;
 }
 
 .table-container {
@@ -90,38 +90,11 @@ tr:hover td {
 }
 
 
-.btn-edit, .btn-delete {
-  margin-right: 8px;
-  padding: 6px 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 16px;
-  transition: background 0.2s, color 0.2s;
-}
+/* Button styles moved to common-buttons.css */
 
-.btn-edit {
-  color: var(--main-blue);
-  border: 1px solid var(--main-blue);
-  background: #e6f0fa;
-}
+/* Edit button styles moved to common-buttons.css */
 
-.btn-edit:hover {
-  background: var(--main-blue);
-  color: #fff;
-}
-
-.btn-delete {
-  background: #fff1f0;
-  color: #cf1322;
-  border: 1px solid #ffa39e;
-}
-
-.btn-delete:hover {
-  background: #ffa39e;
-  color: #fff;
-}
+/* Delete button styles moved to common-buttons.css */
 
 .modal-bg {
   position: fixed;
@@ -642,48 +615,9 @@ th, thead, table {
 }
 
 /* CSS cho modal */
-.ant-modal-header {
-  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-  border-bottom: none;
-}
+/* Modal styles moved to ConfigProvider theme */
 
-.ant-modal-title {
-  color: white !important;
-  font-weight: 600;
-}
-
-.ant-modal-close {
-  color: white !important;
-}
-
-.ant-modal-close:hover {
-  background: rgba(255,255,255,0.1);
-}
-
-/* CSS cho form trong modal */
-.ant-form-item-label > label {
-  font-weight: 600;
-  color: #333;
-}
-
-.ant-select-selector,
-.ant-input {
-  border-radius: 6px;
-  border: 2px solid #d9d9d9;
-  transition: all 0.3s ease;
-}
-
-.ant-select-selector:hover,
-.ant-input:hover {
-  border-color: #40a9ff;
-}
-
-.ant-select-selector:focus,
-.ant-input:focus,
-.ant-select-focused .ant-select-selector {
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
-}
+/* Form styles moved to ConfigProvider theme */
 
 /* CSS cho nút trong modal */
 
@@ -733,18 +667,7 @@ th, thead, table {
 .delete-copy-button:active {
   transform: translateY(0);
 }
-.ant-modal .ant-btn {
-  border-radius: 6px;
-  font-weight: 500;
-  height: 36px;
-  padding: 0 16px;
-  transition: all 0.3s ease;
-}
-
-.ant-modal .ant-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-}
+/* Button styles moved to ConfigProvider theme */
 
 .table-container {
   width: 100%;

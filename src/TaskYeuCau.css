@@ -77,33 +77,9 @@
   font-size: 15px;
   text-align: center;
 }
-.btn-edit, .btn-delete {
-  margin-right: 6px;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-}
-.btn-edit {
-  background: #e6f0fa;
-  color: #29547A;
-  border: 1px solid #29547A;
-}
-.btn-edit:hover {
-  background: #29547A;
-  color: #fff;
-}
-.btn-delete {
-  background: #fff1f0;
-  color: #cf1322;
-  border: 1px solid #ffa39e;
-}
-.btn-delete:hover {
-  background: #ffa39e;
-  color: #fff;
-}
+/* Button styles moved to common-buttons.css */
+/* Edit button styles moved to common-buttons.css */
+/* Delete button styles moved to common-buttons.css */
 .taskyeucau-table input,
 .taskyeucau-table select,
 .taskyeucau-table textarea {
@@ -521,6 +497,16 @@ tr:not(:last-child) td {
   color: #fff;
   border: none;
   box-shadow: 0 2px 8px #ef444422;
+}
+
+/* Override Ant Design tooltip text color to red */
+:where(.css-dev-only-do-not-override-w2y0v).ant-tooltip .ant-tooltip-inner {
+  color: #ff0000 !important;
+}
+
+/* Alternative selector for tooltip */
+.ant-tooltip .ant-tooltip-inner {
+  color: #ff0000 !important;
 }
 .badge-outlined {
   background: #fff;

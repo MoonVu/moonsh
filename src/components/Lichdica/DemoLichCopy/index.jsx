@@ -129,14 +129,11 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
           console.log("🔍 Users data type:", typeof usersRes, "Array check:", Array.isArray(usersRes));
           
           // Load dữ liệu schedule copy đầy đủ từ backend
-          try {
-            console.log("🔄 Đang gọi API getScheduleCopy với copyId:", copyData.copyId);
+          try { 
             const copyResponse = await apiService.getScheduleCopy(copyData.copyId);
-            console.log("🔍 Response từ getScheduleCopy:", copyResponse);
             
             if (copyResponse && copyResponse.success && copyResponse.data) {
               const copyData = copyResponse.data;
-              console.log("✅ Loaded full copy data from backend:", copyData);
               console.log("🔍 Kiểm tra notesData trong response:", {
                 hasNotesData: !!copyData.notesData,
                 notesDataType: typeof copyData.notesData,
@@ -163,7 +160,6 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                   scheduleDataObj = copyData.scheduleData;
                 }
                 setScheduleData(scheduleDataObj);
-                console.log("✅ Set scheduleData:", Object.keys(scheduleDataObj).length, "users");
               }
               
               if (copyData.phanCa) {
@@ -177,7 +173,6 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
                   phanCaObj = copyData.phanCa;
                 }
                 setPhanCa(phanCaObj);
-                console.log("✅ Set phanCa:", Object.keys(phanCaObj).length, "departments");
               }
               
               if (copyData.notesData && typeof copyData.notesData === 'object') {

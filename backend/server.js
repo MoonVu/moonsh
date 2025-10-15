@@ -4,11 +4,28 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const mongoose = require('mongoose');
+const multer = require('multer');
+const fs = require('fs');
+const sharp = require('sharp');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+const server = createServer(app);
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'Moon-secret-key';
+
+// Cấu hình Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production' 
+      ? ["https://yourdomain.com"] 
+      : ["http://localhost:3000"],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
 // Cấu hình CORS cho production
 const corsOptions = {
@@ -44,7 +61,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Tăng limit cho JSON
+app.use(express.urlencoded({ limit: '50mb', extended: true })); // Tăng limit cho URL encoded
 
 // Kết nối MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/Moon';
@@ -79,6 +97,75 @@ const leaveScheduleRoutes = require('./src/routes/leave-schedule');
 
 // Import new auth middleware
 const { attachUser } = require('./src/middleware/auth');
+
+// Import Telegram Bot
+const { sendBillToGroup } = require('./bot');
+const TelegramGroup = require('./models/TelegramGroup');
+
+// Import cleanup script
+const cron = require('node-cron');
+const { exec } = require('child_process');
+
+// ==================== MULTER CONFIGURATION ====================
+// Tạo thư mục uploads nếu chưa có
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Function để tối ưu ảnh
+async function optimizeImage(inputPath, outputPath) {
+  try {
+    await sharp(inputPath)
+      .resize(800, 600, { 
+        fit: 'inside',
+        withoutEnlargement: true 
+      })
+      .jpeg({ 
+        quality: 80,
+        progressive: true 
+      })
+      .toFile(outputPath);
+    
+    // Xóa file gốc sau khi tối ưu
+    fs.unlinkSync(inputPath);
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Lỗi tối ưu ảnh:', error);
+    return false;
+  }
+}
+
+// Cấu hình multer để lưu file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    // Tạo tên file unique với timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'bill-' + uniqueSuffix + '.jpg'); // Luôn lưu dưới dạng jpg để tối ưu
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Chỉ cho phép file ảnh
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ được upload file ảnh!'), false);
+    }
+  }
+});
+
+// Serve static files từ thư mục uploads
+app.use('/uploads', express.static(uploadsDir));
 
 // Legacy authentication middleware (deprecated - chỉ để compatibility)
 const authenticateToken = async (req, res, next) => {
@@ -911,6 +998,445 @@ app.post('/api/force-refresh-schedules', authenticateToken, async (req, res) => 
   }
 });
 
+// ==================== TELEGRAM BOT API ====================
+
+// API gửi bill qua Telegram Bot (sử dụng multer để upload file)
+app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const { billId, caption, customer, employee, groupType, selectedGroups } = req.body;
+    const uploadedFile = req.file;
+    
+    if (!billId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Thiếu billId' 
+      });
+    }
+
+    if (!uploadedFile) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Thiếu file ảnh' 
+      });
+    }
+
+    console.log(`📤 Gửi bill ${billId} qua Telegram...`);
+    console.log(`📁 File uploaded:`, uploadedFile.filename);
+    console.log(`📁 File path:`, uploadedFile.path);
+    
+    // Tối ưu ảnh trước khi gửi
+    const optimizedPath = uploadedFile.path.replace('.jpg', '-optimized.jpg');
+    const optimized = await optimizeImage(uploadedFile.path, optimizedPath);
+    
+    if (optimized) {
+      console.log(`✅ Đã tối ưu ảnh: ${uploadedFile.filename}`);
+      // Cập nhật path để sử dụng ảnh đã tối ưu
+      uploadedFile.path = optimizedPath;
+      uploadedFile.filename = path.basename(optimizedPath);
+    } else {
+      console.log(`⚠️ Không thể tối ưu ảnh, sử dụng ảnh gốc`);
+    }
+    
+    // Parse selectedGroups nếu có
+    let groupsToSend = [];
+    if (selectedGroups) {
+      try {
+        groupsToSend = JSON.parse(selectedGroups);
+      } catch (e) {
+        console.error('❌ Lỗi parse selectedGroups:', e);
+      }
+    }
+    
+    // Gửi file trực tiếp từ path thay vì URL
+    const result = await sendBillToGroup(billId, uploadedFile.path, caption, groupType, groupsToSend, employee);
+    
+    if (result.success) {
+      // Không xóa file ngay vì cần hiển thị trên frontend
+      // File sẽ được xóa sau một thời gian hoặc khi không cần thiết
+      
+      // Lưu 1 bill record duy nhất với danh sách groups
+      try {
+        const successfulResults = result.results.filter(r => r.success);
+        
+        // Lấy thông tin groupName từ telegram_group collection
+        const allTelegramGroups = await TelegramGroup.find({}).lean();
+        const groupMap = {};
+        allTelegramGroups.forEach(parent => {
+          (parent.subGroups || []).forEach(sub => {
+            groupMap[sub.telegramId] = {
+              name: sub.name,
+              type: parent.type
+            };
+          });
+        });
+        
+        // Tạo danh sách groups với trạng thái PENDING và groupName chính xác
+        const groupsList = successfulResults.map(groupResult => {
+          const groupInfo = groupMap[groupResult.chatId] || { name: groupResult.groupName, type: groupType };
+          return {
+            chatId: groupResult.chatId,
+            messageId: groupResult.messageId,
+            groupName: groupInfo.name || groupResult.groupName || 'Unknown Group',
+            groupTelegramId: groupResult.chatId,
+            status: 'PENDING'
+          };
+        });
+        
+        const billRecord = new TelegramResponse({
+          billId: billId,
+          customer: customer || '',
+          employee: employee || '',
+          caption: caption || '',
+          imageUrl: `/uploads/${uploadedFile.filename}`, // Lưu URL ảnh
+          createdBy: req.user?.username || employee || 'system',
+          groupType: groupType || '',
+          groups: groupsList
+        });
+        
+        await billRecord.save();
+        console.log(`✅ Đã lưu bill record cho ${billId} với ${groupsList.length} nhóm`);
+      } catch (saveError) {
+        console.error('❌ Lỗi khi lưu bill record:', saveError);
+        // Không throw error vì bill đã gửi thành công
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'Đã gửi bill vào group Telegram thành công',
+        data: {
+          billId: result.billId,
+          messageId: result.messageId
+        }
+      });
+    } else {
+      // Xóa file nếu gửi thất bại
+      try { fs.unlinkSync(uploadedFile.path); } catch (_) {}
+      res.status(500).json({ 
+        success: false, 
+        error: 'Lỗi gửi bill: ' + result.error 
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Lỗi API sendBill:', error);
+    
+    // Xóa file nếu có lỗi
+    if (req.file) {
+      try { fs.unlinkSync(req.file.path); } catch (_) {}
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ==================== TELEGRAM GROUPS API ====================
+// Ensure parent documents exist
+app.post('/api/telegram-groups/ensure', authenticateToken, async (req, res) => {
+  try {
+    await TelegramGroup.ensureParents();
+    const groups = await TelegramGroup.find({});
+    res.json({ success: true, data: groups });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Get all groups
+app.get('/api/telegram-groups', authenticateToken, async (req, res) => {
+  try {
+    await TelegramGroup.ensureParents();
+    const groups = await TelegramGroup.find({}).lean();
+    res.json({ success: true, data: groups });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Add subGroup to parent type
+app.post('/api/telegram-groups/:type/sub-groups', authenticateToken, async (req, res) => {
+  try {
+    const { type } = req.params; // SHBET | THIRD_PARTY
+    const { name, telegramId } = req.body;
+    if (!name || !telegramId) return res.status(400).json({ success: false, error: 'Thiếu name hoặc telegramId' });
+
+    const parent = await TelegramGroup.findOneAndUpdate(
+      { type },
+      { 
+        $push: { 
+          subGroups: { name, telegramId, createdAt: new Date(), createdBy: (req.user?.username || 'system') }
+        } 
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({ success: true, data: parent });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Update a subGroup
+app.put('/api/telegram-groups/:type/sub-groups/:subId', authenticateToken, async (req, res) => {
+  try {
+    const { type, subId } = req.params;
+    const { name, telegramId } = req.body;
+
+    const parent = await TelegramGroup.findOne({ type });
+    if (!parent) return res.status(404).json({ success: false, error: 'Parent group không tồn tại' });
+
+    const sub = parent.subGroups.id(subId);
+    if (!sub) return res.status(404).json({ success: false, error: 'Sub group không tồn tại' });
+
+    if (name !== undefined) sub.name = name;
+    if (telegramId !== undefined) sub.telegramId = telegramId;
+    await parent.save();
+
+    res.json({ success: true, data: parent });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Delete a subGroup
+app.delete('/api/telegram-groups/:type/sub-groups/:subId', authenticateToken, async (req, res) => {
+  try {
+    const { type, subId } = req.params;
+    const parent = await TelegramGroup.findOne({ type });
+    if (!parent) return res.status(404).json({ success: false, error: 'Parent group không tồn tại' });
+    const sub = parent.subGroups.id(subId);
+    if (!sub) return res.status(404).json({ success: false, error: 'Sub group không tồn tại' });
+    sub.deleteOne();
+    await parent.save();
+    res.json({ success: true, data: parent });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Import TelegramResponse model
+const TelegramResponse = require('./models/TelegramResponse');
+
+// API nhận dữ liệu từ Telegram Bot (khi user bấm Yes/No)
+app.post('/api/telegram', async (req, res) => {
+  try {
+    console.log('🔍 Received telegram callback:', req.body);
+    
+    const { 
+      billId, 
+      choice, 
+      responseType,
+      status,
+      isYes, 
+      userId, 
+      userName, 
+      username, 
+      userFirstName,
+      userLastName,
+      userLanguageCode,
+      timestamp, 
+      chatId, 
+      messageId,
+      telegramData 
+    } = req.body;
+    
+    // Validation bill ID
+    if (!billId || billId.trim() === '') {
+      console.error('❌ Bill ID không hợp lệ:', billId);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Bill ID không hợp lệ' 
+      });
+    }
+    
+    // Tìm bill record và cập nhật trạng thái group
+    console.log(`🔍 Finding bill record for billId: ${billId}`);
+    const billRecord = await TelegramResponse.findOne({ billId });
+    
+    if (!billRecord) {
+      console.error(`❌ Không tìm thấy bill record cho billId: ${billId}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Không tìm thấy bill record' 
+      });
+    }
+    
+    console.log(`🔍 Found bill record:`, billRecord);
+    
+    // Tìm group theo chatId
+    const groupIndex = billRecord.groups.findIndex(g => g.chatId === chatId);
+    if (groupIndex === -1) {
+      console.error(`❌ Không tìm thấy group với chatId: ${chatId} trong bill ${billId}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Không tìm thấy group trong bill' 
+      });
+    }
+    
+    // Kiểm tra xem group đã có phản hồi chưa
+    const group = billRecord.groups[groupIndex];
+    if (group.status !== 'PENDING') {
+      return res.json({ 
+        success: true, 
+        message: 'Group đã phản hồi trước đó',
+        data: billRecord.toFrontendFormat()
+      });
+    }
+    
+    // Cập nhật trạng thái group với status mới từ bot
+    const newStatus = req.body.status || (isYes ? 'YES' : 'NO');
+    console.log(`🔍 Updating group ${groupIndex} with status: ${newStatus}`);
+    console.log(`🔍 ResponseType: ${req.body.responseType}`);
+    
+    billRecord.groups[groupIndex].status = newStatus;
+    billRecord.groups[groupIndex].responseUserId = userId;
+    billRecord.groups[groupIndex].responseUserName = userName;
+    billRecord.groups[groupIndex].responseType = req.body.responseType || 'unknown';
+    billRecord.groups[groupIndex].responseTimestamp = new Date(timestamp);
+    
+    // Cập nhật updatedAt
+    billRecord.updatedAt = new Date();
+    
+    // Lưu cập nhật
+    console.log(`🔍 Saving bill record with updated status...`);
+    const savedResponse = await billRecord.save();
+    console.log(`🔍 Saved successfully:`, savedResponse);
+    
+    // Emit Socket.IO event để cập nhật real-time
+    if (global.io) {
+      const updatedData = savedResponse.toFrontendFormat();
+      console.log('📡 Emitting socket event with data:', {
+        billId: billId,
+        updatedBill: updatedData,
+        groups: updatedData.groups
+      });
+      
+      const socketData = {
+        billId: billId,
+        updatedBill: updatedData,
+        groupResponse: {
+          chatId: chatId,
+          groupName: group.groupName,
+          status: newStatus,
+          responseType: req.body.responseType,
+          userName: userName,
+          timestamp: timestamp
+        }
+      };
+      
+      // Emit đến tất cả clients đang xem bill này
+      global.io.to(`bill-${billId}`).emit('telegram-response-updated', socketData);
+      
+      // Emit đến tất cả ADMIN users
+      global.io.to('role-ADMIN').emit('telegram-response-updated', socketData);
+      
+      console.log(`📡 Emitted socket event for bill ${billId}`);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Đã nhận phản hồi từ Telegram và lưu vào MongoDB',
+      data: savedResponse.toFrontendFormat()
+    });
+    
+  } catch (error) {
+    console.error('❌ Lỗi API telegram:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// API để frontend lấy phản hồi cho một bill từ MongoDB
+app.get('/api/telegram/responses/:billId', authenticateToken, async (req, res) => {
+  try {
+    const { billId } = req.params;
+    
+    // Lấy bill record từ MongoDB
+    const billRecord = await TelegramResponse.findOne({ billId });
+    
+    if (!billRecord) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Không tìm thấy bill record' 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      data: billRecord.toFrontendFormat()
+    });
+    
+  } catch (error) {
+    console.error('❌ Lỗi API get responses:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// API để lấy tất cả responses (admin)
+app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, billId, createdBy, search } = req.query;
+    const skip = (page - 1) * limit;
+    
+    let query = {};
+    if (billId) {
+      query.billId = billId;
+    }
+    
+    // Filter theo người tạo
+    if (createdBy) {
+      query.createdBy = createdBy;
+    }
+    
+    // Filter theo search term (tìm trong billId, customer, employee, caption)
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { billId: searchRegex },
+        { customer: searchRegex },
+        { employee: searchRegex },
+        { caption: searchRegex }
+      ];
+    }
+    
+    const responses = await TelegramResponse.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    const total = await TelegramResponse.countDocuments(query);
+    
+    const formattedResponses = responses.map(response => response.toFrontendFormat());
+    
+    res.json({ 
+      success: true, 
+      data: {
+        responses: formattedResponses,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Lỗi API get all responses:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // ==================== USER POSITION API ====================
 
 // Lưu vị trí làm việc của user
@@ -1349,13 +1875,113 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'API endpoint không tồn tại' });
 });
 
+// ==================== MANUAL CLEANUP API ====================
+// API để manual cleanup images
+app.post('/api/cleanup-images', authenticateToken, async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+    const cleanupScript = path.join(__dirname, 'scripts/cleanup-old-images.js');
+    
+    exec(`node "${cleanupScript}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('❌ Lỗi manual cleanup:', error);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Lỗi chạy cleanup script' 
+        });
+      }
+      
+      console.log('✅ Manual cleanup completed:', stdout);
+      res.json({ 
+        success: true, 
+        message: 'Cleanup completed successfully',
+        output: stdout,
+        warnings: stderr || null
+      });
+    });
+    
+  } catch (error) {
+    console.error('❌ Lỗi API cleanup:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ==================== AUTO CLEANUP IMAGES ====================
+function setupImageCleanup() {
+  console.log('🕐 Setting up auto cleanup images...');
+  
+  // Chạy cleanup hàng ngày lúc 2:00 AM
+  cron.schedule('0 2 * * *', () => {
+    console.log('🕐 Chạy cleanup images lúc:', new Date().toISOString());
+    
+    const cleanupScript = path.join(__dirname, 'scripts/cleanup-old-images.js');
+    
+    exec(`node "${cleanupScript}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('❌ Lỗi chạy cleanup:', error);
+        return;
+      }
+      
+      console.log('✅ Cleanup completed:', stdout);
+      if (stderr) {
+        console.error('⚠️ Warnings:', stderr);
+      }
+    });
+  }, {
+    scheduled: true,
+    timezone: "Asia/Ho_Chi_Minh"
+  });
+  
+  console.log('✅ Đã setup auto cleanup: hàng ngày lúc 2:00 AM (GMT+7)');
+  console.log('📅 Cleanup sẽ xóa ảnh cũ hơn 30 ngày và không được sử dụng');
+}
+
+// Setup Socket.IO
+function setupSocketIO() {
+  console.log('🔌 Đang setup Socket.IO...');
+  
+  io.on('connection', (socket) => {
+    console.log(`📱 Client connected: ${socket.id}`);
+    
+    // Join room theo user role để nhận updates phù hợp
+    socket.on('join-role-room', (userRole) => {
+      socket.join(`role-${userRole}`);
+      console.log(`👤 User joined role room: role-${userRole}`);
+    });
+    
+    // Join room theo bill để nhận updates của bill cụ thể
+    socket.on('join-bill-room', (billId) => {
+      socket.join(`bill-${billId}`);
+      console.log(`📄 User joined bill room: bill-${billId}`);
+    });
+    
+    socket.on('disconnect', () => {
+      console.log(`📱 Client disconnected: ${socket.id}`);
+    });
+  });
+  
+  // Make io accessible globally
+  global.io = io;
+  
+  console.log('✅ Socket.IO đã sẵn sàng!');
+}
+
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Moon Backend Server đang chạy trên port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 CORS Origins: ${process.env.CORS_ORIGIN || 'http://localhost:3000, http://172.16.1.6:5000'}`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`🌐 LAN Access: http://172.16.1.6:${PORT}/api/health`);
+  
+  // Setup auto cleanup images
+  setupImageCleanup();
+  
+  // Setup Socket.IO
+  setupSocketIO();
 });
 
 // Graceful shutdown

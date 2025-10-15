@@ -56,10 +56,13 @@ export const STATUS_COLORS = {
   X: "#e53935", // đỏ
   QL: "#ffd600", // vàng đậm
   KL: "#7c43bd", // tím khác
+  S: "#9F79EE",
+  C: "#00BFFF",
+  Đ: "#FF7F24",
 };
 
 // Thứ tự hiển thị theo yêu cầu: OFF, 1/2, 1, VP, X, QL, KL
-export const STATUS_OPTIONS = ["", "OFF", "1/2", "1", "VP", "X", "QL", "KL"];
+export const STATUS_OPTIONS = ["", "OFF", "1/2", "1", "VP", "X", "QL", "KL", "S", "C","Đ"];
 
 // 3 ca chính
 export const CA_CHINH = [

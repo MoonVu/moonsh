@@ -3,6 +3,7 @@ const router = express.Router();
 const LeaveSchedule = require('../../models/LeaveSchedule');
 const { authorize } = require('../middleware/authorize');
 const { attachPermissions } = require('../middleware/attachPermissions');
+const { authJWT } = require('../middleware/authJWT');
 
 // Middleware để kiểm tra quyền
 const requireViewPermission = authorize('leave-schedule', 'view');
@@ -10,7 +11,7 @@ const requireEditPermission = authorize('leave-schedule', 'edit');
 const requireDeletePermission = authorize('leave-schedule', 'delete');
 
 // GET /api/leave-schedule - Lấy danh sách lịch về phép
-router.get('/', requireViewPermission, async (req, res) => {
+router.get('/', authJWT, async (req, res) => {
   try {
     const { 
       page = 1, 
@@ -113,7 +114,7 @@ router.get('/:id', requireViewPermission, async (req, res) => {
 });
 
 // POST /api/leave-schedule - Tạo mới lịch về phép
-router.post('/', requireEditPermission, async (req, res) => {
+router.post('/', authJWT, async (req, res) => {
   try {
     const {
       employeeId,
@@ -123,6 +124,7 @@ router.post('/', requireEditPermission, async (req, res) => {
       leaveStartDate,
       leaveEndDate,
       returnDate,
+      leaveDays,
       leaveType,
       arrangementType,
       notes
@@ -134,6 +136,28 @@ router.post('/', requireEditPermission, async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Thiếu thông tin bắt buộc'
+      });
+    }
+
+    // Tính toán leaveDays nếu không được gửi từ frontend
+    let calculatedLeaveDays = leaveDays;
+    if (!calculatedLeaveDays || calculatedLeaveDays <= 0) {
+      if (leaveType === 'Phép 6 tháng') {
+        calculatedLeaveDays = 17;
+      } else {
+        // Tính số ngày nghỉ phép cho việc riêng
+        const start = new Date(leaveStartDate);
+        const end = new Date(leaveEndDate);
+        const diffTime = Math.abs(end - start);
+        calculatedLeaveDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      }
+    }
+
+    // Validation leaveDays
+    if (calculatedLeaveDays < 1 || calculatedLeaveDays > 17) {
+      return res.status(400).json({
+        success: false,
+        message: 'Số ngày nghỉ phép phải từ 1 đến 17 ngày'
       });
     }
 
@@ -161,6 +185,7 @@ router.post('/', requireEditPermission, async (req, res) => {
       leaveStartDate,
       leaveEndDate,
       returnDate,
+      leaveDays: calculatedLeaveDays, // Sử dụng số ngày đã tính toán
       leaveType,
       arrangementType,
       notes,
@@ -200,6 +225,7 @@ router.put('/:id', requireEditPermission, async (req, res) => {
       leaveStartDate,
       leaveEndDate,
       returnDate,
+      leaveDays,
       leaveType,
       arrangementType,
       status,
@@ -215,6 +241,28 @@ router.put('/:id', requireEditPermission, async (req, res) => {
       });
     }
 
+    // Tính toán leaveDays nếu không được gửi từ frontend
+    let calculatedLeaveDays = leaveDays;
+    if (!calculatedLeaveDays || calculatedLeaveDays <= 0) {
+      if (leaveType === 'Phép 6 tháng') {
+        calculatedLeaveDays = 17;
+      } else {
+        // Tính số ngày nghỉ phép cho việc riêng
+        const start = new Date(leaveStartDate);
+        const end = new Date(leaveEndDate);
+        const diffTime = Math.abs(end - start);
+        calculatedLeaveDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      }
+    }
+
+    // Validation leaveDays
+    if (calculatedLeaveDays < 1 || calculatedLeaveDays > 17) {
+      return res.status(400).json({
+        success: false,
+        message: 'Số ngày nghỉ phép phải từ 1 đến 17 ngày'
+      });
+    }
+
     // Cập nhật thông tin
     Object.assign(leaveSchedule, {
       department,
@@ -223,6 +271,7 @@ router.put('/:id', requireEditPermission, async (req, res) => {
       leaveStartDate,
       leaveEndDate,
       returnDate,
+      leaveDays: calculatedLeaveDays, // Sử dụng số ngày đã tính toán
       leaveType,
       arrangementType,
       status,

@@ -472,14 +472,7 @@ class ApiService {
   // Lấy danh sách tất cả users để map thông tin
   async getAllUsers() {
     const data = await this.request('/users-all');
-    console.log("🔍 api.getAllUsers() raw response:", { 
-      type: typeof data, 
-      hasData: !!data?.data,
-      isArray: Array.isArray(data),
-      dataIsArray: Array.isArray(data?.data),
-      success: data?.success,
-      error: data?.error
-    });
+  
     
     // Handle response format consistently with getUsers()
     let result;
@@ -503,11 +496,6 @@ class ApiService {
       result = [];
     }
     
-    console.log("🔍 api.getAllUsers() final result:", { 
-      type: typeof result, 
-      isArray: Array.isArray(result),
-      length: result?.length || 'no length'
-    });
     return result;
   }
 
@@ -795,6 +783,83 @@ class ApiService {
       console.error('Lỗi API deleteRequest:', error);
       throw error;
     }
+  }
+
+  // ==================== TELEGRAM API METHODS ====================
+
+  // Lấy danh sách nhóm Telegram
+  async getTelegramGroups() {
+    return await this.request('/telegram-groups');
+  }
+
+  // Đảm bảo parent documents tồn tại
+  async ensureTelegramGroups() {
+    return await this.request('/telegram-groups/ensure', {
+      method: 'POST'
+    });
+  }
+
+  // Tạo subgroup mới
+  async createSubGroup(type, subgroupData) {
+    return await this.request(`/telegram-groups/${type}/sub-groups`, {
+      method: 'POST',
+      body: JSON.stringify(subgroupData)
+    });
+  }
+
+  // Cập nhật subgroup
+  async updateSubGroup(type, subId, updateData) {
+    return await this.request(`/telegram-groups/${type}/sub-groups/${subId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData)
+    });
+  }
+
+  // Xóa subgroup
+  async deleteSubGroup(type, subId) {
+    return await this.request(`/telegram-groups/${type}/sub-groups/${subId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Gửi bill qua Telegram
+  async sendBill(formData) {
+    // Tự động refresh token
+    this.refreshToken();
+    
+    const url = `${this.baseURL}/api/sendBill`;
+    const config = {
+      method: 'POST',
+      headers: {
+        ...(this.token && { 'Authorization': `Bearer ${this.token}` })
+        // Không set Content-Type cho FormData, browser sẽ tự set với boundary
+      },
+      body: formData
+    };
+
+    try {
+      const response = await fetch(url, config);
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error("❌ Telegram sendBill error:", error);
+      throw error;
+    }
+  }
+
+  // Lấy phản hồi Telegram cho một bill
+  async getTelegramResponses(billId) {
+    return await this.request(`/telegram/responses/${billId}`);
+  }
+
+  // Lấy tất cả phản hồi Telegram (admin)
+  async getAllTelegramResponses(filters = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) queryParams.append(key, value);
+    });
+    
+    const endpoint = `/telegram/responses${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    return await this.request(endpoint);
   }
 
   // ==================== OTHER API METHODS ====================

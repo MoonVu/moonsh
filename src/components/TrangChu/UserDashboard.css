@@ -189,20 +189,7 @@
   border-radius: 6px;
 }
 
-.ant-btn {
-  border-radius: 6px;
-  font-weight: 500;
-}
-
-.ant-btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-}
-
-.ant-btn-primary:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-  transform: translateY(-1px);
-}
+/* Button styles moved to ConfigProvider theme */
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -219,32 +206,11 @@
     padding: 20px;
   }
   
-  .ant-modal {
-    width: 95% !important;
-    margin: 10px;
-  }
 }
 
-/* Enhanced UI Styles */
-.ant-modal-header {
-  background: linear-gradient(135deg, #1890ff 0%, #52c41a 100%);
-  border-radius: 12px 12px 0 0;
-  padding: 20px 24px;
-}
+/* Modal styles moved to ConfigProvider theme */
 
-.ant-modal-header .ant-modal-title {
-  color: rgb(3, 69, 252) !important;
-  font-weight: 600;
-  font-size: 18px;
-}
-
-.ant-modal-content {
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  border: 2px solid #e6f7ff;
-}
-
-.ant-tabs-tab {
+.user-dashboard .ant-tabs-tab {
   font-weight: 500;
   transition: all 0.3s ease;
   padding: 12px 20px;
@@ -252,31 +218,31 @@
   border-radius: 8px 8px 0 0;
 }
 
-.ant-tabs-tab:hover {
+.user-dashboard .ant-tabs-tab:hover {
   color: #1890ff;
   background: #f0f9ff;
 }
 
-.ant-tabs-tab.ant-tabs-tab-active {
+.user-dashboard .ant-tabs-tab.ant-tabs-tab-active {
   font-weight: 600;
   background: #e6f7ff;
   border-bottom: 3px solid #1890ff;
 }
 
-.ant-tabs-content-holder {
+.user-dashboard .ant-tabs-content-holder {
   padding: 20px;
   background: #fafafa;
   border-radius: 0 0 8px 8px;
 }
 
-.ant-table {
+.user-dashboard .ant-table {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(24, 144, 255, 0.1);
   border: 1px solid #e6f7ff;
 }
 
-.ant-table-thead > tr > th {
+.user-dashboard .ant-table-thead > tr > th {
   background: linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%);
   border-bottom: 2px solid #1890ff;
   font-weight: 600;
@@ -284,16 +250,16 @@
   padding: 16px 12px;
 }
 
-.ant-table-tbody > tr > td {
+.user-dashboard .ant-table-tbody > tr > td {
   padding: 16px 12px;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.ant-table-tbody > tr:hover > td {
+.user-dashboard .ant-table-tbody > tr:hover > td {
   background: #f0f9ff;
 }
 
-.ant-btn {
+.user-dashboard .ant-btn {
   border-radius: 8px;
   font-weight: 500;
   transition: all 0.3s ease;
@@ -301,18 +267,18 @@
   height: auto;
 }
 
-.ant-btn:hover {
+.user-dashboard .ant-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(24, 144, 255, 0.3);
 }
 
-.ant-btn-primary {
+.user-dashboard .ant-btn-primary {
   background: linear-gradient(135deg, #1890ff 0%, #52c41a 100%);
   border: none;
   box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
 }
 
-.ant-btn-primary:hover {
+.user-dashboard .ant-btn-primary:hover {
   background: linear-gradient(135deg, #40a9ff 0%, #73d13d 100%);
   box-shadow: 0 6px 20px rgba(24, 144, 255, 0.4);
 }

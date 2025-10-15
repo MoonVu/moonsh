@@ -428,7 +428,7 @@ export default function BangDuLieu() {
   }
 
   return (
-    <div className="table-container">
+    <div className="bang-du-lieu table-container">
       <div className="sticky-header">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 13 }}>

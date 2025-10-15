@@ -1,0 +1,434 @@
+/* ==================== MAIN CONTAINER ==================== */
+.telegram-bill-sender {
+  padding: 1px;
+  max-width: 1800px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+}
+
+/* ==================== CARD STYLING ==================== */
+.telegram-bill-sender .ant-card {
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: none;
+  overflow: hidden;
+}
+
+.telegram-bill-sender .ant-card-head {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 24px;
+}
+
+.telegram-bill-sender .ant-card-head-title {
+  color: white;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.telegram-bill-sender .ant-card-body {
+  padding: 32px;
+}
+
+/* ==================== MAIN BUTTONS ==================== */
+.telegram-bill-sender .main-action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin: 32px 0;
+}
+
+.telegram-bill-sender .main-action-buttons .ant-btn {
+  height: 80px;
+  width: 240px;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.telegram-bill-sender .main-action-buttons .ant-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.telegram-bill-sender .main-action-buttons .ant-btn:hover::before {
+  left: 100%;
+}
+
+.telegram-bill-sender .main-action-buttons .ant-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.telegram-bill-sender .main-action-buttons .ant-btn:active {
+  transform: translateY(-2px);
+}
+
+/* Group button gradient */
+.telegram-bill-sender .group-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.telegram-bill-sender .group-button:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+/* Bill button gradient */
+.telegram-bill-sender .bill-button {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.telegram-bill-sender .bill-button:hover {
+  background: linear-gradient(135deg, #e085f0 0%, #f4475c 100%);
+}
+
+/* ==================== ALERT STYLING ==================== */
+.telegram-bill-sender .ant-alert {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.1);
+}
+
+.telegram-bill-sender .ant-alert-info {
+  background: linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%);
+  border-left: 4px solid #1890ff;
+}
+
+.telegram-bill-sender .ant-alert-description {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.telegram-bill-sender .ant-alert-description p {
+  margin: 6px 0;
+}
+
+/* ==================== MODAL STYLING ==================== */
+.telegram-bill-sender .ant-modal {
+  border-radius: 16px;
+  overflow: hidden;
+  max-width: 95vw;
+}
+
+.telegram-bill-sender .ant-modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 24px;
+}
+
+.telegram-bill-sender .ant-modal-title {
+  color: white;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.telegram-bill-sender .ant-modal-close {
+  color: white;
+}
+
+.telegram-bill-sender .ant-modal-close:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.telegram-bill-sender .ant-modal-body {
+  padding: 32px;
+  overflow: auto;
+}
+
+.telegram-bill-sender .ant-modal-content {
+  width: 100%;
+}
+
+/* ==================== FORM STYLING ==================== */
+.telegram-bill-sender .ant-form-item-label > label {
+  font-weight: 600;
+  color: #262626;
+  font-size: 14px;
+}
+
+.telegram-bill-sender .ant-input,
+.telegram-bill-sender .ant-select-selector,
+.telegram-bill-sender .ant-input-affix-wrapper {
+  border-radius: 8px;
+  border: 2px solid #f0f0f0;
+  transition: all 0.3s ease;
+
+}
+
+.telegram-bill-sender .ant-input:hover,
+.telegram-bill-sender .ant-select-selector:hover,
+.telegram-bill-sender .ant-input-affix-wrapper:hover {
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(64, 169, 255, 0.1);
+}
+
+.telegram-bill-sender .ant-input:focus,
+.telegram-bill-sender .ant-select-focused .ant-select-selector,
+.telegram-bill-sender .ant-input-affix-wrapper-focused {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.15);
+}
+
+.telegram-bill-sender .ant-textarea {
+  border-radius: 8px;
+  border: 2px solid #f0f0f0;
+  transition: all 0.3s ease;
+}
+
+.telegram-bill-sender .ant-textarea:hover {
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(64, 169, 255, 0.1);
+}
+
+.telegram-bill-sender .ant-textarea:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.15);
+}
+
+/* ==================== BUTTON STYLING ==================== */
+.telegram-bill-sender .ant-btn {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  height: 40px;
+}
+
+/* Tăng độ ưu tiên để tránh bị .ant-modal .ant-btn và :where(.css-dev-only...) đè */
+.telegram-bill-sender .ant-modal .ant-btn,
+.telegram-bill-sender .ant-btn {
+  border-radius: 8px !important;
+  height: 36px !important;
+  padding: 0 12px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+/* TelegramBillSender edit button styles moved to common-buttons.css */
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-save {
+  color: #52c41a !important;
+  font-weight: 600 !important;
+}
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-save:hover {
+  color: #73d13d !important;
+  background-color: rgba(82, 196, 26, 0.08) !important;
+  border-radius: 8px;
+}
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-cancel {
+  color: #faad14 !important;
+}
+.telegram-bill-sender .ant-table-tbody .ant-table-cell .ant-space .ant-btn.btn-cancel:hover {
+  color: #ffc53d !important;
+  background-color: rgba(250, 173, 20, 0.08) !important;
+  border-radius: 8px;
+}
+/* TelegramBillSender delete button styles moved to common-buttons.css */
+
+.telegram-bill-sender .ant-btn-primary {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+}
+
+.telegram-bill-sender .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+}
+
+.telegram-bill-sender .ant-btn-primary:active {
+  transform: translateY(0);
+}
+
+.telegram-bill-sender .ant-btn-lg {
+  height: 48px;
+  font-size: 16px;
+}
+
+/* ==================== TABLE STYLING ==================== */
+.telegram-bill-sender .ant-table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(206, 49, 49, 0.05);
+  min-width: 900px;
+}
+
+.telegram-bill-sender .ant-table-thead > tr > th {
+  background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%);
+  border-bottom: 2px solid #e8e8e8;
+  font-weight: 600;
+  color: #262626;
+}
+
+.telegram-bill-sender .ant-table-tbody > tr:hover > td {
+  background-color: #f8f9fa;
+}
+
+/* ==================== UPLOAD STYLING ==================== */
+.telegram-bill-sender .ant-upload-btn {
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: #fafafa;
+}
+
+.telegram-bill-sender .ant-upload-btn:hover {
+  border-color: #1890ff;
+  background: #f0f9ff;
+  transform: translateY(-1px);
+}
+
+/* ==================== IMAGE PREVIEW ==================== */
+.telegram-bill-sender img {
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.telegram-bill-sender img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* ==================== TAG STYLING ==================== */
+.telegram-bill-sender .ant-tag {
+  border-radius: 12px;
+  font-size: 12px;
+  padding: 4px 12px;
+  font-weight: 500;
+  border: none;
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+@media (max-width: 768px) {
+  .telegram-bill-sender {
+    padding: 16px;
+  }
+  
+  .telegram-bill-sender .ant-card-body {
+    padding: 20px;
+  }
+  
+  .telegram-bill-sender .main-action-buttons {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .telegram-bill-sender .main-action-buttons .ant-btn {
+    width: 100%;
+    max-width: 300px;
+    height: 60px;
+    font-size: 16px;
+  }
+  
+  .telegram-bill-sender .ant-modal {
+    margin: 16px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  .telegram-bill-sender .ant-modal-body {
+    padding: 20px;
+  }
+  
+  .telegram-bill-sender img {
+    max-width: 150px;
+    max-height: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .telegram-bill-sender {
+    padding: 12px;
+  }
+  
+  .telegram-bill-sender .ant-card-body {
+    padding: 16px;
+  }
+  
+  .telegram-bill-sender .ant-card-head-title {
+    font-size: 18px;
+  }
+  
+  .telegram-bill-sender .main-action-buttons .ant-btn {
+    height: 50px;
+    font-size: 14px;
+  }
+  
+  .telegram-bill-sender img {
+    max-width: 120px;
+    max-height: 120px;
+  }
+}
+
+/* ==================== ANIMATIONS ==================== */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.telegram-bill-sender .ant-modal {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.telegram-bill-sender .ant-card {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* ==================== LOADING STATES ==================== */
+.telegram-bill-sender .ant-spin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+}
+
+.telegram-bill-sender .ant-spin-dot {
+  font-size: 24px;
+}
+
+/* ==================== CUSTOM SCROLLBAR ==================== */
+.telegram-bill-sender .ant-table-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.telegram-bill-sender .ant-table-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.telegram-bill-sender .ant-table-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.telegram-bill-sender .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

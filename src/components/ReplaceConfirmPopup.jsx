@@ -21,9 +21,14 @@ const ReplaceConfirmPopup = ({
             </span>
             ?
           </h3>
-          <div style={{ marginTop: 16, textAlign: 'right' }}>
+          <div style={{ 
+            marginTop: 20, 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: '12px' 
+          }}>
             <button className="btn-edit" onClick={confirmReplace}>Đồng ý</button>
-            <button className="btn-delete" onClick={cancelReplace} style={{ marginLeft: 8 }}>Hủy</button>
+            <button className="btn-delete" onClick={cancelReplace}>Hủy</button>
           </div>
         </div>
       </div>
