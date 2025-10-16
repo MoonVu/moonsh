@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const fs = require('fs');
 const sharp = require('sharp');
+const Tesseract = require('tesseract.js');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
@@ -153,6 +154,38 @@ async function optimizeImage(inputPath, outputPath) {
   } catch (error) {
     console.error('❌ Lỗi tối ưu ảnh:', error);
     return false;
+  }
+}
+
+// Function OCR nhẹ (English only, không dấu)
+async function extractTextWithOCR(imagePath) {
+  try {
+    const start = Date.now();
+    // Tiền xử lý: chuyển grayscale và tăng tương phản nhẹ trước khi OCR
+    const preprocessedPath = imagePath.replace(/\.jpg$/i, '-ocr.jpg');
+    await sharp(imagePath)
+      .grayscale()
+      .normalise() // cân bằng tương phản
+      .sharpen()
+      .toFile(preprocessedPath);
+
+    const { data } = await Tesseract.recognize(preprocessedPath, 'eng', {
+      tessedit_pageseg_mode: 3 // auto
+    });
+
+    // Cleanup file tạm
+    try { fs.unlinkSync(preprocessedPath); } catch (_) {}
+
+    let text = (data?.text || '').trim();
+    // Loại bỏ dấu tiếng Việt nếu có (NFD -> remove combining marks)
+    text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const elapsed = Date.now() - start;
+    console.log(`🧠 OCR extracted ${text.length} chars in ${elapsed}ms`);
+    return text;
+  } catch (err) {
+    console.error('❌ OCR error:', err?.message || err);
+    return '';
   }
 }
 
@@ -1039,9 +1072,7 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
       });
     }
 
-    console.log(`📤 Gửi bill ${billId} qua Telegram...`);
-    console.log(`📁 File uploaded:`, uploadedFile.filename);
-    console.log(`📁 File path:`, uploadedFile.path);
+    // Thông tin upload
     
     // Đo thời gian tối ưu ảnh
     const optimizeStart = Date.now();
@@ -1050,12 +1081,12 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
     const optimizeTime = Date.now() - optimizeStart;
     
     if (optimized) {
-      console.log(`✅ Đã tối ưu ảnh: ${uploadedFile.filename} (${optimizeTime}ms)`);
+      // Ảnh đã tối ưu
       // Cập nhật path để sử dụng ảnh đã tối ưu
       uploadedFile.path = optimizedPath;
       uploadedFile.filename = path.basename(optimizedPath);
     } else {
-      console.log(`⚠️ Không thể tối ưu ảnh, sử dụng ảnh gốc (${optimizeTime}ms)`);
+      // Không thể tối ưu ảnh, dùng ảnh gốc
     }
     
     // Parse selectedGroups nếu có
@@ -1068,11 +1099,27 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
       }
     }
     
+    // OCR để tự điền ghi chú (không chặn nếu lỗi)
+    const ocrStart = Date.now();
+    const ocrText = await extractTextWithOCR(uploadedFile.path);
+    const ocrTime = Date.now() - ocrStart;
+    // caption từ client đã là nội dung người dùng/ocr; chuẩn hóa 1 dòng, remove ký tự control
+    const normalizeOneLine = (s) => (s || '')
+      .replace(/[\r\n]+/g, ' ')     // bỏ xuống dòng
+      .replace(/\s+/g, ' ')          // gom nhiều space
+      .replace(/[\u0000-\u001F\u007F]+/g, '') // bỏ control chars
+      .trim();
+
+    let finalCaption = normalizeOneLine(caption || '');
+    if (!finalCaption && ocrText) {
+      finalCaption = normalizeOneLine(ocrText).slice(0, 1200);
+    }
+
     // Đo thời gian gửi Telegram
     const telegramStart = Date.now();
-    const result = await sendBillToGroup(billId, uploadedFile.path, caption, groupType, groupsToSend, employee);
+    const result = await sendBillToGroup(billId, uploadedFile.path, finalCaption, groupType, groupsToSend, employee);
     const telegramTime = Date.now() - telegramStart;
-    console.log(`📤 Gửi Telegram hoàn thành: ${telegramTime}ms`);
+    console.log(`⏱️ Thời gian: OCR ${ocrTime}ms, gửi Telegram ${telegramTime}ms`);
     
     if (result.success) {
       // Không xóa file ngay vì cần hiển thị trên frontend
@@ -1110,7 +1157,8 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
           billId: billId,
           customer: customer || '',
           employee: employee || '',
-          caption: caption || '',
+          caption: finalCaption || '',
+          ocrText: ocrText || '',
           imageUrl: `/uploads/${uploadedFile.filename}`, // Lưu URL ảnh
           createdBy: req.user?.username || employee || 'system',
           groupType: groupType || '',
@@ -1153,6 +1201,38 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
       success: false, 
       error: error.message 
     });
+  }
+});
+
+// API OCR nhanh để autofill ghi chú (không lưu DB, chỉ trả về text)
+app.post('/api/ocr', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const uploadedFile = req.file;
+    if (!uploadedFile) {
+      return res.status(400).json({ success: false, error: 'Thiếu file ảnh' });
+    }
+
+    // Tối ưu nhẹ để OCR tốt hơn
+    const optimizedPath = uploadedFile.path.replace('.jpg', '-ocr-optimized.jpg');
+    try {
+      await sharp(uploadedFile.path)
+        .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+        .toFile(optimizedPath);
+    } catch (_) {
+      // fallback dùng ảnh gốc
+    }
+
+    const ocrPath = fs.existsSync(optimizedPath) ? optimizedPath : uploadedFile.path;
+    const text = await extractTextWithOCR(ocrPath);
+
+    // Cleanup
+    try { fs.unlinkSync(uploadedFile.path); } catch (_) {}
+    try { if (fs.existsSync(optimizedPath)) fs.unlinkSync(optimizedPath); } catch (_) {}
+
+    return res.json({ success: true, ocrText: text || '' });
+  } catch (err) {
+    console.error('❌ OCR API error:', err);
+    return res.status(500).json({ success: false, error: 'OCR failed' });
   }
 });
 
@@ -1311,8 +1391,6 @@ app.post('/api/telegram', async (req, res) => {
     
     // Cập nhật trạng thái group với status mới từ bot
     const newStatus = req.body.status || (isYes ? 'YES' : 'NO');
-    console.log(`🔍 Updating group ${groupIndex} with status: ${newStatus}`);
-    console.log(`🔍 ResponseType: ${req.body.responseType}`);
     
     billRecord.groups[groupIndex].status = newStatus;
     billRecord.groups[groupIndex].responseUserId = userId;
@@ -1355,8 +1433,6 @@ app.post('/api/telegram', async (req, res) => {
       
       // Emit cho TẤT CẢ người dùng (không chỉ ADMIN) để mọi role đều nhận realtime
       global.io.emit('telegram-response-updated', socketData);
-      
-      console.log(`📡 Emitted socket event for bill ${billId}`);
     }
     
     res.json({ 

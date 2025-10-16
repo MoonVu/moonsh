@@ -85,6 +85,11 @@ const TelegramBillSender = () => {
   const [expandedResponses, setExpandedResponses] = useState({});
   const [billLoading, setBillLoading] = useState(false);
   
+  // State cho modal hiển thị ghi chú đầy đủ
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [fullNote, setFullNote] = useState('');
+  const [noteTitle, setNoteTitle] = useState('');
+  
   // State cho pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -328,7 +333,7 @@ const TelegramBillSender = () => {
   }, [pasteEnabled]);
 
   // Xử lý upload file
-  const handleFileUpload = (file) => {
+  const handleFileUpload = async (file) => {
     const isImage = file.type.startsWith('image/');
     if (!isImage) {
       message.error('Chỉ được upload file ảnh!');
@@ -351,6 +356,26 @@ const TelegramBillSender = () => {
     reader.readAsDataURL(file);
 
     message.success('Đã chọn ảnh thành công!');
+
+    // Gọi OCR để autofill ghi chú (không chặn UI nếu lỗi)
+    try {
+      const ocrRes = await apiService.ocrImage(file);
+      if (ocrRes?.success && ocrRes?.ocrText) {
+        const normalizeOneLine = (s) => (s || '')
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .replace(/[\u0000-\u001F\u007F]+/g, '')
+          .trim();
+        const trimmed = normalizeOneLine(ocrRes.ocrText).slice(0, 800);
+        const current = normalizeOneLine(billForm.getFieldValue('caption') || '');
+        const newCaption = current ? current : trimmed; // ưu tiên nội dung hiện có, nếu rỗng dùng OCR
+        billForm.setFieldsValue({ caption: newCaption });
+        message.success('Đã tự động nhận diện nội dung ảnh (OCR)');
+      }
+    } catch (e) {
+      // Bỏ qua nếu OCR lỗi
+    }
+
     return false; // Prevent default upload
   };
 
@@ -476,7 +501,9 @@ const TelegramBillSender = () => {
       const formSelectedGroups = values.selectedGroups || [];
       // Nếu không chọn nhóm cụ thể, sẽ gửi cho tất cả nhóm thuộc groupType
       formDataToSend.append('selectedGroups', JSON.stringify(formSelectedGroups));
-      formDataToSend.append('caption', `📋 Hóa đơn ${values.customer}\n\n${values.caption || 'Không có ghi chú'}`);
+      // Chỉ gửi phần ghi chú người dùng thấy trên form (đã được OCR tự điền), không thêm tiêu đề
+      const pureCaption = (values.caption || '').replace(/\s+/g, ' ').trim();
+      formDataToSend.append('caption', pureCaption);
       formDataToSend.append('image', selectedFile);
 
       const response = await apiService.sendBill(formDataToSend);
@@ -507,19 +534,48 @@ const TelegramBillSender = () => {
     try {
       setBillLoading(true);
       
+      // Thêm filter theo search term để kiểm tra xem có phải tìm theo trạng thái không
+      const searchLower = billSearchTerm.toLowerCase();
+      const statusKeywords = {
+        'đã lên điểm': 'YES',
+        'lên điểm': 'YES',
+        'nhận đc tiền': 'NHAN',
+        'nhận được tiền': 'NHAN',
+        'chưa nhận được tiền': 'CHUA',
+        'chưa nhận': 'CHUA',
+        'không phải bên mình': 'KHONG',
+        'không phải': 'KHONG',
+        'chờ phản hồi': 'PENDING',
+        'pending': 'PENDING'
+      };
+      
+      // Kiểm tra xem search term có chứa từ khóa trạng thái không
+      let searchStatus = null;
+      for (const [keyword, status] of Object.entries(statusKeywords)) {
+        if (searchLower.includes(keyword.toLowerCase())) {
+          searchStatus = status;
+          break;
+        }
+      }
+      
       // Tạo params cho API
       const params = {
         page: page,
         limit: size
       };
       
+      // Nếu tìm theo trạng thái, load tất cả data để filter client-side
+      if (searchStatus) {
+        params.limit = 1000; // Load nhiều hơn để có đủ data filter
+      }
+      
       // Thêm filter theo tab
       if (billTab === 'my-bills' && user?.username) {
         params.createdBy = user.username;
       }
       
-      // Thêm filter theo search term
-      if (billSearchTerm) {
+      // Chỉ gửi search lên API nếu không phải tìm theo trạng thái
+      if (billSearchTerm && !searchStatus) {
         params.search = billSearchTerm;
       }
       
@@ -546,7 +602,7 @@ const TelegramBillSender = () => {
       console.log('📊 Pagination Info:', paginationInfo);
       
       // Chuyển đổi dữ liệu từ format mới
-      const billsArray = billsData.map(bill => ({
+      let billsArray = billsData.map(bill => ({
         billId: bill.billId,
         customer: bill.customer || 'N/A',
         employee: bill.employee || 'N/A',
@@ -573,6 +629,17 @@ const TelegramBillSender = () => {
         }))
       }));
       
+      // Nếu tìm theo trạng thái, filter bills client-side
+      if (searchStatus) {
+        console.log('🔍 Filtering by status:', searchStatus);
+        billsArray = billsArray.filter(bill => {
+          const hasStatus = bill.groupResponses.some(response => response.status === searchStatus);
+          console.log(`🔍 Bill ${bill.billId} has status ${searchStatus}:`, hasStatus);
+          return hasStatus;
+        });
+        console.log('🔍 Filtered bills:', billsArray.length);
+      }
+      
       // Sort theo ngày tạo (backend đã sort rồi, nhưng đảm bảo)
       billsArray.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
@@ -583,7 +650,7 @@ const TelegramBillSender = () => {
       }, {}));
       
       // Cập nhật pagination info
-      setTotalBills(paginationInfo.total || 0);
+      setTotalBills(billsArray.length); // Client-side filtering nên dùng length
       setCurrentPage(paginationInfo.page || page);
       
     } catch (error) {
@@ -597,6 +664,17 @@ const TelegramBillSender = () => {
   // Giữ lại getFilteredBills cho compatibility (trả về bills hiện tại)
   const getFilteredBills = () => {
     return bills;
+  };
+
+  // Function để mở modal hiển thị ghi chú đầy đủ
+  const showFullNote = (caption, billId) => {
+    // Parse note từ caption format: "📋 Hóa đơn {customer}\r\n\r\n{note}"
+    const noteMatch = caption?.match(/\r?\n\r?\n(.+)$/);
+    const note = noteMatch ? noteMatch[1].trim() : (caption || 'Không có ghi chú');
+    
+    setFullNote(note);
+    setNoteTitle(`Ghi chú - Mã đơn: ${billId}`);
+    setShowNoteModal(true);
   };
 
   // Get response status cho một bill
@@ -773,14 +851,23 @@ const TelegramBillSender = () => {
       key: 'caption',
       width: 200,
       ellipsis: true,
-      render: (caption) => {
+      render: (caption, record) => {
         // Parse note từ caption format: "📋 Hóa đơn {customer}\r\n\r\n{note}"
         const noteMatch = caption?.match(/\r?\n\r?\n(.+)$/);
         const note = noteMatch ? noteMatch[1].trim() : (caption || 'Không có ghi chú');
         
         return (
-          <Tooltip title={note}>
-            <span>{note}</span>
+          <Tooltip title="Click để xem ghi chú đầy đủ">
+            <span 
+              style={{ 
+                cursor: 'pointer', 
+                color: '#1890ff',
+                textDecoration: 'underline'
+              }}
+              onClick={() => showFullNote(caption, record.billId)}
+            >
+              {note}
+            </span>
           </Tooltip>
         );
       }
@@ -920,7 +1007,7 @@ const TelegramBillSender = () => {
           message="Hướng dẫn sử dụng"
           description={
             <div>
-              <p>1. <strong>Tự tìm hiểu nha</strong> </p>
+              <p> <strong>Đây là bản thử nghiệm nên nếu mọi người cần cập nhật gì thêm cứ nói cho Moon nha</strong> </p>
             </div>
           }
           type="info"
@@ -962,12 +1049,54 @@ const TelegramBillSender = () => {
           {/* Công cụ tìm kiếm */}
           <div style={{ marginBottom: 16 }}>
             <Input.Search
-              placeholder="Tìm kiếm thông tin..."
+              placeholder="Tìm kiếm theo mã đơn, khách hàng, ghi chú, hoặc trạng thái phản hồi (VD: 'đã lên điểm', 'chưa nhận được tiền')..."
               value={billSearchTerm}
               onChange={(e) => setBillSearchTerm(e.target.value)}
-              style={{ maxWidth: 400 }}
+              style={{ maxWidth: 600 }}
               allowClear
             />
+            
+            {/* Hiển thị thông báo khi tìm kiếm theo trạng thái */}
+            {billSearchTerm && (() => {
+              const searchLower = billSearchTerm.toLowerCase();
+              const statusKeywords = {
+                'đã lên điểm': 'YES',
+                'lên điểm': 'YES',
+                'nhận đc tiền': 'NHAN',
+                'nhận được tiền': 'NHAN',
+                'chưa nhận được tiền': 'CHUA',
+                'chưa nhận': 'CHUA',
+                'không phải bên mình': 'KHONG',
+                'không phải': 'KHONG',
+                'chờ phản hồi': 'PENDING',
+                'pending': 'PENDING'
+              };
+              
+              let searchStatus = null;
+              for (const [keyword, status] of Object.entries(statusKeywords)) {
+                if (searchLower.includes(keyword.toLowerCase())) {
+                  searchStatus = status;
+                  break;
+                }
+              }
+              
+              if (searchStatus) {
+                const statusText = {
+                  'YES': 'đã lên điểm',
+                  'NHAN': 'nhận được tiền',
+                  'CHUA': 'chưa nhận được tiền',
+                  'KHONG': 'không phải bên mình',
+                  'PENDING': 'chờ phản hồi'
+                };
+                
+                return (
+                  <div style={{ marginTop: 8, fontSize: '12px', color: '#1890ff' }}>
+                    🔍 Đang tìm kiếm hóa đơn có trạng thái: <strong>{statusText[searchStatus]}</strong>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
           
           {/* Tabs lọc */}
@@ -1283,6 +1412,34 @@ const TelegramBillSender = () => {
               </Button>
             </Form.Item>
           </Form>
+        </Modal>
+
+        {/* Modal hiển thị ghi chú đầy đủ */}
+        <Modal
+          title={noteTitle}
+          open={showNoteModal}
+          onCancel={() => setShowNoteModal(false)}
+          footer={[
+            <Button key="close" onClick={() => setShowNoteModal(false)}>
+              Đóng
+            </Button>
+          ]}
+          width={600}
+        >
+          <div style={{ 
+            maxHeight: '400px', 
+            overflowY: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontSize: '14px',
+            lineHeight: '1.6',
+            padding: '16px',
+            background: '#fafafa',
+            borderRadius: '6px',
+            border: '1px solid #f0f0f0'
+          }}>
+            {fullNote}
+          </div>
         </Modal>
       </Card>
     </div>

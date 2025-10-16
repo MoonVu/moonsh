@@ -25,7 +25,8 @@
     "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.66.0",
     "sharp": "^0.34.4",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "tesseract.js": "^4.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

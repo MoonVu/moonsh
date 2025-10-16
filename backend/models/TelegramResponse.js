@@ -29,6 +29,7 @@ const telegramResponseSchema = new mongoose.Schema({
   customer: { type: String },
   employee: { type: String },
   caption: { type: String },
+  ocrText: { type: String },
   imageUrl: { type: String },
   createdBy: { type: String },
   groupType: { type: String },

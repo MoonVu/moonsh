@@ -11,9 +11,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 // Khởi tạo bot
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-console.log('🤖 Telegram Bot đã khởi động...');
-console.log('📱 Bot Token:', BOT_TOKEN.substring(0, 10) + '...');
-console.log('📊 Groups will be loaded from MongoDB telegram_groups collection');
+console.log('🤖 Telegram Bot đã khởi động');
 
 // ==================== HÀM GỬI BILL VÀO GROUP ====================
 /**
@@ -26,7 +24,6 @@ console.log('📊 Groups will be loaded from MongoDB telegram_groups collection'
  */
 async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHBET', selectedGroups = [], employee = 'N/A') {
   try {
-    console.log(`📤 Gửi bill ${billId} vào nhóm ${groupType}...`);
     
     // Lấy danh sách nhóm theo groupType từ MongoDB
     const TelegramGroup = require('./models/TelegramGroup');
@@ -61,13 +58,9 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
       throw new Error(`Không có nhóm nào được chọn để gửi`);
     }
     
-    // Tạo caption với thông tin bill
-    // Parse caption để lấy thông tin từ format: "📋 Hóa đơn {customer}\r\n\r\n{note}"
-    const customerMatch = caption.match(/📋 Hóa đơn (.+?)(?:\r?\n|$)/);
-    const noteMatch = caption.match(/\r?\n\r?\n(.+)$/);
-    
-    const customer = customerMatch ? customerMatch[1].trim() : 'N/A';
-    const note = noteMatch ? noteMatch[1].trim() : 'Không có ghi chú';
+    // Caption hiện là 1 dòng nội dung đã chuẩn hóa; nếu rỗng, hiển thị "Không có ghi chú"
+    const normalizeOneLine = (s) => (s || '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').replace(/[\u0000-\u001F\u007F]+/g, '').trim();
+    const note = normalizeOneLine(caption) || 'Không có ghi chú';
     
     // Lấy thông tin người gửi từ API data thay vì parse caption
     // (sẽ được truyền từ frontend qua API)
@@ -77,9 +70,9 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
 
 📄 *Mã đơn: ${billId}
 👤 *Người gửi: ${employee}
-📝 **Ghi chú: ${note}
+📝 **Ghi chú nội dung: ${note}
 
-❓ **Vui lòng chọn câu trả lời:**`;
+❓ Vui lòng chọn câu trả lời:`;
     
     // Tạo inline keyboard với 4 lựa chọn
     const keyboard = {
@@ -111,7 +104,7 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
 
     
     // Gửi song song đến tất cả subgroups được chọn
-    console.log(`📤 Bắt đầu gửi song song đến ${groupsToSend.length} nhóm...`);
+    // Gửi song song đến các nhóm
     
     const sendPromises = groupsToSend.map(async (subGroup) => {
       try {
@@ -120,8 +113,6 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
           ...keyboard
         });
 
-        console.log(`✅ Đã gửi đến ${subGroup.name}. Message ID: ${message.message_id}`);
-        
         return {
           chatId: subGroup.telegramId,
           groupName: subGroup.name,
@@ -129,7 +120,7 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
           success: true
         };
       } catch (error) {
-        console.error(`❌ Lỗi gửi đến ${subGroup.name} (${subGroup.telegramId}):`, error.message);
+        console.error(`❌ Lỗi gửi đến ${subGroup.name}:`, error.message);
         return {
           chatId: subGroup.telegramId,
           groupName: subGroup.name,
@@ -143,7 +134,18 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
     const results = await Promise.all(sendPromises);
 
     const successCount = results.filter(r => r.success).length;
-    console.log(`✅ Đã gửi bill ${billId} đến ${successCount}/${results.length} nhóm`);
+    const failedResults = results.filter(r => !r.success);
+    
+    // Log chi tiết kết quả gửi
+    console.log(`📤 Bill ${billId} - Tổng: ${results.length} nhóm, Thành công: ${successCount}, Thất bại: ${failedResults.length}`);
+    
+    // Log chi tiết các nhóm thất bại
+    if (failedResults.length > 0) {
+      console.log(`❌ Nhóm gửi thất bại cho bill ${billId}:`);
+      failedResults.forEach(result => {
+        console.log(`   - ${result.groupName}: ${result.error || 'Lỗi không xác định'}`);
+      });
+    }
     
     return {
       success: successCount > 0,
@@ -218,10 +220,6 @@ bot.on('callback_query', async (callbackQuery) => {
           responseType = parts[parts.length - 1];
         }
         
-        console.log(`🔍 Parsing callback data: ${data}`);
-        console.log(`🔍 Parts:`, parts);
-        console.log(`🔍 BillId: ${billId}, ResponseType: ${responseType}`);
-        
         // Map response type to display text and status
         const responseMap = {
           'diem': { text: 'Đã lên điểm', emoji: '✅', status: 'YES' },
@@ -231,8 +229,6 @@ bot.on('callback_query', async (callbackQuery) => {
         };
         
         const responseInfo = responseMap[responseType] || { text: 'Unknown', emoji: '❓', status: 'NO' };
-        
-        console.log(`🔍 ResponseInfo:`, responseInfo);
         
         // Trả lời trong group
         const userName = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
@@ -277,10 +273,9 @@ bot.on('callback_query', async (callbackQuery) => {
             }
           };
           
-          console.log(`🔍 Sending to API:`, apiData);
           const response = await axios.post(`${BACKEND_URL}/api/telegram`, apiData);
         } catch (apiError) {
-          console.error(`❌ Lỗi gửi dữ liệu về backend:`, apiError.message);
+          console.error(`❌ Lỗi gửi dữ liệu về backend cho bill ${billId}:`, apiError.message);
         }
 
         // Trả lời callback query để tắt loading

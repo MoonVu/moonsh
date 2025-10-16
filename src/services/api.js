@@ -862,6 +862,27 @@ class ApiService {
     }
   }
 
+  // OCR endpoint: trả về text từ ảnh
+  async ocrImage(file) {
+    const url = `${this.baseURL}/api/ocr`;
+    const form = new FormData();
+    form.append('image', file);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token || ''}`
+        },
+        body: form
+      });
+      const data = await res.json();
+      return data;
+    } catch (e) {
+      console.error('OCR API error:', e);
+      return { success: false, error: e?.message || 'Network error' };
+    }
+  }
+
   // Lấy phản hồi Telegram cho một bill
   async getTelegramResponses(billId) {
     return await this.request(`/telegram/responses/${billId}`);
