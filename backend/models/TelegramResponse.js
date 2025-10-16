@@ -9,13 +9,15 @@ const groupStatusSchema = new mongoose.Schema({
   status: {
     type: String,
     required: true,
-    enum: ['PENDING', 'YES', 'NO', 'CHUA', 'KHONG', 'NHAN'],
+    enum: ['PENDING', 'YES', 'NO', 'CHUA', 'KHONG', 'NHAN', 'CHUA_PROCESSED', 'NHAN_PROCESSED'],
     default: 'PENDING'
   },
   responseUserId: { type: Number },
   responseUserName: { type: String },
   responseType: { type: String }, // diem, chua_diem, khong_phai, chua_tien
-  responseTimestamp: { type: Date }
+  responseTimestamp: { type: Date },
+  processor: { type: String }, // Người xử lý trạng thái
+  processTime: { type: Date } // Thời gian xử lý
 }, { _id: false });
 
 // Schema chính cho bill
@@ -63,6 +65,8 @@ telegramResponseSchema.methods.updateGroupStatus = function(chatId, status, resp
     if (responseData.userId) group.responseUserId = responseData.userId;
     if (responseData.userName) group.responseUserName = responseData.userName;
     if (responseData.timestamp) group.responseTimestamp = responseData.timestamp;
+    if (responseData.processor) group.processor = responseData.processor;
+    if (responseData.processTime) group.processTime = responseData.processTime;
     this.updatedAt = new Date();
   }
   return this;

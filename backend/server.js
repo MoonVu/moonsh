@@ -219,6 +219,45 @@ const upload = multer({
 // Serve static files từ thư mục uploads
 app.use('/uploads', express.static(uploadsDir));
 
+// Cache cho authentication để tránh query database liên tục
+const authCache = new Map(); // userId -> { user, timestamp }
+const CACHE_DURATION = 15 * 60 * 1000; // 15 phút
+const MAX_CACHE_SIZE = 1000; // Tối đa 1000 users trong cache
+
+// Helper function để clear cache cũ
+const cleanExpiredCache = () => {
+  const now = Date.now();
+  for (const [userId, cacheData] of authCache.entries()) {
+    if (now - cacheData.timestamp > CACHE_DURATION) {
+      authCache.delete(userId);
+    }
+  }
+  
+  // Nếu cache quá lớn, xóa một số entries cũ nhất
+  if (authCache.size > MAX_CACHE_SIZE) {
+    const entries = Array.from(authCache.entries());
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toDelete = entries.slice(0, Math.floor(MAX_CACHE_SIZE * 0.2));
+    toDelete.forEach(([userId]) => authCache.delete(userId));
+  }
+};
+
+// Helper function để clear cache của một user cụ thể
+const clearUserCache = (userId) => {
+  if (userId) {
+    authCache.delete(userId.toString());
+  }
+};
+
+// Helper function để clear toàn bộ cache
+const clearAllCache = () => {
+  const size = authCache.size;
+  authCache.clear();
+  console.log(`🗑️ Cleared all auth cache (${size} entries)`);
+};
+
+// Cache stats có thể được xem qua admin endpoint
+
 // Legacy authentication middleware (deprecated - chỉ để compatibility)
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -235,7 +274,24 @@ const authenticateToken = async (req, res, next) => {
     }
     
     try {
-      // Handle both old and new token formats
+      // Clean cache cũ định kỳ (chỉ 10% requests)
+      if (Math.random() < 0.1) {
+        cleanExpiredCache();
+      }
+      
+      // Determine user ID
+      const userId = decoded.userId || decoded._id;
+      
+      // Check cache trước (chỉ dựa vào userId và thời gian, không dựa vào token hash)
+      const cached = authCache.get(userId.toString());
+      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+        // Cache hit - sử dụng data từ cache
+        req.user = cached.user;
+        next();
+        return;
+      }
+      
+      // Cache miss hoặc expired - query database
       let user;
       if (decoded.userId) {
         // New format from authService - cần populate role từ database
@@ -269,13 +325,14 @@ const authenticateToken = async (req, res, next) => {
         };
       }
       
-      console.log('✅ Legacy middleware user:', { 
-        id: user._id || user.id, 
-        username: user.username, 
-        role: user.role?._id,
-        roleName: user.role?.name,
-        hasRoleObject: !!user.role
+      // Cache kết quả
+      authCache.set(userId.toString(), {
+        user: user,
+        timestamp: Date.now()
       });
+      
+      // Cache miss - query database (không log để tránh spam)
+      
       req.user = user;
       next();
     } catch (dbError) {
@@ -313,6 +370,10 @@ app.post('/api/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Tên đăng nhập không tồn tại' });
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ error: 'Sai mật khẩu' });
+    
+    // Clear cache cũ của user này khi đăng nhập lại
+    clearUserCache(user._id);
+    
     // Tạo token với role
     const token = jwt.sign(
       { 
@@ -332,13 +393,124 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Logout
-app.post('/api/logout', (req, res) => {
+app.post('/api/logout', authenticateToken, (req, res) => {
   try {
+    // Clear auth cache cho user này
+    const userId = req.user?._id || req.user?.id;
+    if (userId) {
+      clearUserCache(userId);
+    }
+    
     // Trong JWT, logout thường chỉ cần trả về success
     // Token sẽ được xóa ở phía client
     res.json({ success: true, message: 'Logout successful' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin endpoint để clear auth cache
+app.post('/api/admin/clear-auth-cache', authenticateToken, (req, res) => {
+  try {
+    // Chỉ admin mới được clear cache
+    if (req.user?.role?.name !== 'ADMIN') {
+      return res.status(403).json({ error: 'Chỉ admin mới được phép clear cache' });
+    }
+    
+    clearAllCache();
+    res.json({ success: true, message: 'Đã clear toàn bộ auth cache' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin endpoint để xem cache stats
+app.get('/api/admin/auth-cache-stats', authenticateToken, (req, res) => {
+  try {
+    // Chỉ admin mới được xem stats
+    if (req.user?.role?.name !== 'ADMIN') {
+      return res.status(403).json({ error: 'Chỉ admin mới được phép xem cache stats' });
+    }
+    
+    const stats = {
+      cacheSize: authCache.size,
+      maxCacheSize: MAX_CACHE_SIZE,
+      cacheDuration: CACHE_DURATION,
+      cachedUsers: Array.from(authCache.keys())
+    };
+    
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cập nhật trạng thái phản hồi Telegram
+app.post('/api/telegram/update-response-status', authenticateToken, async (req, res) => {
+  try {
+    const { billId, chatId, newStatus, processor, processTime } = req.body;
+    
+    // Validation
+    if (!billId || !chatId || !newStatus) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Thiếu thông tin bắt buộc: billId, chatId, newStatus' 
+      });
+    }
+    
+    // Tìm bill record
+    const billRecord = await TelegramResponse.findOne({ billId: billId });
+    if (!billRecord) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Không tìm thấy bill record' 
+      });
+    }
+    
+    // Tìm group cần update
+    const groupIndex = billRecord.groups.findIndex(g => g.chatId === chatId);
+    if (groupIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Không tìm thấy group trong bill record' 
+      });
+    }
+    
+    // Cập nhật trạng thái
+    billRecord.groups[groupIndex].status = newStatus;
+    billRecord.groups[groupIndex].processor = processor;
+    billRecord.groups[groupIndex].processTime = processTime;
+    
+    // Lưu vào database
+    await billRecord.save();
+    
+    // Emit socket event để update realtime
+    const socketData = {
+      billId: billId,
+      updatedBill: billRecord.toFrontendFormat(),
+      groupResponse: {
+        chatId: chatId,
+        groupName: billRecord.groups[groupIndex].groupName,
+        status: newStatus,
+        processor: processor,
+        processTime: processTime
+      }
+    };
+    
+    global.io.emit('telegram-response-updated', socketData);
+    
+    res.json({ 
+      success: true, 
+      message: 'Đã cập nhật trạng thái thành công',
+      data: billRecord.toFrontendFormat()
+    });
+    
+  } catch (error) {
+    console.error('❌ Lỗi cập nhật trạng thái phản hồi:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Lỗi server khi cập nhật trạng thái' 
+    });
   }
 });
 
