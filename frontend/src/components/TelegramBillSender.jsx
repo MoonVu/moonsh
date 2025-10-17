@@ -586,7 +586,7 @@ const TelegramBillSender = () => {
       
       // Load bills từ API với filters
       const responses = await apiService.getAllTelegramResponses(params);
-      console.log('🔍 API Response with filters:', responses);
+      
       
       // Parse dữ liệu từ API response
       let billsData = [];
@@ -1127,7 +1127,7 @@ const TelegramBillSender = () => {
         
         {/* Thông tin hướng dẫn */}
         <Alert
-          message="Hướng dẫn sử dụng"
+          message="Hế lu"
           description={
             <div>
               <p> <strong>Đây là bản thử nghiệm nên nếu mọi người cần cập nhật gì thêm cứ nói cho Moon nha</strong> </p>

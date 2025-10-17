@@ -39,7 +39,6 @@ const useSocket = () => {
 
     // Event handlers
     newSocket.on('connect', () => {
-      console.log('🔌 Socket.IO connected:', newSocket.id);
       setIsConnected(true);
       
       // Join role room dựa trên user role

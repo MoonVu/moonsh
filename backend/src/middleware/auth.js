@@ -54,19 +54,6 @@ const attachUser = async (req, res, next) => {
       });
     }
 
-    // Debug: Kiểm tra role được populate
-    console.log('🔒 Role population result:', {
-      userId: user.id,
-      username: user.username,
-      roleId: user.role?._id,
-      roleName: user.role?.name,
-      roleString: user.roleString,
-      hasRoleObject: !!user.role,
-      roleType: typeof user.role,
-      roleKeys: user.role ? Object.keys(user.role) : 'NO_ROLE',
-      rolePermissions: user.role?.permissions || 'NO_PERMISSIONS'
-    });
-
     // Đảm bảo user có role object
     if (!user.role) {
       console.warn(`⚠️ User ${user.username} không có role object, ID: ${user.id}`);
@@ -76,14 +63,7 @@ const attachUser = async (req, res, next) => {
       });
     }
 
-    console.log('✅ User attached:', { 
-      id: user.id, 
-      username: user.username, 
-      roleId: user.role?._id,
-      roleName: user.role?.name,
-      permissionsCount: user.role?.permissions?.length || 0
-    });
-    
+
     // Đính kèm user vào request với roleId để attachPermissions sử dụng
     req.user = {
       id: user.id,

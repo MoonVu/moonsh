@@ -25,6 +25,7 @@ yarn-error.log*
 
 # Environment variables
 .env
+/uploads/
 
 # IDE files
 .vscode/

@@ -171,18 +171,7 @@ class AuthService {
       
       // Lấy user từ database với role populated
       const user = await User.findById(userId).populate('role');
-      
-      // Debug: Kiểm tra kết quả tìm user
-      console.log('🔍 getUserFromToken - User.findById result:', {
-        found: !!user,
-        userId: userId,
-        userObject: user ? {
-          id: user._id,
-          username: user.username,
-          status: user.status,
-          hasRole: !!user.role
-        } : null
-      });
+
       
       if (!user) {
         return {

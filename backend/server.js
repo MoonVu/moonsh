@@ -1539,7 +1539,7 @@ app.post('/api/telegram', async (req, res) => {
       });
     }
     
-    console.log(`🔍 Found bill record:`, billRecord);
+    // console.log(`🔍 Found bill record:`, billRecord);
     
     // Tìm group theo chatId
     const groupIndex = billRecord.groups.findIndex(g => g.chatId === chatId);
@@ -1576,16 +1576,16 @@ app.post('/api/telegram', async (req, res) => {
     // Lưu cập nhật
     console.log(`🔍 Saving bill record with updated status...`);
     const savedResponse = await billRecord.save();
-    console.log(`🔍 Saved successfully:`, savedResponse);
+    // console.log(`🔍 Saved successfully:`, savedResponse);
     
     // Emit Socket.IO event để cập nhật real-time
     if (global.io) {
       const updatedData = savedResponse.toFrontendFormat();
-      console.log('📡 Emitting socket event with data:', {
-        billId: billId,
-        updatedBill: updatedData,
-        groups: updatedData.groups
-      });
+      // console.log('📡 Emitting socket event with data:', {
+      //   billId: billId,
+      //   updatedBill: updatedData,
+      //   groups: updatedData.groups
+      // });
       
       const socketData = {
         billId: billId,

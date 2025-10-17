@@ -1,5 +1,5 @@
 :root {
-  --main-blue: #ffd102;
+  --main-blue: #0084ff;
 }
 
 .table-container {
@@ -36,7 +36,7 @@ th {
   background: #e6f0fa;
   font-weight: 700;
   border-bottom: 2px solid var(--main-blue);
-  color: var(--main-blue);
+  color: #040400;
   font-size: 18px;
 }
 
@@ -62,7 +62,7 @@ tr:hover td {
 }
 
 .tag-group {
-  color: var(--main-blue);
+  color: #0080ff;
   background: #e6f0fa;
   border: 1.5px solid var(--main-blue);
   border-radius: 4px;
@@ -231,7 +231,7 @@ tr:hover td {
 
 .account-count {
   font-size: 17px;
-  color: var(--main-blue);
+  color: #0026ff;
   font-weight: 600;
   margin-right: 8px;
 }

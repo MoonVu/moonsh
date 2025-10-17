@@ -65,12 +65,22 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
     // Lấy thông tin người gửi từ API data thay vì parse caption
     // (sẽ được truyền từ frontend qua API)
     
+    // Escape HTML entities để tránh lỗi parse
+    const escapeHtml = (text) => {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    };
+    
     // Tạo caption chi tiết
-    const billCaption = `*CHECK HÓA ĐƠN MẤY NÍ ƠI*
+    const billCaption =`<b>CHECK HÓA ĐƠN MẤY NÍ ƠI</b>
 
-📄 *Mã đơn: ${billId}
-👤 *Người gửi: ${employee}
-📝 **Ghi chú nội dung: ${note}
+📄 <b>Mã đơn:</b> ${escapeHtml(billId)}
+👤 <b>Người gửi:</b> ${escapeHtml(employee)}
+📝 <b>Ghi chú nội dung:</b> ${escapeHtml(note)}
 
 ❓ Vui lòng chọn câu trả lời:`;
     
@@ -110,6 +120,7 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
       try {
         const message = await bot.sendPhoto(subGroup.telegramId, imagePath, {
           caption: billCaption,
+          parse_mode: 'HTML',
           ...keyboard
         });
 
