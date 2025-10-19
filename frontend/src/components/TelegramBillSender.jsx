@@ -292,7 +292,9 @@ const TelegramBillSender = () => {
       }, {}));
       
       // Cập nhật pagination info
-      setTotalBills(paginationInfo.total || 0);
+      console.log('📊 Pagination info from API:', paginationInfo);
+      console.log('📊 Bills loaded:', billsArray.length);
+      setTotalBills(paginationInfo.total || billsArray.length);
       setCurrentPage(paginationInfo.page || page);
       
     } catch (error) {
@@ -569,11 +571,6 @@ const TelegramBillSender = () => {
         limit: size
       };
       
-      // Nếu tìm theo trạng thái, load tất cả data để filter client-side
-      if (searchStatus) {
-        params.limit = 1000; // Load nhiều hơn để có đủ data filter
-      }
-      
       // Thêm filter theo tab
       if (billTab === 'my-bills' && user?.username) {
         params.createdBy = user.username;
@@ -582,6 +579,11 @@ const TelegramBillSender = () => {
       // Chỉ gửi search lên API nếu không phải tìm theo trạng thái
       if (billSearchTerm && !searchStatus) {
         params.search = billSearchTerm;
+      }
+      
+      // Nếu tìm theo trạng thái, gửi status lên server
+      if (searchStatus) {
+        params.status = searchStatus;
       }
       
       // Load bills từ API với filters
@@ -633,51 +635,6 @@ const TelegramBillSender = () => {
         }))
       }));
       
-        // Áp dụng các filter client-side
-        if (searchStatus) {
-          console.log('🔍 Filtering by status:', searchStatus);
-          billsArray = billsArray.filter(bill => {
-            let hasStatus = false;
-            
-            if (searchStatus === 'PROCESSED') {
-              // Tìm cả NHAN_PROCESSED và CHUA_PROCESSED
-              hasStatus = bill.groupResponses.some(response => 
-                response.status === 'NHAN_PROCESSED' || response.status === 'CHUA_PROCESSED'
-              );
-            } else if (searchStatus === 'CHUA') {
-              // Tìm cả CHUA và CHUA_PROCESSED
-              hasStatus = bill.groupResponses.some(response => 
-                response.status === 'CHUA' || response.status === 'CHUA_PROCESSED'
-              );
-            } else if (searchStatus === 'NHAN') {
-              // Tìm cả NHAN và NHAN_PROCESSED
-              hasStatus = bill.groupResponses.some(response => 
-                response.status === 'NHAN' || response.status === 'NHAN_PROCESSED'
-              );
-            } else {
-              hasStatus = bill.groupResponses.some(response => response.status === searchStatus);
-            }
-            
-            console.log(`🔍 Bill ${bill.billId} has status ${searchStatus}:`, hasStatus);
-            return hasStatus;
-          });
-          console.log('🔍 Filtered bills:', billsArray.length);
-        }
-        
-        // Filter theo responseFilter (tabs Nhận được tiền / Chưa nhận được tiền)
-        if (responseFilter === 'NHAN') {
-          billsArray = billsArray.filter(bill => bill.groupResponses.some(r => r.status === 'NHAN' || r.status === 'NHAN_PROCESSED'));
-        } else if (responseFilter === 'CHUA') {
-          billsArray = billsArray.filter(bill => bill.groupResponses.some(r => r.status === 'CHUA' || r.status === 'CHUA_PROCESSED'));
-        }
-        
-        // Filter theo processedFilter (Đã xử lý / Chưa xử lý)
-        if (processedFilter === 'PROCESSED') {
-          billsArray = billsArray.filter(bill => bill.groupResponses.some(r => r.status === 'NHAN_PROCESSED' || r.status === 'CHUA_PROCESSED'));
-        } else if (processedFilter === 'UNPROCESSED') {
-          billsArray = billsArray.filter(bill => bill.groupResponses.some(r => r.status === 'NHAN' || r.status === 'CHUA'));
-        }
-      
       // Sort theo ngày tạo (backend đã sort rồi, nhưng đảm bảo)
       billsArray.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
@@ -688,7 +645,7 @@ const TelegramBillSender = () => {
       }, {}));
       
       // Cập nhật pagination info
-      setTotalBills(billsArray.length); // Client-side filtering nên dùng length
+      setTotalBills(paginationInfo.total || billsArray.length);
       setCurrentPage(paginationInfo.page || page);
       
     } catch (error) {
@@ -699,8 +656,10 @@ const TelegramBillSender = () => {
     }
   };
 
-  // Giữ lại getFilteredBills cho compatibility (trả về bills hiện tại)
+  // Server-side pagination: chỉ trả về bills của trang hiện tại
   const getFilteredBills = () => {
+    // Với server-side pagination, bills đã là data của trang hiện tại
+    // Không cần slice thêm vì backend đã trả về đúng page
     return bills;
   };
 
@@ -1283,7 +1242,10 @@ const TelegramBillSender = () => {
                 showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} hóa đơn`,
                 onChange: handlePageChange,
                 onShowSizeChange: handlePageChange,
-                pageSizeOptions: ['10', '20', '50', '100']
+                pageSizeOptions: ['10', '20', '50', '100'],
+                // Server-side pagination: không để Ant Design tự slice data
+                hideOnSinglePage: false,
+                showLessItems: true
               }}
               scroll={{ x: 1450 }}
               locale={{
