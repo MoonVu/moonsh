@@ -250,7 +250,7 @@ bot.on('callback_query', async (callbackQuery) => {
         
         // Trả lời trong group
         const userName = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
-        const replyText = `${responseInfo.emoji} <b>${userName}</b>: <b>${responseInfo.text}</b> cho bill <b>${billId}</b>`;
+        const replyText = `${responseInfo.emoji} <b>${userName}</b>: <b>${responseInfo.text}</b>`;
         
         await bot.sendMessage(chatId, replyText, { 
           parse_mode: 'HTML',
@@ -344,12 +344,13 @@ bot.on('message', (msg) => {
     if (text && text.toLowerCase().includes('/help')) {
       console.log(`💬 /help từ ${msg.from.first_name} trong group ${msg.chat.title || chatId}`);
       bot.sendMessage(chatId, 
-        `🤖 Bot Bill Confirmation\n\n` +
+        `🤖 Bot hóa đơn siêu cấp vip bờ rồ\n\n` +
         `Chức năng:\n` +
-        `• Gửi bill với ảnh và 4 nút thao tác\n` +
-        `• Theo dõi phản hồi từ thành viên group\n` +
-        `• Gửi dữ liệu về hệ thống backend\n\n` +
-        `Liên hệ admin để được hỗ trợ.`
+        `• Gửi bill với ảnh kèm 5 nút thao tác\n` +
+        `• Theo dõi phản hồi từ thành viên trong nhóm\n` +
+        `• Kết quả trạng thái chính xác để thông báo khách hàng\n\n` +
+        `• SHBET Nhà cái hàng đầu Châu Á hân hạnh được phục vụ\n\n` +
+        `Liên hệ Moon để được hỗ trợ.`
       );
     }
   }

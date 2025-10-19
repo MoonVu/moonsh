@@ -1015,10 +1015,10 @@ const TelegramBillSender = () => {
         const billId = record.billId;
         const showAllResponses = expandedResponses[billId] || false;
         
-        // Sort groups: HETHONG > YES > NHAN > CHUA > KHONG > NO > PENDING
+        // Sort groups: YES > NHAN > NHAN_PROCESSED > CHUA_PROCESSED > HETHONG > CHUA > KHONG > NO > PENDING
         const sortedGroups = [...groupResponses].sort((a, b) => {
-          const order = { 'YES': 1, 'NHAN': 2, 'HETHONG': 3, 'CHUA': 4, 'KHONG': 5, 'NO': 6, 'PENDING': 7 };
-          return (order[a.status] || 6) - (order[b.status] || 6);
+          const order = { 'YES': 1, 'NHAN': 2, 'NHAN_PROCESSED': 3, 'CHUA_PROCESSED': 4, 'HETHONG': 5, 'CHUA': 6, 'KHONG': 7, 'NO': 8, 'PENDING': 9 };
+          return (order[a.status] || 9) - (order[b.status] || 9);
         });
         
         if (sortedGroups.length === 0) {
@@ -1131,7 +1131,7 @@ const TelegramBillSender = () => {
           message="Hế lu"
           description={
             <div>
-              <p> <strong>Đây là bản thử nghiệm nên nếu mọi người cần cập nhật gì thêm cứ nói cho Moon nha</strong> </p>
+              <p> <strong>Đây là bản thử nghiệm nên nếu mọi người cần cập nhật gì thêm cứ nói cho Moon nha. Khung giờ làm việc của BOT: giống giờ Moon đi làm.</strong> </p>
             </div>
           }
           type="info"

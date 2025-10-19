@@ -25,13 +25,13 @@
 
 /* Edit button - Green gradient with glow effect */
 .btn-edit {
-  background: linear-gradient(135deg, #06c910 0%, #2af05b 100%);
+  background: linear-gradient(135deg, #1753f7 0%, #1672fc 100%);
   color: rgb(48, 240, 74);
   box-shadow: 0 4px 20px rgba(11, 104, 243, 0.4);
 }
 
 .btn-edit:hover {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  background: linear-gradient(135deg, #813cff 0%, #bd32fd 100%);
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 8px 30px rgba(16, 185, 129, 0.6);
 }
