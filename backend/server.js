@@ -20,16 +20,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'Moon-secret-key';
 // Cấu hình Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? ["https://yourdomain.com"] 
+    origin: process.env.NODE_ENV === 'production'
+      ? ["https://yourdomain.com"]
       : [
-          "http://localhost:3000",
-          "http://127.0.0.1:3000",
-          "http://172.16.1.6:3000",
-          /^http:\/\/172\.16\.1\.\d+:3000$/, // Cho phép tất cả IP trong mạng 172.16.1.x
-          /^http:\/\/192\.168\.\d+\.\d+:3000$/, // Cho phép mạng 192.168.x.x
-          /^http:\/\/10\.\d+\.\d+\.\d+:3000$/ // Cho phép mạng 10.x.x.x
-        ],
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://172.16.1.6:3000",
+        "http://192.168.99.31:3000",
+
+        /^http:\/\/172\.16\.1\.\d+:3000$/, // Cho phép tất cả IP trong mạng 172.16.1.x
+        /^http:\/\/192\.168\.\d+\.\d+:3000$/, // Cho phép mạng 192.168.x.x
+        /^http:\/\/10\.\d+\.\d+\.\d+:3000$/ // Cho phép mạng 10.x.x.x
+      ],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -40,26 +42,27 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Cho phép requests không có origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     // Danh sách origins được phép
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'http://172.16.1.6:3000',
+      "http://192.168.99.31:3000",
       'http://172.16.1.6:5000'
     ];
-    
+
     // Kiểm tra origin có trong danh sách cho phép không
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
+
     // Kiểm tra IP range cho mạng LAN
     const clientIP = origin.replace(/^https?:\/\//, '').split(':')[0];
     if (clientIP.startsWith('172.16.') || clientIP.startsWith('192.168.') || clientIP.startsWith('10.')) {
       return callback(null, true);
     }
-    
+
     // Log để debug
     console.log('CORS blocked origin:', origin);
     callback(new Error('Not allowed by CORS'));
@@ -79,8 +82,8 @@ mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('✅ Kết nối MongoDB thành công'))
-.catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
+  .then(() => console.log('✅ Kết nối MongoDB thành công'))
+  .catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
 
 // Import models
 const User = require('./models/User');
@@ -128,9 +131,9 @@ async function optimizeImage(inputPath, outputPath) {
     // Lấy thông tin ảnh gốc để quyết định có cần resize không
     const metadata = await sharp(inputPath).metadata();
     const { width, height } = metadata;
-    
+
     let pipeline = sharp(inputPath);
-    
+
     // Chỉ resize nếu ảnh quá lớn (>1600px)
     if (width > 1600 || height > 1600) {
       pipeline = pipeline.resize(1600, 1600, {
@@ -138,7 +141,7 @@ async function optimizeImage(inputPath, outputPath) {
         withoutEnlargement: true
       });
     }
-    
+
     await pipeline
       .jpeg({
         quality: 90,                 // Giảm từ 92 xuống 90 để nhanh hơn
@@ -146,10 +149,10 @@ async function optimizeImage(inputPath, outputPath) {
         chromaSubsampling: '4:4:4'   // Giữ chất lượng chữ/viền
       })
       .toFile(outputPath);
-    
+
     // Xóa file gốc sau khi tối ưu
     fs.unlinkSync(inputPath);
-    
+
     return true;
   } catch (error) {
     console.error('❌ Lỗi tối ưu ảnh:', error);
@@ -174,7 +177,7 @@ async function extractTextWithOCR(imagePath) {
     });
 
     // Cleanup file tạm
-    try { fs.unlinkSync(preprocessedPath); } catch (_) {}
+    try { fs.unlinkSync(preprocessedPath); } catch (_) { }
 
     let text = (data?.text || '').trim();
     // Loại bỏ dấu tiếng Việt nếu có (NFD -> remove combining marks)
@@ -201,7 +204,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
@@ -232,7 +235,7 @@ const cleanExpiredCache = () => {
       authCache.delete(userId);
     }
   }
-  
+
   // Nếu cache quá lớn, xóa một số entries cũ nhất
   if (authCache.size > MAX_CACHE_SIZE) {
     const entries = Array.from(authCache.entries());
@@ -271,16 +274,16 @@ const authenticateToken = async (req, res, next) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid token' });
     }
-    
+
     try {
       // Clean cache cũ định kỳ (chỉ 10% requests)
       if (Math.random() < 0.1) {
         cleanExpiredCache();
       }
-      
+
       // Determine user ID
       const userId = decoded.userId || decoded._id;
-      
+
       // Check cache trước (chỉ dựa vào userId và thời gian, không dựa vào token hash)
       const cached = authCache.get(userId.toString());
       if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
@@ -289,7 +292,7 @@ const authenticateToken = async (req, res, next) => {
         next();
         return;
       }
-      
+
       // Cache miss hoặc expired - query database
       let user;
       if (decoded.userId) {
@@ -323,15 +326,15 @@ const authenticateToken = async (req, res, next) => {
           status: fullUser.status
         };
       }
-      
+
       // Cache kết quả
       authCache.set(userId.toString(), {
         user: user,
         timestamp: Date.now()
       });
-      
+
       // Cache miss - query database (không log để tránh spam)
-      
+
       req.user = user;
       next();
     } catch (dbError) {
@@ -369,18 +372,18 @@ app.post('/api/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Tên đăng nhập không tồn tại' });
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ error: 'Sai mật khẩu' });
-    
+
     // Clear cache cũ của user này khi đăng nhập lại
     clearUserCache(user._id);
-    
+
     // Tạo token với role
     const token = jwt.sign(
-      { 
-        _id: user._id, 
-        username: user.username, 
+      {
+        _id: user._id,
+        username: user.username,
         group_name: user.group_name,
         role: user.role || 'FK',
-        groupCode: user.groupCode 
+        groupCode: user.groupCode
       },
       JWT_SECRET,
       { expiresIn: '24h' }
@@ -399,7 +402,7 @@ app.post('/api/logout', authenticateToken, (req, res) => {
     if (userId) {
       clearUserCache(userId);
     }
-    
+
     // Trong JWT, logout thường chỉ cần trả về success
     // Token sẽ được xóa ở phía client
     res.json({ success: true, message: 'Logout successful' });
@@ -415,7 +418,7 @@ app.post('/api/admin/clear-auth-cache', authenticateToken, (req, res) => {
     if (req.user?.role?.name !== 'ADMIN') {
       return res.status(403).json({ error: 'Chỉ admin mới được phép clear cache' });
     }
-    
+
     clearAllCache();
     res.json({ success: true, message: 'Đã clear toàn bộ auth cache' });
   } catch (err) {
@@ -430,14 +433,14 @@ app.get('/api/admin/auth-cache-stats', authenticateToken, (req, res) => {
     if (req.user?.role?.name !== 'ADMIN') {
       return res.status(403).json({ error: 'Chỉ admin mới được phép xem cache stats' });
     }
-    
+
     const stats = {
       cacheSize: authCache.size,
       maxCacheSize: MAX_CACHE_SIZE,
       cacheDuration: CACHE_DURATION,
       cachedUsers: Array.from(authCache.keys())
     };
-    
+
     res.json({ success: true, data: stats });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -448,41 +451,41 @@ app.get('/api/admin/auth-cache-stats', authenticateToken, (req, res) => {
 app.post('/api/telegram/update-response-status', authenticateToken, async (req, res) => {
   try {
     const { billId, chatId, newStatus, processor, processTime } = req.body;
-    
+
     // Validation
     if (!billId || !chatId || !newStatus) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Thiếu thông tin bắt buộc: billId, chatId, newStatus' 
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu thông tin bắt buộc: billId, chatId, newStatus'
       });
     }
-    
+
     // Tìm bill record
     const billRecord = await TelegramResponse.findOne({ billId: billId });
     if (!billRecord) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Không tìm thấy bill record' 
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy bill record'
       });
     }
-    
+
     // Tìm group cần update
     const groupIndex = billRecord.groups.findIndex(g => g.chatId === chatId);
     if (groupIndex === -1) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Không tìm thấy group trong bill record' 
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy group trong bill record'
       });
     }
-    
+
     // Cập nhật trạng thái
     billRecord.groups[groupIndex].status = newStatus;
     billRecord.groups[groupIndex].processor = processor;
     billRecord.groups[groupIndex].processTime = processTime;
-    
+
     // Lưu vào database
     await billRecord.save();
-    
+
     // Emit socket event để update realtime
     const socketData = {
       billId: billId,
@@ -495,20 +498,20 @@ app.post('/api/telegram/update-response-status', authenticateToken, async (req, 
         processTime: processTime
       }
     };
-    
+
     global.io.emit('telegram-response-updated', socketData);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: 'Đã cập nhật trạng thái thành công',
       data: billRecord.toFrontendFormat()
     });
-    
+
   } catch (error) {
     console.error('❌ Lỗi cập nhật trạng thái phản hồi:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Lỗi server khi cập nhật trạng thái' 
+    res.status(500).json({
+      success: false,
+      error: 'Lỗi server khi cập nhật trạng thái'
     });
   }
 });
@@ -918,7 +921,7 @@ app.post('/api/schedules/:group', authenticateToken, async (req, res) => {
       { shifts, waiting },
       { new: true, upsert: true, runValidators: true }
     ).populate('shifts.users.userId waiting');
-    
+
     res.json({ success: true, data: schedule, message: 'Schedule đã được cập nhật' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -934,11 +937,11 @@ app.put('/api/schedules/:group/shifts', authenticateToken, async (req, res) => {
       { shifts },
       { new: true, runValidators: true }
     ).populate('shifts.users.userId waiting');
-    
+
     if (!schedule) {
       return res.status(404).json({ success: false, error: 'Schedule không tồn tại' });
     }
-    
+
     res.json({ success: true, data: schedule, message: 'Shifts đã được cập nhật' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -954,11 +957,11 @@ app.put('/api/schedules/:group/waiting', authenticateToken, async (req, res) => 
       { waiting },
       { new: true, runValidators: true }
     ).populate('shifts.users.userId waiting');
-    
+
     if (!schedule) {
       return res.status(404).json({ success: false, error: 'Schedule không tồn tại' });
     }
-    
+
     res.json({ success: true, data: schedule, message: 'Waiting list đã được cập nhật' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -984,23 +987,23 @@ app.delete('/api/schedules/:group', authenticateToken, async (req, res) => {
 app.get('/api/demo-lichdica', authenticateToken, async (req, res) => {
   try {
     const { month, year, userId } = req.query;
-    
+
     if (userId) {
       // Lấy trạng thái của 1 nhân viên cụ thể
       const lich = await DemoLichDiCa.findOne({ userId, month: Number(month), year: Number(year) });
-      res.json({ 
-        success: true, 
-        data: lich ? lich.dailyStatus : {} 
+      res.json({
+        success: true,
+        data: lich ? lich.dailyStatus : {}
       });
     } else {
       // Lấy trạng thái của tất cả nhân viên trong tháng/năm
       const lichList = await DemoLichDiCa.find({ month: Number(month), year: Number(year) });
-      
+
       const result = {};
       lichList.forEach(lich => {
         result[lich.userId] = lich.dailyStatus || {};
       });
-      
+
       res.json({ success: true, data: result });
     }
   } catch (err) {
@@ -1012,30 +1015,30 @@ app.get('/api/demo-lichdica', authenticateToken, async (req, res) => {
 app.post('/api/demo-lichdica', authenticateToken, async (req, res) => {
   try {
     const { userId, month, year, dailyStatus } = req.body;
-    
+
     if (!userId || !month || !year || !dailyStatus) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Thiếu tham số userId, month, year, dailyStatus' 
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu tham số userId, month, year, dailyStatus'
       });
     }
 
     // Tìm và cập nhật hoặc tạo mới
     const lich = await DemoLichDiCa.findOneAndUpdate(
       { userId, month: Number(month), year: Number(year) },
-      { 
-        userId, 
-        month: Number(month), 
-        year: Number(year), 
+      {
+        userId,
+        month: Number(month),
+        year: Number(year),
         dailyStatus: dailyStatus // Sử dụng object thông thường thay vì Map
       },
       { new: true, upsert: true, runValidators: true }
     );
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: lich.dailyStatus,
-      message: 'Trạng thái đã được cập nhật' 
+      message: 'Trạng thái đã được cập nhật'
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1047,26 +1050,26 @@ app.put('/api/demo-lichdica/:userId/:day', authenticateToken, async (req, res) =
   try {
     const { userId, day } = req.params;
     const { month, year, status } = req.body;
-    
+
     if (!month || !year || status === undefined) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Thiếu tham số month, year, status' 
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu tham số month, year, status'
       });
     }
 
     const lich = await DemoLichDiCa.findOneAndUpdate(
       { userId, month: Number(month), year: Number(year) },
-      { 
+      {
         $set: { [`dailyStatus.${day}`]: status }
       },
       { new: true, upsert: true, runValidators: true }
     );
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: lich.dailyStatus,
-      message: 'Trạng thái ngày đã được cập nhật' 
+      message: 'Trạng thái ngày đã được cập nhật'
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1077,14 +1080,14 @@ app.put('/api/demo-lichdica/:userId/:day', authenticateToken, async (req, res) =
 app.delete('/api/demo-lichdica/:userId', authenticateToken, async (req, res) => {
   try {
     const { month, year } = req.query;
-    const lich = await DemoLichDiCa.findOneAndDelete({ 
-      userId: req.params.userId, 
-      month: Number(month), 
-      year: Number(year) 
+    const lich = await DemoLichDiCa.findOneAndDelete({
+      userId: req.params.userId,
+      month: Number(month),
+      year: Number(year)
     });
-    if (!lich) return res.status(404).json({ 
-      success: false, 
-      error: 'Không tìm thấy lịch phân ca' 
+    if (!lich) return res.status(404).json({
+      success: false,
+      error: 'Không tìm thấy lịch phân ca'
     });
     res.json({ success: true, message: 'Đã xóa lịch phân ca' });
   } catch (err) {
@@ -1128,12 +1131,12 @@ app.delete('/api/schedules/:group/shifts/:userId', authenticateToken, async (req
     if (!schedule) {
       return res.status(404).json({ success: false, error: 'Schedule không tồn tại' });
     }
-    
+
     // Xóa user khỏi tất cả shifts
     schedule.shifts.forEach(shift => {
       shift.users = shift.users.filter(user => user.userId.toString() !== userId);
     });
-    
+
     await schedule.save();
     res.json({ success: true, message: 'User đã được xóa khỏi shifts' });
   } catch (err) {
@@ -1149,10 +1152,10 @@ app.delete('/api/schedules/:group/waiting/:userId', authenticateToken, async (re
     if (!schedule) {
       return res.status(404).json({ success: false, error: 'Schedule không tồn tại' });
     }
-    
+
     // Xóa user khỏi waiting list
     schedule.waiting = schedule.waiting.filter(user => user.userId.toString() !== userId);
-    
+
     await schedule.save();
     res.json({ success: true, message: 'User đã được xóa khỏi waiting list' });
   } catch (err) {
@@ -1169,10 +1172,10 @@ app.post('/api/cleanup-orphaned-users', authenticateToken, async (req, res) => {
       query.month = Number(month);
       query.year = Number(year);
     }
-    
+
     const schedules = await Schedule.find(query);
     const allUserIds = new Set();
-    
+
     // Thu thập tất cả userId từ schedules
     schedules.forEach(schedule => {
       schedule.shifts.forEach(shift => {
@@ -1184,16 +1187,16 @@ app.post('/api/cleanup-orphaned-users', authenticateToken, async (req, res) => {
         allUserIds.add(user.userId.toString());
       });
     });
-    
+
     // Kiểm tra users nào không tồn tại
     const existingUsers = await User.find({ _id: { $in: Array.from(allUserIds) } });
     const existingUserIds = new Set(existingUsers.map(u => u._id.toString()));
     const orphanedUserIds = Array.from(allUserIds).filter(id => !existingUserIds.has(id));
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: { orphanedUserIds, count: orphanedUserIds.length },
-      message: `Tìm thấy ${orphanedUserIds.length} orphaned users` 
+      message: `Tìm thấy ${orphanedUserIds.length} orphaned users`
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1205,16 +1208,16 @@ app.post('/api/force-refresh-schedules', authenticateToken, async (req, res) => 
   try {
     const { month, year } = req.body;
     if (!month || !year) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Thiếu tham số month và year' 
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu tham số month và year'
       });
     }
-    
+
     // Có thể thêm logic refresh ở đây nếu cần
-    res.json({ 
-      success: true, 
-      message: `Schedules cho tháng ${month}/${year} đã được refresh` 
+    res.json({
+      success: true,
+      message: `Schedules cho tháng ${month}/${year} đã được refresh`
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1228,29 +1231,29 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
   try {
     const { billId, caption, customer, employee, groupType, selectedGroups } = req.body;
     const uploadedFile = req.file;
-    
+
     if (!billId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Thiếu billId' 
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu billId'
       });
     }
 
     if (!uploadedFile) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Thiếu file ảnh' 
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu file ảnh'
       });
     }
 
     // Thông tin upload
-    
+
     // Đo thời gian tối ưu ảnh
     const optimizeStart = Date.now();
     const optimizedPath = uploadedFile.path.replace('.jpg', '-optimized.jpg');
     const optimized = await optimizeImage(uploadedFile.path, optimizedPath);
     const optimizeTime = Date.now() - optimizeStart;
-    
+
     if (optimized) {
       // Ảnh đã tối ưu
       // Cập nhật path để sử dụng ảnh đã tối ưu
@@ -1259,7 +1262,7 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
     } else {
       // Không thể tối ưu ảnh, dùng ảnh gốc
     }
-    
+
     // Parse selectedGroups nếu có
     let groupsToSend = [];
     if (selectedGroups) {
@@ -1269,7 +1272,7 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
         console.error('❌ Lỗi parse selectedGroups:', e);
       }
     }
-    
+
     // OCR để tự điền ghi chú (không chặn nếu lỗi)
     const ocrStart = Date.now();
     const ocrText = await extractTextWithOCR(uploadedFile.path);
@@ -1291,15 +1294,15 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
     const result = await sendBillToGroup(billId, uploadedFile.path, finalCaption, groupType, groupsToSend, employee);
     const telegramTime = Date.now() - telegramStart;
     console.log(`⏱️ Thời gian: OCR ${ocrTime}ms, gửi Telegram ${telegramTime}ms`);
-    
+
     if (result.success) {
       // Không xóa file ngay vì cần hiển thị trên frontend
       // File sẽ được xóa sau một thời gian hoặc khi không cần thiết
-      
+
       // Lưu 1 bill record duy nhất với danh sách groups
       try {
         const successfulResults = result.results.filter(r => r.success);
-        
+
         // Lấy thông tin groupName từ telegram_group collection
         const allTelegramGroups = await TelegramGroup.find({}).lean();
         const groupMap = {};
@@ -1311,7 +1314,7 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
             };
           });
         });
-        
+
         // Tạo danh sách groups với trạng thái PENDING và groupName chính xác
         const groupsList = successfulResults.map(groupResult => {
           const groupInfo = groupMap[groupResult.chatId] || { name: groupResult.groupName, type: groupType };
@@ -1323,7 +1326,7 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
             status: 'PENDING'
           };
         });
-        
+
         const billRecord = new TelegramResponse({
           billId: billId,
           customer: customer || '',
@@ -1335,16 +1338,16 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
           groupType: groupType || '',
           groups: groupsList
         });
-        
+
         await billRecord.save();
         console.log(`✅ Đã lưu bill record cho ${billId} với ${groupsList.length} nhóm`);
       } catch (saveError) {
         console.error('❌ Lỗi khi lưu bill record:', saveError);
         // Không throw error vì bill đã gửi thành công
       }
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         message: 'Đã gửi bill vào group Telegram thành công',
         data: {
           billId: result.billId,
@@ -1353,24 +1356,24 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
       });
     } else {
       // Xóa file nếu gửi thất bại
-      try { fs.unlinkSync(uploadedFile.path); } catch (_) {}
-      res.status(500).json({ 
-        success: false, 
-        error: 'Lỗi gửi bill: ' + result.error 
+      try { fs.unlinkSync(uploadedFile.path); } catch (_) { }
+      res.status(500).json({
+        success: false,
+        error: 'Lỗi gửi bill: ' + result.error
       });
     }
-    
+
   } catch (error) {
     console.error('❌ Lỗi API sendBill:', error);
-    
+
     // Xóa file nếu có lỗi
     if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch (_) {}
+      try { fs.unlinkSync(req.file.path); } catch (_) { }
     }
-    
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -1397,8 +1400,8 @@ app.post('/api/ocr', authenticateToken, upload.single('image'), async (req, res)
     const text = await extractTextWithOCR(ocrPath);
 
     // Cleanup
-    try { fs.unlinkSync(uploadedFile.path); } catch (_) {}
-    try { if (fs.existsSync(optimizedPath)) fs.unlinkSync(optimizedPath); } catch (_) {}
+    try { fs.unlinkSync(uploadedFile.path); } catch (_) { }
+    try { if (fs.existsSync(optimizedPath)) fs.unlinkSync(optimizedPath); } catch (_) { }
 
     return res.json({ success: true, ocrText: text || '' });
   } catch (err) {
@@ -1439,10 +1442,10 @@ app.post('/api/telegram-groups/:type/sub-groups', authenticateToken, async (req,
 
     const parent = await TelegramGroup.findOneAndUpdate(
       { type },
-      { 
-        $push: { 
+      {
+        $push: {
           subGroups: { name, telegramId, createdAt: new Date(), createdBy: (req.user?.username || 'system') }
-        } 
+        }
       },
       { new: true, upsert: true }
     );
@@ -1497,83 +1500,83 @@ const TelegramResponse = require('./models/TelegramResponse');
 // API nhận dữ liệu từ Telegram Bot (khi user bấm Yes/No)
 app.post('/api/telegram', async (req, res) => {
   try {
-    const { 
-      billId, 
-      choice, 
+    const {
+      billId,
+      choice,
       responseType,
       status,
-      isYes, 
-      userId, 
-      userName, 
-      username, 
+      isYes,
+      userId,
+      userName,
+      username,
       userFirstName,
       userLastName,
       userLanguageCode,
-      timestamp, 
-      chatId, 
+      timestamp,
+      chatId,
       messageId,
-      telegramData 
+      telegramData
     } = req.body;
-    
+
     // Validation bill ID
     if (!billId || billId.trim() === '') {
       console.error('❌ Bill ID không hợp lệ:', billId);
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Bill ID không hợp lệ' 
+      return res.status(400).json({
+        success: false,
+        error: 'Bill ID không hợp lệ'
       });
     }
-    
- 
+
+
     const billRecord = await TelegramResponse.findOne({ billId });
-    
+
     if (!billRecord) {
       console.error(`❌ Không tìm thấy bill record cho billId: ${billId}`);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Không tìm thấy bill record' 
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy bill record'
       });
     }
-    
+
     // console.log(`🔍 Found bill record:`, billRecord);
-    
+
     // Tìm group theo chatId
     const groupIndex = billRecord.groups.findIndex(g => g.chatId === chatId);
     if (groupIndex === -1) {
       console.error(`❌ Không tìm thấy group với chatId: ${chatId} trong bill ${billId}`);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Không tìm thấy group trong bill' 
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy group trong bill'
       });
     }
-    
+
     // Kiểm tra xem group đã có phản hồi chưa
     const group = billRecord.groups[groupIndex];
     if (group.status !== 'PENDING') {
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         message: 'Group đã phản hồi trước đó',
         data: billRecord.toFrontendFormat()
       });
     }
-    
+
     // Cập nhật trạng thái group với status mới từ bot
     const newStatus = req.body.status || (isYes ? 'YES' : 'NO');
-    
+
     billRecord.groups[groupIndex].status = newStatus;
     billRecord.groups[groupIndex].responseUserId = userId;
     billRecord.groups[groupIndex].responseUserName = userName;
     billRecord.groups[groupIndex].responseType = req.body.responseType || 'unknown';
     billRecord.groups[groupIndex].responseTimestamp = new Date(timestamp);
-    
+
     // Cập nhật updatedAt
     billRecord.updatedAt = new Date();
-    
+
     // Lưu cập nhật
-  
+
     const savedResponse = await billRecord.save();
     // console.log(`🔍 Saved successfully:`, savedResponse);
-    
+
     // Emit Socket.IO event để cập nhật real-time
     if (global.io) {
       const updatedData = savedResponse.toFrontendFormat();
@@ -1582,7 +1585,7 @@ app.post('/api/telegram', async (req, res) => {
       //   updatedBill: updatedData,
       //   groups: updatedData.groups
       // });
-      
+
       const socketData = {
         billId: billId,
         updatedBill: updatedData,
@@ -1595,25 +1598,25 @@ app.post('/api/telegram', async (req, res) => {
           timestamp: timestamp
         }
       };
-      
+
       // Emit đến tất cả clients đang xem bill này
       global.io.to(`bill-${billId}`).emit('telegram-response-updated', socketData);
-      
+
       // Emit cho TẤT CẢ người dùng (không chỉ ADMIN) để mọi role đều nhận realtime
       global.io.emit('telegram-response-updated', socketData);
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: 'Đã nhận phản hồi từ Telegram và lưu vào MongoDB',
       data: savedResponse.toFrontendFormat()
     });
-    
+
   } catch (error) {
 
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -1622,27 +1625,27 @@ app.post('/api/telegram', async (req, res) => {
 app.get('/api/telegram/responses/:billId', authenticateToken, async (req, res) => {
   try {
     const { billId } = req.params;
-    
+
     // Lấy bill record từ MongoDB
     const billRecord = await TelegramResponse.findOne({ billId });
-    
+
     if (!billRecord) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Không tìm thấy bill record' 
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy bill record'
       });
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: billRecord.toFrontendFormat()
     });
-    
+
   } catch (error) {
     console.error('❌ Lỗi API get responses:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -1652,17 +1655,17 @@ app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 50, billId, createdBy, search } = req.query;
     const skip = (page - 1) * limit;
-    
+
     let query = {};
     if (billId) {
       query.billId = billId;
     }
-    
+
     // Filter theo người tạo
     if (createdBy) {
       query.createdBy = createdBy;
     }
-    
+
     // Filter theo search term (tìm trong billId, customer, employee, caption)
     if (search) {
       const searchRegex = new RegExp(search, 'i');
@@ -1673,18 +1676,18 @@ app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
         { caption: searchRegex }
       ];
     }
-    
+
     const responses = await TelegramResponse.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-    
+
     const total = await TelegramResponse.countDocuments(query);
-    
+
     const formattedResponses = responses.map(response => response.toFrontendFormat());
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: {
         responses: formattedResponses,
         pagination: {
@@ -1695,12 +1698,12 @@ app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
   } catch (error) {
     console.error('❌ Lỗi API get all responses:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -1711,7 +1714,7 @@ app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
 app.post('/api/user-position', authenticateToken, async (req, res) => {
   try {
     const { page, scrollPosition, selectedTab, gridState, formData, componentState } = req.body;
-    
+
     const positionData = {
       userId: req.user._id,
       page: page || '/',
@@ -1730,10 +1733,10 @@ app.post('/api/user-position', authenticateToken, async (req, res) => {
       { new: true, upsert: true, runValidators: true }
     );
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: position,
-      message: 'Vị trí đã được lưu' 
+      message: 'Vị trí đã được lưu'
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1744,10 +1747,10 @@ app.post('/api/user-position', authenticateToken, async (req, res) => {
 app.get('/api/user-position', authenticateToken, async (req, res) => {
   try {
     const position = await UserPosition.findOne({ userId: req.user._id });
-    
+
     if (!position) {
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         data: {
           page: '/',
           scrollPosition: { x: 0, y: 0 },
@@ -1759,9 +1762,9 @@ app.get('/api/user-position', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({ 
-      success: true, 
-      data: position 
+    res.json({
+      success: true,
+      data: position
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1772,7 +1775,7 @@ app.get('/api/user-position', authenticateToken, async (req, res) => {
 app.put('/api/user-position', authenticateToken, async (req, res) => {
   try {
     const { page, scrollPosition, selectedTab, gridState, formData, componentState } = req.body;
-    
+
     const updateData = {
       lastActivity: new Date()
     };
@@ -1791,16 +1794,16 @@ app.put('/api/user-position', authenticateToken, async (req, res) => {
     );
 
     if (!position) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Không tìm thấy vị trí của user' 
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy vị trí của user'
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: position,
-      message: 'Vị trí đã được cập nhật' 
+      message: 'Vị trí đã được cập nhật'
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1811,17 +1814,17 @@ app.put('/api/user-position', authenticateToken, async (req, res) => {
 app.delete('/api/user-position', authenticateToken, async (req, res) => {
   try {
     const position = await UserPosition.findOneAndDelete({ userId: req.user._id });
-    
+
     if (!position) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Không tìm thấy vị trí của user' 
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy vị trí của user'
       });
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Vị trí đã được xóa' 
+    res.json({
+      success: true,
+      message: 'Vị trí đã được xóa'
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1848,9 +1851,9 @@ app.get('/api/seat', async (req, res) => {
       // Tạo dữ liệu mặc định nếu chưa có
       seat = new Seat({
         grid: [
-          [ { name: "FK OWEN", group: "" }, { name: "FK GIGI", group: "" }, { name: "FK ANGEL", group: "" }, null ],
-          [ { name: "TT TEDDY", group: "" }, null, null, null ],
-          [ null, null, null, null ],
+          [{ name: "FK OWEN", group: "" }, { name: "FK GIGI", group: "" }, { name: "FK ANGEL", group: "" }, null],
+          [{ name: "TT TEDDY", group: "" }, null, null, null],
+          [null, null, null, null],
         ],
         tagList: [],
         walkwayColIndexes: []
@@ -1867,9 +1870,9 @@ app.get('/api/seat', async (req, res) => {
         }
       });
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: {
         grid: seat.grid,
         tagList: seat.tagList,
@@ -1889,10 +1892,10 @@ app.get('/api/seat', async (req, res) => {
 app.post('/api/seat', async (req, res) => {
   try {
     const { grid, tagList, walkwayColIndexes, walkwayRowIndexes, modifiedBy } = req.body;
-    
+
     let seat = await Seat.findOne().sort({ createdAt: -1 });
     if (seat) {
-      
+
       seat.grid = grid;
       seat.tagList = tagList || [];
       seat.walkwayColIndexes = walkwayColIndexes || [];
@@ -1900,7 +1903,7 @@ app.post('/api/seat', async (req, res) => {
       seat.lastModifiedBy = modifiedBy || '';
       await seat.save();
     } else {
-      
+
       seat = new Seat({
         grid,
         tagList: tagList || [],
@@ -1910,7 +1913,7 @@ app.post('/api/seat', async (req, res) => {
       });
       await seat.save();
     }
-    
+
 
     if (seat.grid) {
       seat.grid.forEach((row, rowIdx) => {
@@ -1922,9 +1925,9 @@ app.post('/api/seat', async (req, res) => {
         }
       });
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: {
         grid: seat.grid,
         tagList: seat.tagList,
@@ -1944,8 +1947,8 @@ app.post('/api/seat', async (req, res) => {
 app.get('/api/seat/version', async (req, res) => {
   try {
     const seat = await Seat.findOne().sort({ createdAt: -1 });
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       version: seat?.version || 0,
       lastModifiedAt: seat?.lastModifiedAt,
       lastModifiedBy: seat?.lastModifiedBy
@@ -1962,11 +1965,11 @@ app.get('/api/seat/version', async (req, res) => {
 app.post('/api/schedule-copy', authenticateToken, async (req, res) => {
   try {
     const { month, year, name, scheduleData, phanCa, notesData, description, tags } = req.body;
-    
+
     if (!month || !year || !name) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Thiếu tham số month, year hoặc name' 
+      return res.status(400).json({
+        success: false,
+        error: 'Thiếu tham số month, year hoặc name'
       });
     }
 
@@ -1985,16 +1988,16 @@ app.post('/api/schedule-copy', authenticateToken, async (req, res) => {
 
     await scheduleCopy.save();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Đã tạo bản sao thành công',
       data: scheduleCopy.getBasicInfo()
     });
   } catch (err) {
     console.error('❌ Lỗi khi tạo bản sao:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      error: err.message
     });
   }
 });
@@ -2003,7 +2006,7 @@ app.post('/api/schedule-copy', authenticateToken, async (req, res) => {
 app.get('/api/schedule-copy', authenticateToken, async (req, res) => {
   try {
     const { month, year, page = 1, limit = 20 } = req.query;
-    
+
     let query = {};
     if (month && year) {
       query.month = Number(month);
@@ -2011,7 +2014,7 @@ app.get('/api/schedule-copy', authenticateToken, async (req, res) => {
     }
 
     const skip = (Number(page) - 1) * Number(limit);
-    
+
     const copies = await ScheduleCopy.find(query)
       .populate('createdBy', 'username group_name')
       .sort({ createdAt: -1 })
@@ -2020,8 +2023,8 @@ app.get('/api/schedule-copy', authenticateToken, async (req, res) => {
 
     const total = await ScheduleCopy.countDocuments(query);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: copies.map(copy => copy.getBasicInfo()),
       pagination: {
         page: Number(page),
@@ -2032,9 +2035,9 @@ app.get('/api/schedule-copy', authenticateToken, async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Lỗi khi lấy danh sách bản sao:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      error: err.message
     });
   }
 });
@@ -2044,23 +2047,23 @@ app.get('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
   try {
     const copy = await ScheduleCopy.findById(req.params.id)
       .populate('createdBy', 'username group_name');
-    
+
     if (!copy) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Bản sao không tồn tại' 
+      return res.status(404).json({
+        success: false,
+        error: 'Bản sao không tồn tại'
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: copy
     });
   } catch (err) {
     console.error('❌ Lỗi khi lấy chi tiết bản sao:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      error: err.message
     });
   }
 });
@@ -2069,12 +2072,12 @@ app.get('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
 app.put('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
   try {
     const { month, year, name, scheduleData, phanCa, notesData, description, tags } = req.body;
-    
+
     const copy = await ScheduleCopy.findById(req.params.id);
     if (!copy) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Bản sao không tồn tại' 
+      return res.status(404).json({
+        success: false,
+        error: 'Bản sao không tồn tại'
       });
     }
 
@@ -2090,16 +2093,16 @@ app.put('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
 
     await copy.save();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Đã cập nhật bản sao thành công',
       data: copy.getBasicInfo()
     });
   } catch (err) {
     console.error('❌ Lỗi khi cập nhật bản sao:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      error: err.message
     });
   }
 });
@@ -2108,24 +2111,24 @@ app.put('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
 app.delete('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
   try {
     const copy = await ScheduleCopy.findByIdAndDelete(req.params.id);
-    
+
     if (!copy) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Bản sao không tồn tại' 
+      return res.status(404).json({
+        success: false,
+        error: 'Bản sao không tồn tại'
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Đã xóa bản sao thành công',
       data: copy.getBasicInfo()
     });
   } catch (err) {
     console.error('❌ Lỗi khi xóa bản sao:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      error: err.message
     });
   }
 });
@@ -2133,8 +2136,8 @@ app.delete('/api/schedule-copy/:id', authenticateToken, async (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('❌ Server Error:', err);
-  res.status(500).json({ 
-    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message 
+  res.status(500).json({
+    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message
   });
 });
 
@@ -2149,30 +2152,30 @@ app.post('/api/cleanup-images', authenticateToken, async (req, res) => {
   try {
     const { exec } = require('child_process');
     const cleanupScript = path.join(__dirname, 'scripts/cleanup-old-images.js');
-    
+
     exec(`node "${cleanupScript}"`, (error, stdout, stderr) => {
       if (error) {
         console.error('❌ Lỗi manual cleanup:', error);
-        return res.status(500).json({ 
-          success: false, 
-          error: 'Lỗi chạy cleanup script' 
+        return res.status(500).json({
+          success: false,
+          error: 'Lỗi chạy cleanup script'
         });
       }
-      
+
       console.log('✅ Manual cleanup completed:', stdout);
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: 'Cleanup completed successfully',
         output: stdout,
         warnings: stderr || null
       });
     });
-    
+
   } catch (error) {
     console.error('❌ Lỗi API cleanup:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -2180,19 +2183,19 @@ app.post('/api/cleanup-images', authenticateToken, async (req, res) => {
 // ==================== AUTO CLEANUP IMAGES ====================
 function setupImageCleanup() {
   console.log('🕐 Setting up auto cleanup images...');
-  
+
   // Chạy cleanup hàng ngày lúc 2:00 AM
   cron.schedule('0 2 * * *', () => {
     console.log('🕐 Chạy cleanup images lúc:', new Date().toISOString());
-    
+
     const cleanupScript = path.join(__dirname, 'scripts/cleanup-old-images.js');
-    
+
     exec(`node "${cleanupScript}"`, (error, stdout, stderr) => {
       if (error) {
         console.error('❌ Lỗi chạy cleanup:', error);
         return;
       }
-      
+
       console.log('✅ Cleanup completed:', stdout);
       if (stderr) {
         console.error('⚠️ Warnings:', stderr);
@@ -2202,7 +2205,7 @@ function setupImageCleanup() {
     scheduled: true,
     timezone: "Asia/Ho_Chi_Minh"
   });
-  
+
   console.log('✅ Đã setup auto cleanup: hàng ngày lúc 2:00 AM (GMT+7)');
   console.log('📅 Cleanup sẽ xóa ảnh cũ hơn 30 ngày và không được sử dụng');
 }
@@ -2210,30 +2213,30 @@ function setupImageCleanup() {
 // Setup Socket.IO
 function setupSocketIO() {
   console.log('🔌 Đang setup Socket.IO...');
-  
+
   io.on('connection', (socket) => {
     console.log(`📱 Client connected: ${socket.id}`);
-    
+
     // Join room theo user role để nhận updates phù hợp
     socket.on('join-role-room', (userRole) => {
       socket.join(`role-${userRole}`);
       console.log(`👤 User joined role room: role-${userRole}`);
     });
-    
+
     // Join room theo bill để nhận updates của bill cụ thể
     socket.on('join-bill-room', (billId) => {
       socket.join(`bill-${billId}`);
       console.log(`📄 User joined bill room: bill-${billId}`);
     });
-    
+
     socket.on('disconnect', () => {
       console.log(`📱 Client disconnected: ${socket.id}`);
     });
   });
-  
+
   // Make io accessible globally
   global.io = io;
-  
+
   console.log('✅ Socket.IO đã sẵn sàng!');
 }
 
@@ -2244,10 +2247,10 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 CORS Origins: ${process.env.CORS_ORIGIN || 'http://localhost:3000, http://172.16.1.6:5000'}`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`🌐 LAN Access: http://172.16.1.6:${PORT}/api/health`);
-  
+
   // Setup auto cleanup images
   setupImageCleanup();
-  
+
   // Setup Socket.IO
   setupSocketIO();
 });

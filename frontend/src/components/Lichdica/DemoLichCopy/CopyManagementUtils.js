@@ -17,7 +17,7 @@ export default function CopyManagementUtils() {
       
       // Kiểm tra backend trước
       try {
-        const healthCheck = await fetch('http://172.16.1.6:5000/api/health');
+        const healthCheck = await fetch(process.env.REACT_APP_API_URL+'/api/health');
         if (!healthCheck.ok) {
           throw new Error(`Backend không khả dụng: ${healthCheck.status}`);
         }

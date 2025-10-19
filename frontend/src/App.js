@@ -22,6 +22,7 @@ import TokenExpiredNotice from "./components/TokenExpiredNotice";
 import TrangChu from "./components/TrangChu";
 import TelegramBillSender from "./components/TelegramBillSender";
 import './App.css';
+console.log(process.env);
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
