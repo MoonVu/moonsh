@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nút OK vỡ vụn</title>
+<style>
+  :root{ --w:560px; --h:340px; }
+  body{ font-family:system-ui,sans-serif; display:grid; place-items:center; min-height:100vh; background:#f6f7fb; }
+  .wrap{ text-align:center; }
+  .box{
+    position:relative; width:var(--w); height:var(--h);
+    border:2px dashed #cdd3df; background:#fff; border-radius:16px;
+    box-shadow:0 6px 24px rgba(16,24,40,.06); overflow:hidden; margin-top:14px;
+  }
+  .row{ position:absolute; inset:18px 18px auto 18px; display:flex; gap:10px; justify-content:center; }
+  button{
+    padding:10px 18px; border:none; border-radius:10px; font-size:16px; cursor:pointer;
+    color:#fff; font-weight:600; box-shadow:0 2px 10px rgba(16,24,40,.08);
+  }
+  #okBtn{ background:#16a34a; }
+  #cancelBtn{ background:#ef4444; }
+  #resetBtn{ background:#475467; }
+  /* mảnh vỡ */
+  .piece{
+    position:absolute; border-radius:3px; pointer-events:none; will-change:transform, opacity;
+    transform: translate(0,0) rotate(0deg) scale(1);
+    opacity:1;
+  }
+  @keyframes explode {
+    to {
+      transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.9);
+      opacity: 0;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Bấm “OK” để xem nó vỡ vụn 💥</h2>
+    <div class="box" id="box">
+      <div class="row">
+        <button id="okBtn">OK</button>
+        <button id="cancelBtn">HỦY</button>
+        <button id="resetBtn" hidden>LÀM LẠI</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const box = document.getElementById('box');
+  const ok  = document.getElementById('okBtn');
+  const cancel = document.getElementById('cancelBtn');
+  const reset = document.getElementById('resetBtn');
+
+  // cấu hình “vỡ vụn”
+  const PIECE = 10;      // kích thước mỗi mảnh (px)
+  const SPREAD = 220;    // độ văng tối đa theo phương ngang/dọc (px)
+  const DUR_MIN = 600;   // thời lượng nổ tối thiểu (ms)
+  const DUR_MAX = 1100;  // thời lượng nổ tối đa (ms)
+
+  ok.addEventListener('click', (e) => {
+    e.preventDefault();
+    shatter(ok);
+  });
+
+  reset.addEventListener('click', () => {
+    // xóa mảnh cũ và hiện lại nút
+    box.querySelectorAll('.piece').forEach(p => p.remove());
+    ok.hidden = false;
+    cancel.hidden = false;
+    reset.hidden = true;
+  });
+
+  function shatter(btn){
+    const boxRect = box.getBoundingClientRect();
+    const r = btn.getBoundingClientRect();
+
+    // 1) Ẩn nút gốc
+    btn.hidden = true;
+    cancel.hidden = true;
+
+    // 2) Lấy màu nền + viền khớp với nút
+    const cs = getComputedStyle(btn);
+    const bg = cs.backgroundColor;
+
+    // 3) Tạo lưới mảnh bao phủ toàn bộ nút
+    const width = r.width, height = r.height;
+    const cols = Math.max(1, Math.floor(width / PIECE));
+    const rows = Math.max(1, Math.floor(height / PIECE));
+    const pieceW = width / cols;
+    const pieceH = height / rows;
+
+    // 4) Vị trí gốc tương đối với box
+    const originLeft = r.left - boxRect.left;
+    const originTop  = r.top  - boxRect.top;
+
+    // 5) Tạo mảnh + hoạt ảnh
+    const frag = document.createDocumentFragment();
+
+    for(let y=0; y<rows; y++){
+      for(let x=0; x<cols; x++){
+        const px = document.createElement('div');
+        px.className = 'piece';
+        px.style.width = `${pieceW + 0.5}px`;
+        px.style.height = `${pieceH + 0.5}px`;
+        px.style.left = `${originLeft + x*pieceW}px`;
+        px.style.top  = `${originTop + y*pieceH}px`;
+        px.style.background = bg;
+        px.style.boxShadow = '0 1px 3px rgba(16,24,40,.12)';
+
+        // mỗi mảnh bay ngẫu nhiên, hơi có lực “nổ” từ tâm
+        const cx = (x + 0.5) / cols - 0.5; // -0.5..0.5
+        const cy = (y + 0.5) / rows - 0.5;
+        const bias = Math.hypot(cx, cy); // mảnh gần rìa bay xa hơn chút
+
+        const randX = (Math.random()*2 - 1) * SPREAD * (0.6 + bias*0.8);
+        const randY = (Math.random()*1.2 - 0.2) * SPREAD * (0.6 + bias*0.8); // ưu tiên bay xuống
+        const rot = (Math.random()*720 - 360) + 'deg';
+        const dur = (DUR_MIN + Math.random()*(DUR_MAX - DUR_MIN)) + 'ms';
+
+        px.style.setProperty('--dx', `${randX}px`);
+        px.style.setProperty('--dy', `${randY}px`);
+        px.style.setProperty('--rot', rot);
+        px.style.animation = `explode ${dur} cubic-bezier(.15,.6,.25,1) forwards`;
+
+        frag.appendChild(px);
+      }
+    }
+
+    box.appendChild(frag);
+
+    // 6) Sau khi nổ xong, hiện nút “LÀM LẠI”
+    const maxDur = DUR_MAX + 80;
+    setTimeout(() => {
+      reset.hidden = false;
+    }, maxDur);
+  }
+})();
+</script>
+</body>
+</html>
