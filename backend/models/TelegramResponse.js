@@ -9,7 +9,7 @@ const groupStatusSchema = new mongoose.Schema({
   status: {
     type: String,
     required: true,
-    enum: ['PENDING', 'YES', 'NO', 'CHUA', 'KHONG', 'NHAN', 'CHUA_PROCESSED', 'NHAN_PROCESSED'],
+    enum: ['PENDING', 'YES', 'NO', 'CHUA', 'KHONG', 'NHAN', 'CHUA_PROCESSED', 'NHAN_PROCESSED', 'HETHONG'],
     default: 'PENDING'
   },
   responseUserId: { type: Number },

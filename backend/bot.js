@@ -107,6 +107,12 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
               text: '🚫尚未收到钱/Chưa nhận đc tiền',
               callback_data: `bill_response_${billId}_chua_tien`
             }
+          ],
+          [
+            {
+              text: '🟡已上分给其他系统/Đã lên điểm cho hệ thống khác',
+              callback_data: `bill_response_${billId}_hethong`
+            }
           ]
         ]
       }
@@ -236,7 +242,8 @@ bot.on('callback_query', async (callbackQuery) => {
           'diem': { text: 'Đã lên điểm', emoji: '✅', status: 'YES' },
           'nhan_tien': { text: 'Nhận đc tiền', emoji: '💰', status: 'NHAN' },
           'khong_phai': { text: 'Không phải bên mình', emoji: '🚫', status: 'KHONG' },
-          'chua_tien': { text: 'Chưa nhận đc tiền', emoji: '🚫', status: 'CHUA' }
+          'chua_tien': { text: 'Chưa nhận đc tiền', emoji: '🚫', status: 'CHUA' },
+          'hethong': { text: 'Đã lên điểm cho hệ thống khác', emoji: '🟡', status: 'HETHONG' }
         };
         
         const responseInfo = responseMap[responseType] || { text: 'Unknown', emoji: '❓', status: 'NO' };
@@ -291,7 +298,7 @@ bot.on('callback_query', async (callbackQuery) => {
 
         // Trả lời callback query để tắt loading
         await bot.answerCallbackQuery(callbackQuery.id, {
-          text: `Bạn đã chọn ${responseInfo.text} cho bill ${billId}`,
+          text: `Bạn đã chọn ${responseInfo.text}`,
           show_alert: false
         });
 

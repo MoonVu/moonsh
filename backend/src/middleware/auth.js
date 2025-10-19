@@ -161,22 +161,6 @@ const requirePermission = (resource, action) => {
       // Kiểm tra permission
       const hasAccess = req.user.hasPermission(resource, action);
       
-      // Debug: Log permission check details
-      console.log('🔒 Permission check details:', {
-        username: req.user.username,
-        roleName: req.user.role?.name,
-        roleString: req.user.roleString,
-        resource,
-        action,
-        hasAccess,
-        roleObject: req.user.role ? {
-          id: req.user.role._id,
-          name: req.user.role.name,
-          hasPermissionMethod: typeof req.user.role.hasPermission
-        } : 'NO_ROLE_OBJECT',
-        userHasPermissionMethod: typeof req.user.hasPermission
-      });
-      
       if (!hasAccess) {
         console.log(`❌ Permission denied: ${req.user.username} (${req.user.role.name}) tried ${resource}.${action}`);
         return res.status(403).json({

@@ -182,7 +182,7 @@ const TelegramBillSender = () => {
         'PENDING': 'Chờ phản hồi'
       };
       
-      message.success(`📱 ${data.groupResponse.groupName}: ${statusText[data.groupResponse.status] || data.groupResponse.responseType}`);
+      
     };
 
     // Đăng ký event listener
@@ -1015,10 +1015,10 @@ const TelegramBillSender = () => {
         const billId = record.billId;
         const showAllResponses = expandedResponses[billId] || false;
         
-        // Sort groups: YES > NHAN > CHUA > KHONG > NO > PENDING
+        // Sort groups: HETHONG > YES > NHAN > CHUA > KHONG > NO > PENDING
         const sortedGroups = [...groupResponses].sort((a, b) => {
-          const order = { 'YES': 1, 'NHAN': 2, 'CHUA': 3, 'KHONG': 4, 'NO': 5, 'PENDING': 6 };
-          return (order[a.status] || 5) - (order[b.status] || 5);
+          const order = { 'YES': 1, 'NHAN': 2, 'HETHONG': 3, 'CHUA': 4, 'KHONG': 5, 'NO': 6, 'PENDING': 7 };
+          return (order[a.status] || 6) - (order[b.status] || 6);
         });
         
         if (sortedGroups.length === 0) {
@@ -1041,6 +1041,7 @@ const TelegramBillSender = () => {
                 'NHAN': { emoji: '💰', text: 'Nhận đc tiền', color: 'blue', clickable: true },
                 'CHUA': { emoji: '🚫', text: 'Chưa nhận được tiền', color: 'orange', clickable: true },
                 'KHONG': { emoji: '🚫', text: 'Không phải bên mình', color: 'red' },
+                'HETHONG': { emoji: '🟡', text: 'Đã lên điểm cho hệ thống khác', color: 'yellow' },
                 'PENDING': { emoji: '⏳', text: 'Chờ phản hồi', color: 'orange' },
                 'NHAN_PROCESSED': { emoji: '✅💰', text: 'Nhận đc tiền - Đã xử lý', color: 'green' },
                 'CHUA_PROCESSED': { emoji: '✅🚫', text: 'Chưa nhận được tiền - Đã xử lý', color: 'green' }
@@ -1461,6 +1462,13 @@ const TelegramBillSender = () => {
                 allowClear
                 disabled={!selectedGroupType}
                 key={selectedGroupType} // Force re-render khi thay đổi groupType
+                showSearch
+                filterOption={(input, option) => {
+                  const label = option?.label || '';
+                  const value = option?.value || '';
+                  return label.toLowerCase().includes(input.toLowerCase()) || 
+                         value.toLowerCase().includes(input.toLowerCase());
+                }}
               >
                 {groups
                   .find(g => g.type === selectedGroupType)
@@ -1641,12 +1649,12 @@ const TelegramBillSender = () => {
               </div>
               
               <div style={{ marginBottom: 16 }}>
-                <Text>Bạn muốn thay đổi trạng thái này thành "Đã xử lý"?</Text>
+                <Text>Nếu đã lên điểm thành công chọn "Đã xử lý"</Text>
               </div>
               
               <Alert
-                message="Thông tin xử lý"
-                description={`Người xử lý: ${user?.username || 'Unknown'} - ${new Date().toLocaleString('vi-VN', { 
+                message="Thông tin người xử lý"
+                description={`${user?.username || 'Unknown'} - ${new Date().toLocaleString('vi-VN', { 
                   year: 'numeric', 
                   month: '2-digit', 
                   day: '2-digit', 

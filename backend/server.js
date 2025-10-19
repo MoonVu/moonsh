@@ -269,7 +269,6 @@ const authenticateToken = async (req, res, next) => {
 
   jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) {
-      console.log('❌ Legacy token verification failed:', err.message);
       return res.status(403).json({ error: 'Invalid token' });
     }
     
@@ -1498,8 +1497,6 @@ const TelegramResponse = require('./models/TelegramResponse');
 // API nhận dữ liệu từ Telegram Bot (khi user bấm Yes/No)
 app.post('/api/telegram', async (req, res) => {
   try {
-    console.log('🔍 Received telegram callback:', req.body);
-    
     const { 
       billId, 
       choice, 
@@ -1527,8 +1524,7 @@ app.post('/api/telegram', async (req, res) => {
       });
     }
     
-    // Tìm bill record và cập nhật trạng thái group
-    console.log(`🔍 Finding bill record for billId: ${billId}`);
+ 
     const billRecord = await TelegramResponse.findOne({ billId });
     
     if (!billRecord) {
@@ -1574,7 +1570,7 @@ app.post('/api/telegram', async (req, res) => {
     billRecord.updatedAt = new Date();
     
     // Lưu cập nhật
-    console.log(`🔍 Saving bill record with updated status...`);
+  
     const savedResponse = await billRecord.save();
     // console.log(`🔍 Saved successfully:`, savedResponse);
     
@@ -1614,7 +1610,7 @@ app.post('/api/telegram', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Lỗi API telegram:', error);
+
     res.status(500).json({ 
       success: false, 
       error: error.message 
