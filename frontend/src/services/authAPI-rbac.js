@@ -4,7 +4,7 @@
 
 import axios from 'axios';
 
-const API_BASE_URL = 'http://172.16.1.6:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 // Tạo axios instance
 const apiClient = axios.create({
@@ -240,7 +240,7 @@ class UsersAPIService {
 // Roles API Service
 class RolesAPIService {
   constructor() {
-    this.baseURL = 'http://172.16.1.6:5000';
+    this.baseURL = API_BASE_URL;
   }
 
   getHeaders() {
@@ -327,7 +327,7 @@ class RolesAPIService {
 // Admin API Service
 class AdminAPIService {
   constructor() {
-    this.baseURL = 'http://172.16.1.6:5000';
+    this.baseURL = API_BASE_URL;
   }
 
   getHeaders() {

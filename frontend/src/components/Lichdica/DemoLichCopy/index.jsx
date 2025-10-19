@@ -337,7 +337,6 @@ export default function DemoLichCopy({ tabId, copyData = null }) {
           
           if (response && response.success) {
             console.log('✅ Đã tự động lưu thay đổi ghi chú thành công');
-            console.log('🔍 Response data:', response.data);
             message.success('✅ Đã lưu ghi chú thành công');
           } else {
             console.error('❌ Lỗi khi tự động lưu thay đổi ghi chú:', response?.error);

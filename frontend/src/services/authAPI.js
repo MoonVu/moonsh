@@ -2,7 +2,7 @@
  * Auth API Service - Xử lý các API calls liên quan đến authentication
  */
 
-const API_BASE_URL = 'http://172.16.1.6:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 class AuthAPIService {
   constructor() {

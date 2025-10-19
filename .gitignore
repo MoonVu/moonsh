@@ -9,6 +9,9 @@ config.env
 backend/uploads/
 frontend/uploads/
 
+backend/.env
+frontend/.env
+
 # Logs
 logs/
 *.log

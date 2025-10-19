@@ -2,7 +2,7 @@
  * Permissions API Service - Xử lý API calls cho permissions
  */
 
-const API_BASE_URL = 'http://172.16.1.6:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 class PermissionsAPIService {
   constructor() {
