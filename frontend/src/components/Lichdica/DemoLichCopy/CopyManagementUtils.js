@@ -1,6 +1,9 @@
 import React from "react";
 import apiService from "../../../services/api";
+import { API_BASE_URL } from "../../../config/api";
 import { message } from 'antd';
+
+console.log("🔧 CopyManagementUtils using API_BASE_URL:", API_BASE_URL);
 
 export default function CopyManagementUtils() {
   // Function lưu bản sao
@@ -17,7 +20,7 @@ export default function CopyManagementUtils() {
       
       // Kiểm tra backend trước
       try {
-        const healthCheck = await fetch(process.env.REACT_APP_API_URL+'/api/health');
+        const healthCheck = await fetch(`${API_BASE_URL}/api/health`);
         if (!healthCheck.ok) {
           throw new Error(`Backend không khả dụng: ${healthCheck.status}`);
         }

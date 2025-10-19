@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './useAuth';
+import { API_BASE_URL } from '../config/api';
+
+console.log("🔧 useSocket.js using API_BASE_URL:", API_BASE_URL);
 
 const useSocket = () => {
   const [socket, setSocket] = useState(null);
@@ -11,24 +14,8 @@ const useSocket = () => {
     // Chỉ kết nối khi có user
     if (!user) return;
 
-    // Tự động detect API URL dựa trên current host
-    const getApiUrl = () => {
-      // Nếu có env variable thì dùng
-      if (process.env.REACT_APP_API_URL) {
-        return process.env.REACT_APP_API_URL;
-      }
-      
-      // Nếu đang chạy trên localhost thì dùng localhost
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:5000';
-      }
-      
-      // Nếu đang chạy trên IP khác thì dùng cùng IP với port 5000
-      return `http://${window.location.hostname}:5000`;
-    };
-
     // Tạo socket connection
-    const newSocket = io(getApiUrl(), {
+    const newSocket = io(API_BASE_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,

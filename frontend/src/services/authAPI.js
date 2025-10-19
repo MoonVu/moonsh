@@ -2,7 +2,9 @@
  * Auth API Service - Xử lý các API calls liên quan đến authentication
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+import { API_BASE_URL } from '../config/api';
+
+console.log("🔧 authAPI.js using API_BASE_URL:", API_BASE_URL);
 
 class AuthAPIService {
   constructor() {

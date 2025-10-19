@@ -1,21 +1,6 @@
-// Tự động detect API URL dựa trên current host
-const getApiBaseUrl = () => {
-  // Nếu có env variable thì dùng
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
-  
-  // Nếu đang chạy trên localhost thì dùng localhost
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:5000';
-  }
-  
-  // Nếu đang chạy trên IP khác thì dùng cùng IP với port 5000
-  return `http://${window.location.hostname}:5000`;
-};
+import { API_BASE_URL } from '../config/api';
 
-// Cấu hình API URL
-const API_BASE_URL = getApiBaseUrl();
+console.log("🔧 api.js using API_BASE_URL:", API_BASE_URL);
 
 class ApiService {
   constructor() {

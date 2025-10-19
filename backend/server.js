@@ -10,7 +10,7 @@ const sharp = require('sharp');
 const Tesseract = require('tesseract.js');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-require('dotenv').config();
+require('dotenv').config({ path: './config.env' });
 
 const app = express();
 const server = createServer(app);

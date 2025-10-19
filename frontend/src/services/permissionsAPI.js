@@ -2,7 +2,9 @@
  * Permissions API Service - Xử lý API calls cho permissions
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+import { API_BASE_URL } from '../config/api';
+
+console.log("🔧 permissionsAPI.js using API_BASE_URL:", API_BASE_URL);
 
 class PermissionsAPIService {
   constructor() {
