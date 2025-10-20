@@ -13,7 +13,7 @@ require('dotenv').config({ path: '../../config.env' });
 async function migrateUsersRole() {
   try {
     // Kết nối MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/moonne');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://admin:moon2201@localhost:27017/admin');
     console.log('✅ Đã kết nối MongoDB');
 
     const User = mongoose.model('User', new mongoose.Schema({}, { strict: false }));

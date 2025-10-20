@@ -25,7 +25,7 @@
 
 /* Edit button - Green gradient with glow effect */
 .btn-edit {
-  background: linear-gradient(135deg, #1753f7 0%, #1672fc 100%);
+  background: linear-gradient(135deg, #18f318 0%, #0ff81b 100%);
   color: rgb(48, 240, 74);
   box-shadow: 0 4px 20px rgba(11, 104, 243, 0.4);
 }

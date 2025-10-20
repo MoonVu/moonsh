@@ -576,12 +576,22 @@ const TelegramBillSender = () => {
         params.createdBy = user.username;
       }
       
+      // Thêm filter theo trạng thái phản hồi (từ nút filter)
+      if (responseFilter) {
+        params.status = responseFilter;
+      }
+      
+      // Thêm filter theo trạng thái xử lý
+      if (processedFilter && processedFilter !== 'ALL') {
+        params.processed = processedFilter;
+      }
+      
       // Chỉ gửi search lên API nếu không phải tìm theo trạng thái
       if (billSearchTerm && !searchStatus) {
         params.search = billSearchTerm;
       }
       
-      // Nếu tìm theo trạng thái, gửi status lên server
+      // Nếu tìm theo trạng thái từ search box, gửi status lên server
       if (searchStatus) {
         params.status = searchStatus;
       }

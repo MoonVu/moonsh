@@ -77,7 +77,7 @@ app.use(express.json({ limit: '50mb' })); // Tăng limit cho JSON
 app.use(express.urlencoded({ limit: '50mb', extended: true })); // Tăng limit cho URL encoded
 
 // Kết nối MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/Moon';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:moon2201@localhost:27017/admin';
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -1653,7 +1653,7 @@ app.get('/api/telegram/responses/:billId', authenticateToken, async (req, res) =
 // API để lấy tất cả responses (admin)
 app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 50, billId, createdBy, search } = req.query;
+    const { page = 1, limit = 50, billId, createdBy, search, status, processed } = req.query;
     const skip = (page - 1) * limit;
 
     let query = {};
@@ -1664,6 +1664,51 @@ app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
     // Filter theo người tạo
     if (createdBy) {
       query.createdBy = createdBy;
+    }
+
+    // Filter theo trạng thái phản hồi và xử lý
+    let statusFilters = [];
+    
+    // Xác định base status filters
+    if (status) {
+      if (status === 'NHAN') {
+        // Nhận được tiền: bao gồm cả NHAN và NHAN_PROCESSED
+        statusFilters = ['NHAN', 'NHAN_PROCESSED'];
+      } else if (status === 'CHUA') {
+        // Chưa nhận được tiền: bao gồm cả CHUA và CHUA_PROCESSED
+        statusFilters = ['CHUA', 'CHUA_PROCESSED'];
+      } else {
+        // Các trạng thái khác giữ nguyên
+        statusFilters = [status];
+      }
+    }
+
+    // Áp dụng filter xử lý nếu có
+    if (processed && processed !== 'ALL') {
+      if (processed === 'PROCESSED') {
+        // Chỉ hiển thị đã xử lý
+        if (status === 'NHAN') {
+          statusFilters = ['NHAN_PROCESSED'];
+        } else if (status === 'CHUA') {
+          statusFilters = ['CHUA_PROCESSED'];
+        } else {
+          statusFilters = ['NHAN_PROCESSED', 'CHUA_PROCESSED'];
+        }
+      } else if (processed === 'UNPROCESSED') {
+        // Chỉ hiển thị chưa xử lý
+        if (status === 'NHAN') {
+          statusFilters = ['NHAN'];
+        } else if (status === 'CHUA') {
+          statusFilters = ['CHUA'];
+        } else {
+          statusFilters = ['NHAN', 'CHUA'];
+        }
+      }
+    }
+
+    // Áp dụng filter status nếu có
+    if (statusFilters.length > 0) {
+      query['groups.status'] = { $in: statusFilters };
     }
 
     // Filter theo search term (tìm trong billId, customer, employee, caption)

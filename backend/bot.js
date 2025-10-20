@@ -3,7 +3,7 @@ const axios = require('axios');
 
 // ==================== CẤU HÌNH BOT ====================
 // ⚠️ THAY ĐỔI CÁC THÔNG TIN SAU:
-const BOT_TOKEN = "7009081424:AAHYPcl1fBSU0SaGcTmJa6BVrFiXsb58yA0";  // Thay bằng token từ BotFather
+const BOT_TOKEN = "8026142464:AAG5_HhcvRNQ9iodYJn9T-5-0PrJ9cfCcg0";  // Thay bằng token từ BotFather
 
 // URL backend API
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
