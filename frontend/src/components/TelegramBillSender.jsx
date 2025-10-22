@@ -576,22 +576,12 @@ const TelegramBillSender = () => {
         params.createdBy = user.username;
       }
       
-      // Thêm filter theo trạng thái phản hồi (từ nút filter)
-      if (responseFilter) {
-        params.status = responseFilter;
-      }
-      
-      // Thêm filter theo trạng thái xử lý
-      if (processedFilter && processedFilter !== 'ALL') {
-        params.processed = processedFilter;
-      }
-      
       // Chỉ gửi search lên API nếu không phải tìm theo trạng thái
       if (billSearchTerm && !searchStatus) {
         params.search = billSearchTerm;
       }
       
-      // Nếu tìm theo trạng thái từ search box, gửi status lên server
+      // Nếu tìm theo trạng thái, gửi status lên server
       if (searchStatus) {
         params.status = searchStatus;
       }
@@ -720,6 +710,40 @@ const TelegramBillSender = () => {
       
     } catch (error) {
       console.error('Lỗi khi cập nhật trạng thái:', error);
+      message.error('Lỗi khi cập nhật trạng thái!');
+    } finally {
+      setShowProcessModal(false);
+      setSelectedResponse(null);
+      setSelectedBill(null);
+    }
+  };
+
+  // Function để xử lý trạng thái "Chọn nhầm"
+  const handleMistakenStatus = async () => {
+    if (!selectedResponse || !selectedBill) {
+      setShowProcessModal(false);
+      return;
+    }
+
+    try {
+      const newStatus = selectedResponse.status === 'NHAN' ? 'NHAN_MISTAKEN' : 'CHUA_MISTAKEN';
+      
+      // Gọi API để update trạng thái
+      await apiService.updateResponseStatus({
+        billId: selectedBill.billId,
+        chatId: selectedResponse.chatId,
+        newStatus: newStatus,
+        processor: user?.username || 'Unknown',
+        processTime: new Date().toISOString()
+      });
+
+      message.success('Đã cập nhật trạng thái "Chọn nhầm" thành công!');
+      
+      // Reload bills để cập nhật UI
+      await loadBillsWithFilter(currentPage, pageSize);
+      
+    } catch (error) {
+      console.error('Lỗi khi cập nhật trạng thái "Chọn nhầm":', error);
       message.error('Lỗi khi cập nhật trạng thái!');
     } finally {
       setShowProcessModal(false);
@@ -1013,7 +1037,9 @@ const TelegramBillSender = () => {
                 'HETHONG': { emoji: '🟡', text: 'Đã lên điểm cho hệ thống khác', color: 'yellow' },
                 'PENDING': { emoji: '⏳', text: 'Chờ phản hồi', color: 'orange' },
                 'NHAN_PROCESSED': { emoji: '✅💰', text: 'Nhận đc tiền - Đã xử lý', color: 'green' },
-                'CHUA_PROCESSED': { emoji: '✅🚫', text: 'Chưa nhận được tiền - Đã xử lý', color: 'green' }
+                'CHUA_PROCESSED': { emoji: '✅🚫', text: 'Chưa nhận được tiền - Đã xử lý', color: 'green' },
+                'NHAN_MISTAKEN': { emoji: '💰❌', text: 'Nhận đc tiền - Bên T3 chọn nhầm', color: 'magenta' },
+                'CHUA_MISTAKEN': { emoji: '🚫❌', text: 'Chưa nhận được tiền - Bên T3 chọn nhầm', color: 'magenta' }
               };
               
               const statusInfo = statusMap[gr.status] || { emoji: '❓', text: 'Unknown', color: 'default' };
@@ -1021,7 +1047,7 @@ const TelegramBillSender = () => {
               
               // Thêm thông tin người xử lý nếu có
               let displayText = statusInfo.text;
-              if ((gr.status === 'NHAN_PROCESSED' || gr.status === 'CHUA_PROCESSED') && gr.processor) {
+              if ((gr.status === 'NHAN_PROCESSED' || gr.status === 'CHUA_PROCESSED' || gr.status === 'NHAN_MISTAKEN' || gr.status === 'CHUA_MISTAKEN') && gr.processor) {
                 const processTime = gr.processTime ? new Date(gr.processTime) : null;
                 if (processTime) {
                   const dateStr = processTime.toLocaleDateString('vi-VN');
@@ -1036,7 +1062,7 @@ const TelegramBillSender = () => {
               
               text = `${statusInfo.emoji} ${gr.groupName} - ${displayText}`;
               
-              // Kiểm tra xem có thể click không
+              // Kiểm tra xem có thể click không (chỉ cho phép click khi chưa xử lý)
               const isClickable = statusInfo.clickable && (gr.status === 'CHUA' || gr.status === 'NHAN');
               
               return (
@@ -1582,6 +1608,9 @@ const TelegramBillSender = () => {
             <Button key="cancel" onClick={() => setShowProcessModal(false)}>
               Chưa xử lý
             </Button>,
+            <Button key="mistaken" onClick={handleMistakenStatus} style={{ backgroundColor: '#ff69b4', borderColor: '#ff69b4', color: 'white' }}>
+              Chọn nhầm
+            </Button>,
             <Button key="process" type="primary" onClick={() => handleProcessStatus(true)}>
               Đã xử lý
             </Button>
@@ -1597,7 +1626,22 @@ const TelegramBillSender = () => {
               <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 6 }}>
                 <div><Text strong>Nhóm:</Text> {selectedResponse.groupName}</div>
                 <div><Text strong>Trạng thái hiện tại:</Text> 
-                  {selectedResponse.status === 'NHAN' ? ' 💰 Nhận đc tiền' : ' 🚫 Chưa nhận được tiền'}
+                  {(() => {
+                    const statusMap = {
+                      'YES': { emoji: '✅', text: 'Đã lên điểm' },
+                      'NHAN': { emoji: '💰', text: 'Nhận đc tiền' },
+                      'CHUA': { emoji: '🚫', text: 'Chưa nhận được tiền' },
+                      'KHONG': { emoji: '🚫', text: 'Không phải bên mình' },
+                      'HETHONG': { emoji: '🟡', text: 'Đã lên điểm cho hệ thống khác' },
+                      'PENDING': { emoji: '⏳', text: 'Chờ phản hồi' },
+                      'NHAN_PROCESSED': { emoji: '✅💰', text: 'Nhận đc tiền - Đã xử lý' },
+                      'CHUA_PROCESSED': { emoji: '✅🚫', text: 'Chưa nhận được tiền - Đã xử lý' },
+                      'NHAN_MISTAKEN': { emoji: '💰❌', text: 'Nhận đc tiền - Chọn nhầm' },
+                      'CHUA_MISTAKEN': { emoji: '🚫❌', text: 'Chưa nhận được tiền - Chọn nhầm' }
+                    };
+                    const statusInfo = statusMap[selectedResponse.status] || { emoji: '❓', text: 'Unknown' };
+                    return ` ${statusInfo.emoji} ${statusInfo.text}`;
+                  })()}
                 </div>
                 <div><Text strong>Mã đơn:</Text> {selectedBill.billId}</div>
                 {selectedResponse.responseUserName && (

@@ -26,6 +26,7 @@ const io = new Server(server, {
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://172.16.1.6:3000",
+        "http://192.168.5.13:3000",
         "http://192.168.99.31:3000",
 
         /^http:\/\/172\.16\.1\.\d+:3000$/, // Cho phép tất cả IP trong mạng 172.16.1.x
@@ -49,6 +50,7 @@ const corsOptions = {
       'http://127.0.0.1:3000',
       'http://172.16.1.6:3000',
       "http://192.168.99.31:3000",
+      "http://192.168.5.13:3000",
       'http://172.16.1.6:5000'
     ];
 
@@ -76,8 +78,8 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); // Tăng limit cho JSON
 app.use(express.urlencoded({ limit: '50mb', extended: true })); // Tăng limit cho URL encoded
 
-// Kết nối MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:moon2201@localhost:27017/admin';
+// Kết nối MongoDB thay IP số 3
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/Moon';
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -1552,7 +1554,10 @@ app.post('/api/telegram', async (req, res) => {
 
     // Kiểm tra xem group đã có phản hồi chưa
     const group = billRecord.groups[groupIndex];
+    console.log(`🔍 Backend nhận callback cho bill ${billId}, chatId ${chatId}, group status: ${group.status}`);
+    
     if (group.status !== 'PENDING') {
+      console.log(`⚠️  Group ${chatId} đã có status ${group.status}, bỏ qua callback này`);
       return res.json({
         success: true,
         message: 'Group đã phản hồi trước đó',
@@ -1573,9 +1578,9 @@ app.post('/api/telegram', async (req, res) => {
     billRecord.updatedAt = new Date();
 
     // Lưu cập nhật
-
+    console.log(`💾 Đang lưu callback cho bill ${billId}, chatId ${chatId}, status: ${newStatus}`);
     const savedResponse = await billRecord.save();
-    // console.log(`🔍 Saved successfully:`, savedResponse);
+    console.log(`✅ Đã lưu thành công callback cho bill ${billId}, chatId ${chatId}`);
 
     // Emit Socket.IO event để cập nhật real-time
     if (global.io) {
@@ -1672,11 +1677,11 @@ app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
     // Xác định base status filters
     if (status) {
       if (status === 'NHAN') {
-        // Nhận được tiền: bao gồm cả NHAN và NHAN_PROCESSED
-        statusFilters = ['NHAN', 'NHAN_PROCESSED'];
+        // Nhận được tiền: bao gồm cả NHAN, NHAN_PROCESSED và NHAN_MISTAKEN
+        statusFilters = ['NHAN', 'NHAN_PROCESSED', 'NHAN_MISTAKEN'];
       } else if (status === 'CHUA') {
-        // Chưa nhận được tiền: bao gồm cả CHUA và CHUA_PROCESSED
-        statusFilters = ['CHUA', 'CHUA_PROCESSED'];
+        // Chưa nhận được tiền: bao gồm cả CHUA, CHUA_PROCESSED và CHUA_MISTAKEN
+        statusFilters = ['CHUA', 'CHUA_PROCESSED', 'CHUA_MISTAKEN'];
       } else {
         // Các trạng thái khác giữ nguyên
         statusFilters = [status];
@@ -1688,11 +1693,11 @@ app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
       if (processed === 'PROCESSED') {
         // Chỉ hiển thị đã xử lý
         if (status === 'NHAN') {
-          statusFilters = ['NHAN_PROCESSED'];
+          statusFilters = ['NHAN_PROCESSED', 'NHAN_MISTAKEN'];
         } else if (status === 'CHUA') {
-          statusFilters = ['CHUA_PROCESSED'];
+          statusFilters = ['CHUA_PROCESSED', 'CHUA_MISTAKEN'];
         } else {
-          statusFilters = ['NHAN_PROCESSED', 'CHUA_PROCESSED'];
+          statusFilters = ['NHAN_PROCESSED', 'CHUA_PROCESSED', 'NHAN_MISTAKEN', 'CHUA_MISTAKEN'];
         }
       } else if (processed === 'UNPROCESSED') {
         // Chỉ hiển thị chưa xử lý

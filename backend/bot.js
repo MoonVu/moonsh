@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
+const { default: PQueue } = require('p-queue');
 
 // ==================== CẤU HÌNH BOT ====================
 // ⚠️ THAY ĐỔI CÁC THÔNG TIN SAU:
@@ -11,7 +12,28 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 // Khởi tạo bot
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
+// ==================== CẤU HÌNH QUEUE XỬ LÝ CALLBACK ====================
+// ⚠️ QUAN TRỌNG: Có thể thay đổi số lượng xử lý đồng thời tại đây
+// concurrency: 3 = xử lý 3 callbacks cùng lúc (khuyến nghị cho 20-30 nhóm)
+// concurrency: 4 = xử lý 4 callbacks cùng lúc (nếu muốn nhanh hơn)
+// concurrency: 5 = xử lý 5 callbacks cùng lúc (nhanh nhất, nhưng có thể quá tải)
+// concurrency: 1 = xử lý tuần tự từng callback (chậm nhưng an toàn nhất)
+const telegramQueue = new PQueue({
+  concurrency: 3,     // ⚠️ CHỈNH TẠI ĐÂY: Số callback xử lý đồng thời (3-4 là tối ưu)
+  timeout: 30000,     // Timeout 30 giây cho mỗi callback
+  throwOnTimeout: false
+});
+
 console.log('🤖 Telegram Bot đã khởi động');
+console.log(`⚙️  Queue đã được cấu hình: Xử lý ${telegramQueue.concurrency} callbacks đồng thời`);
+
+// ==================== MONITORING QUEUE ====================
+// Theo dõi queue để đảm bảo không bị stuck
+setInterval(() => {
+  if (telegramQueue.size > 0 || telegramQueue.pending > 0) {
+    console.log(`📊 Queue Status: ${telegramQueue.size} đang chờ, ${telegramQueue.pending} đang xử lý`);
+  }
+}, 10000); // Log mỗi 10 giây
 
 // ==================== HÀM GỬI BILL VÀO GROUP ====================
 /**
@@ -188,12 +210,9 @@ const processedCallbacks = new Set();
 
 bot.on('callback_query', async (callbackQuery) => {
   const callbackId = callbackQuery.id;
-  const data = callbackQuery.data;
-  const chatId = callbackQuery.message.chat.id;
-  const messageId = callbackQuery.message.message_id;
-  const user = callbackQuery.from;
-
-  // Kiểm tra callback đã xử lý chưa (tránh duplicate)
+  
+  // ⚠️ QUAN TRỌNG: Kiểm tra duplicate TRƯỚC KHI đẩy vào queue
+  // để tránh đẩy callback đã xử lý vào queue
   if (processedCallbacks.has(callbackId)) {
     await bot.answerCallbackQuery(callbackId, {
       text: 'Đã xử lý',
@@ -202,124 +221,161 @@ bot.on('callback_query', async (callbackQuery) => {
     return;
   }
   
-  // Đánh dấu callback đã xử lý
+  // Đánh dấu callback đã nhận (nhưng chưa xử lý)
   processedCallbacks.add(callbackId);
   
-  // Cleanup sau 1 phút để tránh memory leak
+  // Cleanup sau 2 phút để tránh memory leak
   setTimeout(() => {
     processedCallbacks.delete(callbackId);
-  }, 60000);
+  }, 120000);
 
-  try {
-    // Kiểm tra xem có phải callback của bill không
-    if (data.startsWith('bill_response_')) {
-      // Parse callback data: bill_response_{billId}_{responseType}
-      // Vì billId có thể chứa underscore, cần parse cẩn thận
-      const parts = data.split('_');
-      if (parts.length >= 4) {
-        // Tìm responseType từ cuối (không phải diem, chua_diem, khong_phai, chua_tien)
-        const possibleResponseTypes = ['diem', 'nhan_tien', 'khong_phai', 'chua_tien'];
-        let responseType = '';
-        let billId = '';
-        
-        // Thử tìm responseType từ cuối
-        for (const rType of possibleResponseTypes) {
-          if (data.endsWith(`_${rType}`)) {
-            responseType = rType;
-            billId = data.replace(`bill_response_`, '').replace(`_${rType}`, '');
-            break;
-          }
-        }
-        
-        // Fallback nếu không tìm thấy
-        if (!responseType) {
-          billId = parts.slice(2, -1).join('_');
-          responseType = parts[parts.length - 1];
-        }
-        
-        // Map response type to display text and status
-        const responseMap = {
-          'diem': { text: 'Đã lên điểm', emoji: '✅', status: 'YES' },
-          'nhan_tien': { text: 'Nhận đc tiền', emoji: '💰', status: 'NHAN' },
-          'khong_phai': { text: 'Không phải bên mình', emoji: '🚫', status: 'KHONG' },
-          'chua_tien': { text: 'Chưa nhận đc tiền', emoji: '🚫', status: 'CHUA' },
-          'hethong': { text: 'Đã lên điểm cho hệ thống khác', emoji: '🟡', status: 'HETHONG' }
-        };
-        
-        const responseInfo = responseMap[responseType] || { text: 'Unknown', emoji: '❓', status: 'NO' };
-        
-        // Trả lời trong group
-        const userName = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
-        const replyText = `${responseInfo.emoji} <b>${userName}</b>: <b>${responseInfo.text}</b>`;
-        
-        await bot.sendMessage(chatId, replyText, { 
-          parse_mode: 'HTML',
-          reply_to_message_id: messageId 
-        });
+  // ⚡ ĐẨY VÀO QUEUE ĐỂ XỬ LÝ TUẦN TỰ/SONG SONG TỐI ƯU
+  // Queue sẽ tự động quản lý số lượng callbacks xử lý đồng thời
+  // để tránh quá tải server và đảm bảo không mất dữ liệu
+  telegramQueue.add(async () => {
+    const data = callbackQuery.data;
+    const chatId = callbackQuery.message.chat.id;
+    const messageId = callbackQuery.message.message_id;
+    const user = callbackQuery.from;
 
-        // Gửi dữ liệu về API backend
-        try {
-          const apiData = {
-            billId: billId,
-            choice: responseInfo.text,
-            responseType: responseType,
-            status: responseInfo.status, // Gửi status mới: YES, NO, CHUA, KHONG
-            isYes: responseInfo.status === 'YES', // Chỉ "Đã lên điểm" là YES
-            userId: user.id,
-            userName: userName,
-            username: user.username,
-            userFirstName: user.first_name || null,
-            userLastName: user.last_name || null,
-            userLanguageCode: user.language_code || null,
-            timestamp: new Date().toISOString(),
-            chatId: chatId,
-            messageId: messageId,
-            // Thêm metadata từ Telegram
-            telegramData: {
-              from: user,
-              chat: {
-                id: chatId,
-                type: callbackQuery.message.chat.type,
-                title: callbackQuery.message.chat.title || null,
-                username: callbackQuery.message.chat.username || null
-              },
-              message: {
-                message_id: messageId,
-                date: callbackQuery.message.date,
-                caption: callbackQuery.message.caption
-              }
+    try {
+      // Kiểm tra xem có phải callback của bill không
+      if (data.startsWith('bill_response_')) {
+        // Parse callback data: bill_response_{billId}_{responseType}
+        // Vì billId có thể chứa underscore, cần parse cẩn thận
+        const parts = data.split('_');
+        if (parts.length >= 4) {
+          // Tìm responseType từ cuối (không phải diem, chua_diem, khong_phai, chua_tien)
+          const possibleResponseTypes = ['diem', 'nhan_tien', 'khong_phai', 'chua_tien', 'hethong'];
+          let responseType = '';
+          let billId = '';
+          
+          // Thử tìm responseType từ cuối
+          for (const rType of possibleResponseTypes) {
+            if (data.endsWith(`_${rType}`)) {
+              responseType = rType;
+              billId = data.replace(`bill_response_`, '').replace(`_${rType}`, '');
+              break;
             }
+          }
+          
+          // Fallback nếu không tìm thấy
+          if (!responseType) {
+            billId = parts.slice(2, -1).join('_');
+            responseType = parts[parts.length - 1];
+          }
+          
+          // Map response type to display text and status
+          const responseMap = {
+            'diem': { text: 'Đã lên điểm', emoji: '✅', status: 'YES' },
+            'nhan_tien': { text: 'Nhận đc tiền', emoji: '💰', status: 'NHAN' },
+            'khong_phai': { text: 'Không phải bên mình', emoji: '🚫', status: 'KHONG' },
+            'chua_tien': { text: 'Chưa nhận đc tiền', emoji: '🚫', status: 'CHUA' },
+            'hethong': { text: 'Đã lên điểm cho hệ thống khác', emoji: '🟡', status: 'HETHONG' }
           };
           
-          const response = await axios.post(`${BACKEND_URL}/api/telegram`, apiData);
-        } catch (apiError) {
-          console.error(`❌ Lỗi gửi dữ liệu về backend cho bill ${billId}:`, apiError.message);
-        }
-
-        // Trả lời callback query để tắt loading
-        await bot.answerCallbackQuery(callbackQuery.id, {
-          text: `Bạn đã chọn ${responseInfo.text}`,
-          show_alert: false
-        });
-
-        // Ẩn các nút Yes/No để tránh bấm lại
-        try {
-          await bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
-            chat_id: chatId,
-            message_id: messageId
+          const responseInfo = responseMap[responseType] || { text: 'Unknown', emoji: '❓', status: 'NO' };
+          
+          // Log để debug
+          console.log(`🔄 Đang xử lý callback cho bill ${billId} từ chatId ${chatId}, response: ${responseInfo.text}`);
+          
+          // Trả lời trong group
+          const userName = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
+          const replyText = `${responseInfo.emoji} <b>${userName}</b>: <b>${responseInfo.text}</b>`;
+          
+          await bot.sendMessage(chatId, replyText, { 
+            parse_mode: 'HTML',
+            reply_to_message_id: messageId 
           });
-        } catch (e) {
-          // Nếu là ảnh/caption, editMessageReplyMarkup vẫn áp dụng được; 
-          // nhưng nếu có lỗi thì bỏ qua để không chặn luồng chính
+
+          // Gửi dữ liệu về API backend
+          try {
+            const apiData = {
+              billId: billId,
+              choice: responseInfo.text,
+              responseType: responseType,
+              status: responseInfo.status, // Gửi status mới: YES, NO, CHUA, KHONG
+              isYes: responseInfo.status === 'YES', // Chỉ "Đã lên điểm" là YES
+              userId: user.id,
+              userName: userName,
+              username: user.username,
+              userFirstName: user.first_name || null,
+              userLastName: user.last_name || null,
+              userLanguageCode: user.language_code || null,
+              timestamp: new Date().toISOString(),
+              chatId: chatId,
+              messageId: messageId,
+              // Thêm metadata từ Telegram
+              telegramData: {
+                from: user,
+                chat: {
+                  id: chatId,
+                  type: callbackQuery.message.chat.type,
+                  title: callbackQuery.message.chat.title || null,
+                  username: callbackQuery.message.chat.username || null
+                },
+                message: {
+                  message_id: messageId,
+                  date: callbackQuery.message.date,
+                  caption: callbackQuery.message.caption
+                }
+              }
+            };
+            
+            // Thêm timeout cho API call để tránh bị treo
+            const response = await axios.post(`${BACKEND_URL}/api/telegram`, apiData, {
+              timeout: 10000 // 10 giây timeout
+            });
+            
+            console.log(`✅ Đã gửi thành công callback cho bill ${billId} từ chatId ${chatId}`);
+          } catch (apiError) {
+            console.error(`❌ Lỗi gửi dữ liệu về backend cho bill ${billId} từ chatId ${chatId}:`, apiError.message);
+          }
+
+          // Trả lời callback query để tắt loading
+          await bot.answerCallbackQuery(callbackQuery.id, {
+            text: `Bạn đã chọn ${responseInfo.text}`,
+            show_alert: false
+          });
+
+          // Ẩn các nút Yes/No để tránh bấm lại
+          try {
+            await bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
+              chat_id: chatId,
+              message_id: messageId
+            });
+          } catch (e) {
+            // Nếu là ảnh/caption, editMessageReplyMarkup vẫn áp dụng được; 
+            // nhưng nếu có lỗi thì bỏ qua để không chặn luồng chính
+          }
         }
       }
+    } catch (error) {
+      console.error('❌ Lỗi xử lý callback query:', error);
+      await bot.answerCallbackQuery(callbackQuery.id, {
+        text: 'Có lỗi xảy ra, vui lòng thử lại',
+        show_alert: true
+      });
     }
-  } catch (error) {
-    console.error('❌ Lỗi xử lý callback query:', error);
-    await bot.answerCallbackQuery(callbackQuery.id, {
-      text: 'Có lỗi xảy ra, vui lòng thử lại',
-      show_alert: true
-    });
+  }).catch(async (error) => {
+    // Xử lý lỗi từ queue (nếu timeout hoặc lỗi khác)
+    console.error('❌ Lỗi queue xử lý callback:', error);
+    // Đảm bảo callback query vẫn được trả lời ngay cả khi có lỗi
+    try {
+      await bot.answerCallbackQuery(callbackQuery.id, {
+        text: 'Có lỗi xảy ra trong quá trình xử lý',
+        show_alert: true
+      });
+    } catch (e) {
+      console.error('❌ Không thể trả lời callback query:', e);
+    }
+  });
+
+  // Log queue status chi tiết để debug
+  console.log(`📥 Nhận callback ${callbackId}, Queue hiện có ${telegramQueue.size} đang chờ, ${telegramQueue.pending} đang xử lý`);
+  
+  if (telegramQueue.size > 5) {
+    console.log(`⚠️  Queue có nhiều callbacks: ${telegramQueue.size} đang chờ, ${telegramQueue.pending} đang xử lý`);
   }
 });
 
