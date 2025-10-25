@@ -33,15 +33,10 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       const response = await apiService.getAllRequests();
-      console.log('📋 API Response:', response);
-      console.log('📋 Response data:', response.data);
       
       if (response.data && Array.isArray(response.data)) {
         setRequests(response.data);
         if (response.data.length > 0) {
-          console.log('📋 First request:', response.data[0]);
-          console.log('📋 First request user:', response.data[0].user);
-          console.log('📋 First request user_id:', response.data[0].user_id);
         }
       } else {
         console.warn('⚠️ Response data không phải array:', response.data);

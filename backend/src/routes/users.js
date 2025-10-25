@@ -5,18 +5,15 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { attachUser, requireRole, requirePermission, logUserActivity } = require('../middleware/auth');
-const { attachPermissions } = require('../middleware/attachPermissions');
+const { authOptimized, authorize } = require('../middleware/authOptimized');
 const User = require('../../models/User');
 const Role = require('../../models/Role');
 const { ROLES } = require('../config/permissions');
 const { getRoleFromGroupCode } = require('../config/role-map');
 const mongoose = require('mongoose'); // Added for debug route
 
-// Middleware: Tất cả routes cần authentication và permissions
-// attachUser tạo req.user, attachPermissions tạo req.user.hasPermission
-router.use(attachUser);
-router.use(attachPermissions);
+// Middleware: Sử dụng authOptimized thay vì attachUser + attachPermissions
+router.use(authOptimized);
 
 /**
  * GET /api/users/debug

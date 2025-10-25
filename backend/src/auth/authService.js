@@ -91,17 +91,28 @@ class AuthService {
       console.warn(`⚠️ User ${user.username} không có role object khi tạo token`);
     }
     
+    // Lấy permissions từ role để embed vào JWT
+    let permissions = [];
+    if (user.role && user.role.getAllPermissions) {
+      permissions = user.role.getAllPermissions();
+    } else if (user.permissions) {
+      permissions = user.permissions;
+    }
+    
     const payload = {
       userId: user._id,
       roleId: user.role?._id || user.role, // Support both ObjectId and string
       username: user.username,
+      permissions: permissions, // Embed permissions vào JWT
+      roleName: user.role?.name || 'USER',
       iat: Math.floor(Date.now() / 1000)
     };
 
     console.log('🔑 Generating token with payload:', { 
       userId: payload.userId, 
       roleId: payload.roleId,
-      username: payload.username 
+      username: payload.username,
+      permissionsCount: permissions.length
     });
 
     return jwt.sign(
@@ -161,18 +172,9 @@ class AuthService {
 
       const { userId } = tokenResult.data;
       
-      // Debug: Kiểm tra userId từ token
-      console.log('🔍 getUserFromToken - userId from token:', {
-        userId,
-        userIdType: typeof userId,
-        userIdLength: userId?.length,
-        isObjectId: /^[0-9a-fA-F]{24}$/.test(userId)
-      });
-      
       // Lấy user từ database với role populated
       const user = await User.findById(userId).populate('role');
 
-      
       if (!user) {
         return {
           success: false,
@@ -203,6 +205,7 @@ class AuthService {
       };
 
     } catch (error) {
+      console.error('❌ getUserFromToken error:', error);
       return {
         success: false,
         error: 'Lỗi xác thực: ' + error.message

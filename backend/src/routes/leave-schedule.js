@@ -3,7 +3,7 @@ const router = express.Router();
 const LeaveSchedule = require('../../models/LeaveSchedule');
 const { authorize } = require('../middleware/authorize');
 const { attachPermissions } = require('../middleware/attachPermissions');
-const { authJWT } = require('../middleware/authJWT');
+const { authJWT } = require('../middleware/authOptimized'); // Import từ authOptimized
 
 // Middleware để kiểm tra quyền
 const requireViewPermission = authorize('leave-schedule', 'view');

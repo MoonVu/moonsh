@@ -4,9 +4,9 @@
 
 const Role = require('../../models/Role');
 
-// Cache cho roles - 60 seconds
+// Cache cho roles - 30 phút thay vì 60 giây
 const roleCache = new Map();
-const CACHE_TTL = 60 * 1000; // 60s
+const CACHE_TTL = 30 * 60 * 1000; // 30 phút
 
 /**
  * Middleware load role và permissions từ database

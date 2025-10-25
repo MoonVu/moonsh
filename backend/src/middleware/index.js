@@ -1,4 +1,4 @@
-const { authJWT } = require('./authJWT');
+const { authJWT } = require('./authOptimized'); // Import từ authOptimized
 const { attachPermissions } = require('./attachPermissions');
 const { authorize, requireAdmin } = require('./authorize');
 

@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { authJWT } = require('../middleware/authJWT');
+const { authJWT } = require('../middleware/authOptimized'); // Import từ authOptimized
 const { attachPermissions } = require('../middleware/attachPermissions');
 const { authorize, can } = require('../middleware/authorize');
 const User = require('../../models/User');

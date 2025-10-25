@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const requestService = require('../../services/requestService');
-const { attachUser } = require('../middleware/auth');
-const { attachPermissions } = require('../middleware/attachPermissions');
-const { authorize } = require('../middleware/authorize');
+const { authOptimized, authorize } = require('../middleware/authOptimized');
 
-// Middleware để kiểm tra quyền truy cập
-const requireAuth = [attachUser, attachPermissions];
+// Middleware để kiểm tra quyền truy cập - chỉ cần authOptimized
+const requireAuth = authOptimized;
 
 // Tạo request mới (user)
 router.post('/', requireAuth, async (req, res) => {

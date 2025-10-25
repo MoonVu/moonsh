@@ -1,15 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const { authJWT } = require('../middleware/authJWT');
-const { attachPermissions } = require('../middleware/attachPermissions');
-const { requireAdmin } = require('../middleware/authorize');
+const { authOptimized, requireAdmin } = require('../middleware/authOptimized');
 const Role = require('../../models/Role');
 const Permission = require('../../models/Permission');
 
-// Use new RBAC middleware for all routes
-router.use(authJWT);
-router.use(attachPermissions);
+// Use optimized auth middleware for all routes
+router.use(authOptimized);
 
 // Chỉ giữ lại constants cần thiết
 const PERMISSIONS = {

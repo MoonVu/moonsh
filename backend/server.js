@@ -121,8 +121,8 @@ const permissionsRoutes = require('./src/routes/permissions');
 const requestsRoutes = require('./src/routes/requests');
 const leaveScheduleRoutes = require('./src/routes/leave-schedule');
 
-// Import new auth middleware
-const { attachUser } = require('./src/middleware/auth');
+// Import optimized auth middleware
+const { authOptimized } = require('./src/middleware/authOptimized');
 
 // Import Telegram Bot
 const { sendBillToGroup } = require('./bot');

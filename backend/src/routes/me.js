@@ -4,20 +4,18 @@
 
 const express = require('express');
 const router = express.Router();
-const { authJWT } = require('../middleware/authJWT');
-const { attachPermissions } = require('../middleware/attachPermissions');
+const { authOptimized } = require('../middleware/authOptimized');
 
 /**
  * GET /api/me
- * Lấy thông tin user hiện tại với role và permissions
+ * Lấy thông tin user hiện tại với role và permissions từ JWT
  */
-router.get('/', authJWT, attachPermissions, (req, res) => {
+router.get('/', authOptimized, (req, res) => {
   try {
     const userInfo = {
       id: req.user.id,
       username: req.user.username,
-      roleName: req.user.role.name,
-      roleDisplayName: req.user.role.displayName,
+      roleName: req.user.roleName,
       permissions: req.user.permissions
     };
 
