@@ -83,6 +83,18 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/Moon';
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  maxPoolSize: 100,        // Tối đa 100 connections
+  minPoolSize: 20,         // Tối thiểu 20 connections
+  maxIdleTimeMS: 30000,   // Đóng connection sau 30s không dùng
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+
+  retryWrites: true,
+  retryReads: true,
+
+  bufferCommands: false,  // Không buffer commands khi disconnected
+
 })
   .then(() => console.log('✅ Kết nối MongoDB thành công'))
   .catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
@@ -1343,6 +1355,9 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
 
         await billRecord.save();
         console.log(`✅ Đã lưu bill record cho ${billId} với ${groupsList.length} nhóm`);
+        
+        // Đảm bảo bill record đã được commit trước khi gửi
+        await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms để đảm bảo DB commit
       } catch (saveError) {
         console.error('❌ Lỗi khi lưu bill record:', saveError);
         // Không throw error vì bill đã gửi thành công
@@ -1534,6 +1549,11 @@ app.post('/api/telegram', async (req, res) => {
 
     if (!billRecord) {
       console.error(`❌ Không tìm thấy bill record cho billId: ${billId}`);
+      
+      // Log thêm thông tin để debug
+      const allBills = await TelegramResponse.find({}, { billId: 1, createdAt: 1 }).sort({ createdAt: -1 }).limit(10);
+      console.log(`🔍 10 bills gần nhất:`, allBills.map(b => ({ billId: b.billId, createdAt: b.createdAt })));
+      
       return res.status(404).json({
         success: false,
         error: 'Không tìm thấy bill record'

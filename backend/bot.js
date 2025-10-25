@@ -322,14 +322,41 @@ bot.on('callback_query', async (callbackQuery) => {
               }
             };
             
-            // Thêm timeout cho API call để tránh bị treo
-            const response = await axios.post(`${BACKEND_URL}/api/telegram`, apiData, {
-              timeout: 10000 // 10 giây timeout
-            });
+            // Retry mechanism chỉ khi lỗi
+            let retryCount = 0;
+            const maxRetries = 3;
+            let success = false;
             
-            console.log(`✅ Đã gửi thành công callback cho bill ${billId} từ chatId ${chatId}`);
-          } catch (apiError) {
-            console.error(`❌ Lỗi gửi dữ liệu về backend cho bill ${billId} từ chatId ${chatId}:`, apiError.message);
+            while (retryCount < maxRetries && !success) {
+              try {
+                const response = await axios.post(`${BACKEND_URL}/api/telegram`, apiData, {
+                  timeout: 10000 // 10 giây timeout
+                });
+                
+                if (retryCount === 0) {
+                  console.log(`✅ Đã gửi thành công callback cho bill ${billId} từ chatId ${chatId}`);
+                } else {
+                  console.log(`✅ Đã gửi thành công callback cho bill ${billId} từ chatId ${chatId} (retry ${retryCount})`);
+                }
+                success = true;
+              } catch (apiError) {
+                retryCount++;
+                console.error(`❌ Lỗi gửi dữ liệu về backend cho bill ${billId} từ chatId ${chatId} (attempt ${retryCount}):`, apiError.message);
+                
+                if (retryCount < maxRetries) {
+                  // Wait before retry: 1s, 2s
+                  const waitTime = retryCount * 1000;
+                  console.log(`⏳ Chờ ${waitTime}s trước khi thử lại...`);
+                  await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+                }
+              }
+            }
+            
+            if (!success) {
+              console.error(`❌ Thất bại sau ${maxRetries} lần thử cho bill ${billId} từ chatId ${chatId}`);
+            }
+          } catch (retryError) {
+            console.error(`❌ Lỗi retry mechanism cho bill ${billId} từ chatId ${chatId}:`, retryError.message);
           }
 
           // Trả lời callback query để tắt loading

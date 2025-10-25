@@ -586,6 +586,16 @@ const TelegramBillSender = () => {
         params.status = searchStatus;
       }
       
+      // Nếu không search theo trạng thái, áp dụng bộ lọc nút Nhận/Chưa nhận
+      if (!searchStatus && responseFilter) {
+        params.status = responseFilter; // 'NHAN' | 'CHUA'
+      }
+
+      // Áp dụng bộ lọc Đã xử lý / Chưa xử lý nếu khác 'ALL'
+      if (processedFilter && processedFilter !== 'ALL') {
+        params.processed = processedFilter; // 'PROCESSED' | 'UNPROCESSED'
+      }
+      
       // Load bills từ API với filters
       const responses = await apiService.getAllTelegramResponses(params);
       
@@ -811,7 +821,7 @@ const TelegramBillSender = () => {
       title: 'Ngày tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date) => <span style={{ whiteSpace: 'nowrap' }}>{new Date(date).toLocaleString('vi-VN')}</span>
+      render: (date) => <span style={{ whiteSpace: 'nowrap' }}>{new Date(date).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</span>
     },
     {
       title: 'Người tạo',
@@ -902,7 +912,7 @@ const TelegramBillSender = () => {
         <div>
           <div style={{ fontWeight: 'bold' }}>{record.createdBy}</div>
           <div style={{ fontSize: '12px', color: '#666' }}>
-            {new Date(record.createdAt).toLocaleString('vi-VN')}
+            {new Date(record.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
           </div>
         </div>
       )
