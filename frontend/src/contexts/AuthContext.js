@@ -169,7 +169,6 @@ export function AuthProvider({ children }) {
         const token = response.data.token;
         localStorage.setItem('token', token);
         localStorage.setItem('authToken', token); // Backup key
-        console.log('💾 Token saved to localStorage:', token ? 'YES' : 'NO');
         
         // QUAN TRỌNG: Update API service token
         try {

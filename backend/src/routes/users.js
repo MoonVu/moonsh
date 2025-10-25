@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { authOptimized, authorize } = require('../middleware/authOptimized');
+const { requirePermission, logUserActivity } = require('../middleware/auth'); // Import các helper functions
 const User = require('../../models/User');
 const Role = require('../../models/Role');
 const { ROLES } = require('../config/permissions');
