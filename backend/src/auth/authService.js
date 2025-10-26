@@ -68,7 +68,7 @@ class AuthService {
         data: {
           user: userInfo,
           token,
-          expiresIn: process.env.JWT_EXPIRE || '24h'
+          expiresIn: process.env.JWT_EXPIRE || '14h'
         }
       };
 
@@ -119,7 +119,7 @@ class AuthService {
       payload,
       process.env.JWT_SECRET || 'Moon-secret-key',
       { 
-        expiresIn: process.env.JWT_EXPIRE || '24h',
+        expiresIn: process.env.JWT_EXPIRE || '14h',
         issuer: 'moonne-backend'
       }
     );

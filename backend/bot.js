@@ -15,16 +15,13 @@ const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 // ==================== CẤU HÌNH QUEUE XỬ LÝ CALLBACK ====================
 // ⚠️ QUAN TRỌNG: Có thể thay đổi số lượng xử lý đồng thời tại đây
 // concurrency: 3 = xử lý 3 callbacks cùng lúc (khuyến nghị cho 20-30 nhóm)
-// concurrency: 4 = xử lý 4 callbacks cùng lúc (nếu muốn nhanh hơn)
-// concurrency: 5 = xử lý 5 callbacks cùng lúc (nhanh nhất, nhưng có thể quá tải)
-// concurrency: 1 = xử lý tuần tự từng callback (chậm nhưng an toàn nhất)
+
 const telegramQueue = new PQueue({
   concurrency: 3,     // ⚠️ CHỈNH TẠI ĐÂY: Số callback xử lý đồng thời (3-4 là tối ưu)
   timeout: 30000,     // Timeout 30 giây cho mỗi callback
   throwOnTimeout: false
 });
 
-console.log('🤖 Telegram Bot đã khởi động');
 console.log(`⚙️  Queue đã được cấu hình: Xử lý ${telegramQueue.concurrency} callbacks đồng thời`);
 
 // ==================== MONITORING QUEUE ====================
@@ -204,7 +201,7 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
   }
 }
 
-// ==================== XỬ LÝ CALLBACK QUERIES (NÚT YES/NO) ====================
+// ==================== XỬ LÝ CALLBACK QUERIES ====================
 // Store để track callback đã xử lý (tránh duplicate)
 const processedCallbacks = new Set();
 

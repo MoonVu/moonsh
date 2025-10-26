@@ -400,7 +400,7 @@ app.post('/api/login', async (req, res) => {
         groupCode: user.groupCode
       },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '14h' }
     );
     res.json({ success: true, data: { message: 'Login successful', token, user } });
   } catch (err) {

@@ -125,8 +125,6 @@ const TelegramBillSender = () => {
 
     // Listen cho telegram response updates
     const handleTelegramResponseUpdate = (data) => {
-      console.log('📡 Received telegram response update:', data);
-      console.log('📡 Updated bill data:', data.updatedBill);
       
       // Cập nhật bills state
       setBills(prevBills => {
@@ -169,7 +167,6 @@ const TelegramBillSender = () => {
           return bill;
         });
         
-        console.log('📡 Updated bills:', updatedBills);
         return updatedBills;
       });
 
@@ -1136,7 +1133,7 @@ const TelegramBillSender = () => {
           message="Hế lu"
           description={
             <div>
-              <p> <strong>Đây là bản thử nghiệm nên nếu mọi người cần cập nhật gì thêm cứ nói cho Moon nha. Khung giờ làm việc của BOT: giống giờ Moon đi làm.</strong> </p>
+              <p> <strong>Đây là bản thử nghiệm nên nếu mọi người cần cập nhật gì thêm cứ nói cho Moon nha.</strong> </p>
             </div>
           }
           type="info"

@@ -5,6 +5,8 @@
  */
 
 const jwt = require('jsonwebtoken');
+const User = require('../../models/User');
+const Role = require('../../models/Role');
 
 /**
  * Middleware tối ưu: Chỉ verify JWT và extract permissions
@@ -30,28 +32,83 @@ const authOptimized = async (req, res, next) => {
       // Verify JWT và lấy permissions từ token
       const decoded = jwt.verify(token, JWT_SECRET);
       
-      // Attach user info từ JWT (không cần query DB)
-      // Tương thích với cả JWT có permissions và JWT cũ
-      req.user = {
-        id: decoded.userId,
-        roleId: decoded.roleId,
-        username: decoded.username,
-        roleName: decoded.roleName || 'USER', // Fallback cho JWT cũ
-        permissions: decoded.permissions || [], // Permissions từ JWT (có thể empty)
-        hasPermission: (resource, action) => {
-          const requiredPermission = `${resource}.${action}`;
-          return decoded.permissions && decoded.permissions.includes(requiredPermission);
+      // Kiểm tra xem JWT có đủ thông tin không
+      const hasRoleInfo = decoded.roleName && decoded.permissions && decoded.permissions.length > 0;
+      
+      if (hasRoleInfo) {
+        // JWT có đủ thông tin - sử dụng trực tiếp (optimized path)
+        req.user = {
+          id: decoded.userId,
+          roleId: decoded.roleId,
+          username: decoded.username,
+          roleName: decoded.roleName,
+          permissions: decoded.permissions,
+          // Thêm role object để tương thích với requirePermission middleware
+          role: {
+            name: decoded.roleName,
+            _id: decoded.roleId
+          },
+          hasPermission: (resource, action) => {
+            const requiredPermission = `${resource}.${action}`;
+            return decoded.permissions.includes(requiredPermission);
+          }
+        };
+        
+        console.log('✅ JWT verified (optimized):', { 
+          id: req.user.id, 
+          roleName: req.user.roleName,
+          permissionsCount: req.user.permissions.length
+        });
+        
+        next();
+      } else {
+        // JWT thiếu thông tin - query database (fallback path)
+        console.log('⚠️ JWT thiếu role info, querying database...');
+        
+        const userId = decoded.userId || decoded._id;
+        const user = await User.findById(userId).populate('role');
+        
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'User không tồn tại'
+          });
         }
-      };
-      
-      console.log('✅ JWT verified (optimized):', { 
-        id: req.user.id, 
-        roleName: req.user.roleName,
-        permissionsCount: req.user.permissions.length,
-        hasPermissions: req.user.permissions.length > 0
-      });
-      
-      next();
+        
+        if (!user.role) {
+          return res.status(403).json({
+            success: false,
+            error: 'User không có role'
+          });
+        }
+        
+        // Lấy permissions từ role
+        const permissions = user.role.getAllPermissions ? user.role.getAllPermissions() : [];
+        
+        req.user = {
+          id: user._id,
+          roleId: user.role._id,
+          username: user.username,
+          roleName: user.role.name,
+          permissions: permissions,
+          role: {
+            name: user.role.name,
+            _id: user.role._id
+          },
+          hasPermission: (resource, action) => {
+            const requiredPermission = `${resource}.${action}`;
+            return permissions.includes(requiredPermission);
+          }
+        };
+        
+        console.log('✅ JWT verified (fallback):', { 
+          id: req.user.id, 
+          roleName: req.user.roleName,
+          permissionsCount: req.user.permissions.length
+        });
+        
+        next();
+      }
       
     } catch (jwtError) {
       console.log('❌ JWT verification failed:', jwtError.message);
