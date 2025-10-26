@@ -1778,6 +1778,51 @@ app.get('/api/telegram/responses', authenticateToken, async (req, res) => {
   }
 });
 
+// Import BillConversation model (nested structure)
+const BillConversation = require('./models/BillConversation');
+
+// API để lấy tin nhắn reply của 1 group cho 1 bill
+app.get('/api/group-messages/bill/:billId/chat/:chatId', authenticateToken, async (req, res) => {
+  try {
+    const { billId, chatId } = req.params;
+    
+    // Tìm BillConversation document
+    const billConversation = await BillConversation.findOne({ billId: billId });
+    
+    if (!billConversation) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
+    // Tìm group theo chatId
+    const group = billConversation.groups.find(g => g.chatId === parseInt(chatId));
+    
+    if (!group) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
+    // Trả về mảng messages đã được sort theo timestamp
+    const messages = group.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    res.json({
+      success: true,
+      data: messages
+    });
+    
+  } catch (error) {
+    console.error('❌ Lỗi API get group messages:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // ==================== USER POSITION API ====================
 
 // Lưu vị trí làm việc của user

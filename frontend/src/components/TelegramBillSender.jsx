@@ -36,7 +36,10 @@ import {
   EditOutlined,
   TeamOutlined,
   FileTextOutlined,
-  ZoomInOutlined
+  ZoomInOutlined,
+  EyeOutlined,
+  EyeTwoTone,
+  EyeFilled
 } from '@ant-design/icons';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -107,6 +110,11 @@ const TelegramBillSender = () => {
   // State để force re-render danh sách nhóm
   const [selectedGroupType, setSelectedGroupType] = useState(null);
   
+  // State cho Modal xem tin nhắn group
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [groupMessages, setGroupMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [modalGroupInfo, setModalGroupInfo] = useState({ billId: '', groupName: '', chatId: '' });
 
   // Load groups và bills khi component mount
   useEffect(() => {
@@ -725,6 +733,33 @@ const TelegramBillSender = () => {
     }
   };
 
+  // Function để mở Modal và load tin nhắn của group
+  const handleShowMessages = async (billId, groupName, chatId) => {
+    setModalGroupInfo({ billId, groupName, chatId });
+    setShowMessageModal(true);
+    setLoadingMessages(true);
+    
+    try {
+      const response = await apiService.getGroupMessages(billId, chatId);
+      if (response.success) {
+        setGroupMessages(response.data || []);
+      }
+    } catch (error) {
+      console.error('Lỗi load tin nhắn:', error);
+      message.error('Không thể tải tin nhắn');
+      setGroupMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // Function để đóng Modal
+  const handleCloseMessageModal = () => {
+    setShowMessageModal(false);
+    setGroupMessages([]);
+    setModalGroupInfo({ billId: '', groupName: '', chatId: '' });
+  };
+
   // Function để xử lý trạng thái "Chọn nhầm"
   const handleMistakenStatus = async () => {
     if (!selectedResponse || !selectedBill) {
@@ -978,7 +1013,17 @@ const TelegramBillSender = () => {
           <div>
             {displayedGroups.map((group, index) => (
               <Tag key={index} color="default" style={{ margin: '2px', display: 'block' }}>
-                {group.groupName || 'Unknown Group'}
+                <Space>
+                  <EyeTwoTone 
+                    twoToneColor="#1890ff"
+                    style={{ cursor: 'pointer', fontSize: '16px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowMessages(record.billId, group.groupName || 'Unknown Group', group.chatId);
+                    }}
+                  />
+                  {group.groupName || 'Unknown Group'}
+                </Space>
               </Tag>
             ))}
             {hasMore && !showAllSent && (
@@ -1067,7 +1112,7 @@ const TelegramBillSender = () => {
               
 
               
-              text = `${statusInfo.emoji} ${gr.groupName} - ${displayText}`;
+              const textWithEmoji = `${statusInfo.emoji} ${gr.groupName} - ${displayText}`;
               
               // Kiểm tra xem có thể click không (chỉ cho phép click khi chưa xử lý)
               const isClickable = statusInfo.clickable && (gr.status === 'CHUA' || gr.status === 'NHAN');
@@ -1089,7 +1134,17 @@ const TelegramBillSender = () => {
                   }}
                   onClick={isClickable ? () => handleStatusClick(gr, record) : undefined}
                 >
-                  {text}
+                  <Space>
+                    <EyeTwoTone 
+                      twoToneColor="#1890ff"
+                      style={{ cursor: 'pointer', fontSize: '16px' }}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Ngăn không cho trigger onClick của Tag
+                        handleShowMessages(record.billId, gr.groupName, gr.chatId);
+                      }}
+                    />
+                    {textWithEmoji}
+                  </Space>
                 </Tag>
               );
             })}
@@ -1688,6 +1743,57 @@ const TelegramBillSender = () => {
                 showIcon
               />
             </div>
+          )}
+        </Modal>
+
+        {/* Modal hiển thị tin nhắn của group */}
+        <Modal
+          title={
+            <Space>
+              <EyeOutlined />
+              <span>Tin nhắn từ {modalGroupInfo.groupName}</span>
+            </Space>
+          }
+          open={showMessageModal}
+          onCancel={handleCloseMessageModal}
+          footer={null}
+          width={600}
+        >
+          {loadingMessages ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <Spin size="large" />
+            </div>
+          ) : groupMessages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+              <InfoCircleOutlined style={{ fontSize: '24px', marginBottom: '10px' }} />
+              <p>Chưa có tin nhắn nào</p>
+            </div>
+          ) : (
+            <List
+              dataSource={groupMessages}
+              renderItem={(msg) => {
+                const userName = `${msg.from?.firstName || ''} ${msg.from?.lastName || ''}`.trim() || 'Unknown';
+                const timeStr = new Date(msg.timestamp).toLocaleString('vi-VN', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+                
+                return (
+                  <List.Item>
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <Space>
+                        <Text strong>{userName}</Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>{timeStr}</Text>
+                      </Space>
+                      <Text>{msg.text || '(Không có nội dung)'}</Text>
+                    </Space>
+                  </List.Item>
+                );
+              }}
+            />
           )}
         </Modal>
       </Card>

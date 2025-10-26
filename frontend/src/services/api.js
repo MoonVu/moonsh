@@ -892,6 +892,11 @@ class ApiService {
     });
   }
 
+  // Lấy tin nhắn reply của 1 group cho 1 bill
+  async getGroupMessages(billId, chatId) {
+    return await this.request(`/group-messages/bill/${billId}/chat/${chatId}`);
+  }
+
   // ==================== OTHER API METHODS ====================
 }
 

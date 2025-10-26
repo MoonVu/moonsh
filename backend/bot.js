@@ -1,6 +1,8 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const { default: PQueue } = require('p-queue');
+const mongoose = require('mongoose');
+const BillConversation = require('./models/BillConversation');
 
 // ==================== CẤU HÌNH BOT ====================
 // ⚠️ THAY ĐỔI CÁC THÔNG TIN SAU:
@@ -198,6 +200,96 @@ Vui lòng chọn câu trả lời/请选择一个答案:`;
       error: error.message,
       results: []
     };
+  }
+}
+
+// ==================== HÀM XỬ LÝ TIN NHẮN REPLY ====================
+/**
+ * Extract billId từ caption (format: "CHECK HÓA ĐƠN MẤY NÍ ƠI\n\n📄 Mã đơn: SH_26102025_5414\n...")
+ */
+function extractBillId(caption) {
+  if (!caption) return null;
+  
+  const match = caption.match(/📄\s*<b>Mã đơn:<\/b>\s*([^\n]+)/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  
+  // Fallback: tìm pattern SH_...
+  const patternMatch = caption.match(/\b(SH_\d{8}_\d+)\b/);
+  return patternMatch ? patternMatch[1] : null;
+}
+
+/**
+ * Lưu tin nhắn reply vào database (nested structure)
+ */
+async function saveGroupMessage(msg) {
+  try {
+    const replyTo = msg.reply_to_message;
+    
+    if (!replyTo) return;
+    
+    // Extract billId từ caption của tin nhắn được reply
+    const caption = replyTo.caption || '';
+    const billId = extractBillId(caption);
+    
+    if (!billId) {
+      console.log('⚠️  Không extract được billId từ caption:', caption.substring(0, 100));
+      return;
+    }
+    
+    const groupName = msg.chat.title || `Group ${msg.chat.id}`;
+    const chatId = msg.chat.id;
+    const from = msg.from;
+    
+    // Tạo object tin nhắn mới
+    const newMessage = {
+      messageId: msg.message_id,
+      replyToMessageId: replyTo.message_id,
+      text: msg.text || msg.caption || '',
+      from: {
+        id: from.id,
+        firstName: from.first_name,
+        lastName: from.last_name,
+        username: from.username
+      },
+      timestamp: new Date(msg.date * 1000)
+    };
+    
+    // Tìm hoặc tạo BillConversation document
+    let billConversation = await BillConversation.findOne({ billId: billId });
+    
+    if (!billConversation) {
+      // Tạo document mới nếu chưa có
+      billConversation = new BillConversation({ billId: billId, groups: [] });
+    }
+    
+    // Tìm group trong mảng groups
+    let groupIndex = billConversation.groups.findIndex(g => g.chatId === chatId);
+    
+    if (groupIndex === -1) {
+      // Thêm group mới nếu chưa có
+      billConversation.groups.push({
+        chatId: chatId,
+        groupName: groupName,
+        messages: []
+      });
+      groupIndex = billConversation.groups.length - 1;
+    }
+    
+    // Push tin nhắn mới vào mảng messages của group
+    billConversation.groups[groupIndex].messages.push(newMessage);
+    
+    // Update timestamp
+    billConversation.updatedAt = new Date();
+    
+    // Lưu document
+    await billConversation.save();
+    
+    console.log(`📩 Đã lưu tin nhắn từ ${groupName} cho bill ${billId}`);
+    
+  } catch (error) {
+    console.error('❌ Lỗi lưu tin nhắn reply:', error.message);
   }
 }
 
@@ -436,7 +528,16 @@ bot.on('message', (msg) => {
 
   // Chỉ xử lý tin nhắn trong group/supergroup (không xử lý private chat)
   if (chatType === 'group' || chatType === 'supergroup') {
-    // Chỉ xử lý lệnh /help, bỏ qua các tin nhắn khác để tránh spam log
+    
+    // Xử lý tin nhắn reply cho bot
+    if (msg.reply_to_message && msg.reply_to_message.from.is_bot) {
+      // Đẩy vào queue để xử lý lưu tin nhắn
+      telegramQueue.add(async () => {
+        await saveGroupMessage(msg);
+      });
+    }
+    
+    // Xử lý lệnh /help
     if (text && text.toLowerCase().includes('/help')) {
       console.log(`💬 /help từ ${msg.from.first_name} trong group ${msg.chat.title || chatId}`);
       bot.sendMessage(chatId, 
