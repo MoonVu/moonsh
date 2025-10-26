@@ -101,7 +101,7 @@ async function sendBillToGroup(billId, imagePath, caption = '', groupType = 'SHB
 👤 <b>Người gửi:</b> ${escapeHtml(employee)}
 📝 <b>Ghi chú nội dung:</b> ${escapeHtml(note)}
 
-❓ Vui lòng chọn câu trả lời:`;
+Vui lòng chọn câu trả lời/请选择一个答案:`;
     
     // Tạo inline keyboard với 4 lựa chọn
     const keyboard = {
@@ -276,14 +276,8 @@ bot.on('callback_query', async (callbackQuery) => {
           // Log để debug
           console.log(`🔄 Đang xử lý callback cho bill ${billId} từ chatId ${chatId}, response: ${responseInfo.text}`);
           
-          // Trả lời trong group
+          // Lấy thông tin user
           const userName = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
-          const replyText = `${responseInfo.emoji} <b>${userName}</b>: <b>${responseInfo.text}</b>`;
-          
-          await bot.sendMessage(chatId, replyText, { 
-            parse_mode: 'HTML',
-            reply_to_message_id: messageId 
-          });
 
           // Gửi dữ liệu về API backend
           try {
@@ -362,15 +356,37 @@ bot.on('callback_query', async (callbackQuery) => {
             show_alert: false
           });
 
-          // Ẩn các nút Yes/No để tránh bấm lại
+          // Edit tin nhắn để hiển thị câu trả lời được chọn và ẩn inline keyboard
           try {
-            await bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
-              chat_id: chatId,
-              message_id: messageId
-            });
+            const userName = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
+            const originalCaption = callbackQuery.message.caption || '';
+            
+            // Tạo caption mới: giữ caption gốc + thêm thông tin đã chọn
+            const newCaption = `${originalCaption}\n\n${responseInfo.emoji} <b>Chiến thần ${userName} đã chọn:</b> ${responseInfo.text}`;
+            
+            // Check xem tin nhắn có ảnh không
+            if (callbackQuery.message.photo) {
+
+              // Nếu là tin nhắn có ảnh, dùng editMessageCaption
+              await bot.editMessageCaption(newCaption, {
+                chat_id: chatId,
+                message_id: messageId,
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: [] } // Xóa nút
+              });
+            } else {
+              // Nếu là tin nhắn text bình thường, dùng editMessageText
+              await bot.editMessageText(newCaption, {
+                chat_id: chatId,
+                message_id: messageId,
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: [] } // Xóa nút
+              });
+            }
+            
           } catch (e) {
-            // Nếu là ảnh/caption, editMessageReplyMarkup vẫn áp dụng được; 
-            // nhưng nếu có lỗi thì bỏ qua để không chặn luồng chính
+            console.error(`Không thể ẩn inline keyboard cho message ${messageId}:`, e.message);
+            // Nếu có lỗi, bỏ qua để không chặn luồng chính
           }
         }
       }
