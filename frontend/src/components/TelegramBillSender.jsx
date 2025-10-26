@@ -1062,8 +1062,8 @@ const TelegramBillSender = () => {
         
         // Sort groups: YES > NHAN > NHAN_PROCESSED > CHUA_PROCESSED > HETHONG > CHUA > KHONG > NO > PENDING
         const sortedGroups = [...groupResponses].sort((a, b) => {
-          const order = { 'YES': 1, 'NHAN': 2, 'NHAN_PROCESSED': 3, 'CHUA_PROCESSED': 4, 'HETHONG': 5, 'CHUA': 6, 'KHONG': 7, 'NO': 8, 'PENDING': 9 };
-          return (order[a.status] || 9) - (order[b.status] || 9);
+          const order = { 'YES': 1, 'NHAN': 2, 'NHAN_PROCESSED': 3, 'NHAN_MISTAKEN': 4,'CHUA_MISTAKEN': 5,'CHUA_PROCESSED': 6, 'HETHONG': 7, 'CHUA': 8, 'KHONG': 9, 'NO': 10, 'PENDING': 11 };
+          return (order[a.status] || 11) - (order[b.status] || 11);
         });
         
         if (sortedGroups.length === 0) {

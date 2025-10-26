@@ -6,7 +6,7 @@ const BillConversation = require('./models/BillConversation');
 
 // ==================== CẤU HÌNH BOT ====================
 // ⚠️ THAY ĐỔI CÁC THÔNG TIN SAU:
-const BOT_TOKEN = "8026142464:AAG5_HhcvRNQ9iodYJn9T-5-0PrJ9cfCcg0";  // Thay bằng token từ BotFather
+const BOT_TOKEN = "8026142464:AAG5_HhcvRNQ9iodYJn9T-5-0PrJ9cfCcg0";  // Thay bằng token từ BotFather 8026142464:AAG5_HhcvRNQ9iodYJn9T-5-0PrJ9cfCcg0
 
 // URL backend API
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
@@ -15,22 +15,30 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 // ==================== CẤU HÌNH QUEUE XỬ LÝ CALLBACK ====================
-// ⚠️ QUAN TRỌNG: Có thể thay đổi số lượng xử lý đồng thời tại đây
-// concurrency: 3 = xử lý 3 callbacks cùng lúc (khuyến nghị cho 20-30 nhóm)
+// ⚠️ QUAN TRỌNG: Tách queue để xử lý hiệu quả hơn
 
-const telegramQueue = new PQueue({
-  concurrency: 3,     // ⚠️ CHỈNH TẠI ĐÂY: Số callback xử lý đồng thời (3-4 là tối ưu)
-  timeout: 30000,     // Timeout 30 giây cho mỗi callback
+// Queue cho inline keyboard callbacks (ưu tiên nhanh)
+const inlineQueue = new PQueue({
+  concurrency: 3,     // Xử lý inline callbacks nhanh
+  timeout: 30000,
   throwOnTimeout: false
 });
 
-console.log(`⚙️  Queue đã được cấu hình: Xử lý ${telegramQueue.concurrency} callbacks đồng thời`);
+// Queue cho reply messages (có thể xử lý nhiều hơn)
+const replyQueue = new PQueue({
+  concurrency: 10,    // Xử lý 10 reply đồng thời (vì chỉ lưu DB)
+  timeout: 30000,
+  throwOnTimeout: false
+});
+
+console.log(`⚙️  Inline Queue: ${inlineQueue.concurrency} tasks đồng thời`);
+console.log(`⚙️  Reply Queue: ${replyQueue.concurrency} tasks đồng thời`);
 
 // ==================== MONITORING QUEUE ====================
 // Theo dõi queue để đảm bảo không bị stuck
 setInterval(() => {
-  if (telegramQueue.size > 0 || telegramQueue.pending > 0) {
-    console.log(`📊 Queue Status: ${telegramQueue.size} đang chờ, ${telegramQueue.pending} đang xử lý`);
+  if (inlineQueue.size > 0 || inlineQueue.pending > 0 || replyQueue.size > 0 || replyQueue.pending > 0) {
+    console.log(`📊 Queue Status - Inline: ${inlineQueue.size} chờ, ${inlineQueue.pending} xử lý | Reply: ${replyQueue.size} chờ, ${replyQueue.pending} xử lý`);
   }
 }, 10000); // Log mỗi 10 giây
 
@@ -210,14 +218,31 @@ Vui lòng chọn câu trả lời/请选择一个答案:`;
 function extractBillId(caption) {
   if (!caption) return null;
   
-  const match = caption.match(/📄\s*<b>Mã đơn:<\/b>\s*([^\n]+)/);
+  // Pattern 1: HTML format "📄 <b>Mã đơn:</b> SH_26102025_5414"
+  let match = caption.match(/📄\s*<b>Mã đơn:<\/b>\s*([^\n]+)/);
   if (match && match[1]) {
     return match[1].trim();
   }
   
-  // Fallback: tìm pattern SH_...
-  const patternMatch = caption.match(/\b(SH_\d{8}_\d+)\b/);
-  return patternMatch ? patternMatch[1] : null;
+  // Pattern 2: Plain text "📄 Mã đơn: SH_26102025_5414"
+  match = caption.match(/📄\s*Mã đơn:\s*([^\n]+)/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  
+  // Pattern 3: Just bill ID pattern SH_DATE_NUM
+  match = caption.match(/\b(SH_\d{8}_\d+)\b/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Pattern 4: F8_, SH_, etc.
+  match = caption.match(/\b([A-Z]\d+_\d{8}_\d+)\b/);
+  if (match) {
+    return match[1];
+  }
+  
+  return null;
 }
 
 /**
@@ -225,13 +250,21 @@ function extractBillId(caption) {
  */
 async function saveGroupMessage(msg) {
   try {
+    console.log(`📩 [saveGroupMessage] Bắt đầu xử lý reply message từ ${msg.chat.title || msg.chat.id}`);
+    
     const replyTo = msg.reply_to_message;
     
-    if (!replyTo) return;
+    if (!replyTo) {
+      console.log('⚠️  Không có reply_to_message');
+      return;
+    }
     
     // Extract billId từ caption của tin nhắn được reply
     const caption = replyTo.caption || '';
+    console.log(`📋 Caption đầu tiên:`, caption.substring(0, 150));
+    
     const billId = extractBillId(caption);
+    console.log(`🔍 Extracted billId:`, billId);
     
     if (!billId) {
       console.log('⚠️  Không extract được billId từ caption:', caption.substring(0, 100));
@@ -321,7 +354,7 @@ bot.on('callback_query', async (callbackQuery) => {
   // ⚡ ĐẨY VÀO QUEUE ĐỂ XỬ LÝ TUẦN TỰ/SONG SONG TỐI ƯU
   // Queue sẽ tự động quản lý số lượng callbacks xử lý đồng thời
   // để tránh quá tải server và đảm bảo không mất dữ liệu
-  telegramQueue.add(async () => {
+  inlineQueue.add(async () => {
     const data = callbackQuery.data;
     const chatId = callbackQuery.message.chat.id;
     const messageId = callbackQuery.message.message_id;
@@ -448,34 +481,63 @@ bot.on('callback_query', async (callbackQuery) => {
             show_alert: false
           });
 
-          // Edit tin nhắn để hiển thị câu trả lời được chọn và ẩn inline keyboard
+          // Edit caption để hiển thị đã chọn + ẩn inline keyboard
           try {
             const userName = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
             const originalCaption = callbackQuery.message.caption || '';
             
-            // Tạo caption mới: giữ caption gốc + thêm thông tin đã chọn
-            const newCaption = `${originalCaption}\n\n${responseInfo.emoji} <b>Chiến thần ${userName} đã chọn:</b> ${responseInfo.text}`;
+            // Strip HTML tags từ caption gốc
+            const stripHtmlTags = (html) => {
+              if (!html) return '';
+              return html.replace(/<[^>]*>/g, '')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .trim();
+            };
+            
+            // Tạo caption mới với plain text (không HTML) để tránh mọi lỗi
+            const plainOriginal = stripHtmlTags(originalCaption);
+            const newCaption = `${plainOriginal}\n\n${responseInfo.emoji} Chiến thần ${userName} đã chọn: ${responseInfo.text}`;
             
             // Check xem tin nhắn có ảnh không
             if (callbackQuery.message.photo) {
-
-              // Nếu là tin nhắn có ảnh, dùng editMessageCaption
-              await bot.editMessageCaption(newCaption, {
-                chat_id: chatId,
-                message_id: messageId,
-                parse_mode: 'HTML',
-                reply_markup: { inline_keyboard: [] } // Xóa nút
-              });
+              try {
+                // Thử edit caption với plain text
+                await bot.editMessageCaption(newCaption, {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  reply_markup: { inline_keyboard: [] }
+                });
+              } catch (e) {
+                // Nếu lỗi, chỉ xóa keyboard thôi
+                console.log('⚠️  Không edit được caption, chỉ xóa keyboard:', e.message);
+                await bot.editMessageReplyMarkup({
+                  chat_id: chatId,
+                  message_id: messageId,
+                  reply_markup: { inline_keyboard: [] }
+                });
+              }
             } else {
-              // Nếu là tin nhắn text bình thường, dùng editMessageText
-              await bot.editMessageText(newCaption, {
-                chat_id: chatId,
-                message_id: messageId,
-                parse_mode: 'HTML',
-                reply_markup: { inline_keyboard: [] } // Xóa nút
-              });
+              try {
+                // Với text message, edit text
+                await bot.editMessageText(newCaption, {
+                  chat_id: chatId,
+                  message_id: messageId,
+                  reply_markup: { inline_keyboard: [] }
+                });
+              } catch (e) {
+                // Nếu lỗi, chỉ xóa keyboard thôi
+                console.log('⚠️  Không edit được text, chỉ xóa keyboard:', e.message);
+                await bot.editMessageReplyMarkup({
+                  chat_id: chatId,
+                  message_id: messageId,
+                  reply_markup: { inline_keyboard: [] }
+                });
+              }
             }
-            
           } catch (e) {
             console.error(`Không thể ẩn inline keyboard cho message ${messageId}:`, e.message);
             // Nếu có lỗi, bỏ qua để không chặn luồng chính
@@ -504,10 +566,10 @@ bot.on('callback_query', async (callbackQuery) => {
   });
 
   // Log queue status chi tiết để debug
-  console.log(`📥 Nhận callback ${callbackId}, Queue hiện có ${telegramQueue.size} đang chờ, ${telegramQueue.pending} đang xử lý`);
+  console.log(`📥 Nhận callback ${callbackId}, Inline Queue: ${inlineQueue.size} chờ, ${inlineQueue.pending} xử lý`);
   
-  if (telegramQueue.size > 5) {
-    console.log(`⚠️  Queue có nhiều callbacks: ${telegramQueue.size} đang chờ, ${telegramQueue.pending} đang xử lý`);
+  if (inlineQueue.size > 5) {
+    console.log(`⚠️  Inline Queue có nhiều callbacks: ${inlineQueue.size} đang chờ, ${inlineQueue.pending} đang xử lý`);
   }
 });
 
@@ -531,8 +593,9 @@ bot.on('message', (msg) => {
     
     // Xử lý tin nhắn reply cho bot
     if (msg.reply_to_message && msg.reply_to_message.from.is_bot) {
-      // Đẩy vào queue để xử lý lưu tin nhắn
-      telegramQueue.add(async () => {
+      console.log(`📩 Nhận reply message từ ${msg.chat.title || chatId}`);
+      // Đẩy vào replyQueue để xử lý lưu tin nhắn (10 concurrent, nhanh hơn)
+      replyQueue.add(async () => {
         await saveGroupMessage(msg);
       });
     }
