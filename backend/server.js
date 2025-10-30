@@ -1322,7 +1322,9 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
         const groupMap = {};
         allTelegramGroups.forEach(parent => {
           (parent.subGroups || []).forEach(sub => {
-            groupMap[sub.telegramId] = {
+            // Convert telegramId to Number để match với groupResult.chatId
+            const key = typeof sub.telegramId === 'string' ? parseInt(sub.telegramId, 10) : sub.telegramId;
+            groupMap[key] = {
               name: sub.name,
               type: parent.type
             };
@@ -1333,10 +1335,10 @@ app.post('/api/sendBill', authenticateToken, upload.single('image'), async (req,
         const groupsList = successfulResults.map(groupResult => {
           const groupInfo = groupMap[groupResult.chatId] || { name: groupResult.groupName, type: groupType };
           return {
-            chatId: groupResult.chatId,
+            chatId: Number(groupResult.chatId), // Ensure it's a Number
             messageId: groupResult.messageId,
             groupName: groupInfo.name || groupResult.groupName || 'Unknown Group',
-            groupTelegramId: groupResult.chatId,
+            groupTelegramId: Number(groupResult.chatId), // Ensure it's a Number
             status: 'PENDING'
           };
         });

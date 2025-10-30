@@ -26,7 +26,7 @@ const inlineQueue = new PQueue({
 
 // Queue cho reply messages (có thể xử lý nhiều hơn)
 const replyQueue = new PQueue({
-  concurrency: 10,    // Xử lý 10 reply đồng thời (vì chỉ lưu DB)
+  concurrency: 7,    // Xử lý 10 reply đồng thời (vì chỉ lưu DB)
   timeout: 30000,
   throwOnTimeout: false
 });
@@ -153,22 +153,31 @@ Vui lòng chọn câu trả lời/请选择一个答案:`;
     
     const sendPromises = groupsToSend.map(async (subGroup) => {
       try {
-        const message = await bot.sendPhoto(subGroup.telegramId, imagePath, {
+        // Convert telegramId to Number vì bot API cần Number
+        const chatId = typeof subGroup.telegramId === 'string' 
+          ? parseInt(subGroup.telegramId, 10) 
+          : subGroup.telegramId;
+        
+        if (!chatId || isNaN(chatId)) {
+          throw new Error(`Invalid telegramId: ${subGroup.telegramId}`);
+        }
+        
+        const message = await bot.sendPhoto(chatId, imagePath, {
           caption: billCaption,
           parse_mode: 'HTML',
           ...keyboard
         });
 
         return {
-          chatId: subGroup.telegramId,
+          chatId: chatId, // Return Number chatId, not telegramId string
           groupName: subGroup.name,
           messageId: message.message_id,
           success: true
         };
       } catch (error) {
-        console.error(`❌ Lỗi gửi đến ${subGroup.name}:`, error.message);
+        console.error(`❌ Lỗi gửi đến ${subGroup.name} (chatId: ${chatId}):`, error.message);
         return {
-          chatId: subGroup.telegramId,
+          chatId: chatId, // Return Number chatId
           groupName: subGroup.name,
           success: false,
           error: error.message
